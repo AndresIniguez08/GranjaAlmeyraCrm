@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Granja Almeyra</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23F4C430'/><circle cx='50' cy='50' r='30' fill='%23FFD700'/><text x='50' y='60' text-anchor='middle' font-family='Arial' font-size='40' font-weight='bold' fill='%23000'>G</text></svg>">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    
+    <!-- CSS personalizado -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Pantalla de Login -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 100 100" class="logo-svg">
+                            <circle cx="50" cy="50" r="35" fill="#F4C430" stroke="#2D2D2D" stroke-width="3"/>
+                            <ellipse cx="45" cy="45" rx="20" ry="25" fill="#FFD700"/>
+                            <ellipse cx="42" cy="42" rx="12" ry="15" fill="#FFF"/>
+                        </svg>
+                    </div>
+                    <div class="logo-text">
+                        <h1>Granja Almeyra</h1>
+                        <p class="slogan">El origen de los mejores huevos</p>
+                    </div>
+                </div>
+                <p class="login-subtitle">Accede a tu sistema comercial</p>
+            </div>
+            
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="username">Usuario</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <button type="submit" class="login-btn">Iniciar Sesión</button>
+                
+                <div id="login-error" class="error-message" style="display: none;">
+                    Usuario o contraseña incorrectos
+                </div>
+            </form>
+            
+            <div class="login-info">
+                <h3>Usuarios de prueba:</h3>
+                <p><strong>admin</strong> / admin123</p>
+                <p><strong>vendedor1</strong> / venta123</p>
+                <p><strong>vendedor2</strong> / venta123</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aplicación Principal -->
+    <div id="app-screen" class="container" style="display: none;">
+        <div class="header">
+            <div class="header-content">
+                <div class="header-logo">
+                    <div class="logo-icon-small">
+                        <svg viewBox="0 0 100 100" class="logo-svg-small">
+                            <circle cx="50" cy="50" r="35" fill="#F4C430" stroke="#FFF" stroke-width="2"/>
+                            <ellipse cx="45" cy="45" rx="20" ry="25" fill="#FFD700"/>
+                            <ellipse cx="42" cy="42" rx="12" ry="15" fill="#FFF"/>
+                        </svg>
+                    </div>
+                    <div class="header-text">
+                        <h1>CRM Granja Almeyra</h1>
+                        <span class="header-slogan">El origen de los mejores huevos</span>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <span>Bienvenido, <strong id="current-user"></strong></span>
+                    <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+                </div>
+            </div>
+            <div class="nav">
+                <button class="nav-btn active" onclick="showSection('dashboard')">Dashboard</button>
+                <button class="nav-btn" onclick="showSection('form-contact')">Registrar Contacto</button>
+                <button class="nav-btn" onclick="showSection('list-contacts')">Ver Contactos</button>
+                <button class="nav-btn" onclick="showSection('form-client')">Registrar Cliente</button>
+                <button class="nav-btn" onclick="showSection('list-clients')">Ver Clientes</button>
+                <button class="nav-btn" onclick="showSection('map')">Mapa</button>
+                <button class="nav-btn" onclick="showSection('reports')">Informes</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="section active">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Dashboard General</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-contacts">0</div>
+                        <div class="stat-label">Total Contactos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-sales">0</div>
+                        <div class="stat-label">Ventas Realizadas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-referrals">0</div>
+                        <div class="stat-label">Derivaciones</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="conversion-rate">0%</div>
+                        <div class="stat-label">Tasa de Conversión</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-clients">0</div>
+                        <div class="stat-label">Clientes Registrados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="active-clients">0</div>
+                        <div class="stat-label">Clientes Activos</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Form Section -->
+            <div id="form-contact" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Registrar Nuevo Contacto</h2>
+                
+                <div class="success-message" id="contact-success-message">
+                    ¡Contacto registrado exitosamente!
+                </div>
+
+                <form id="contact-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="fecha">Fecha de Contacto</label>
+                            <input type="date" id="fecha" name="fecha" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="vendedor">Vendedor</label>
+                            <select id="vendedor" name="vendedor" required>
+                                <option value="">Seleccionar vendedor</option>
+                                <option value="Juan Pérez">Juan Pérez</option>
+                                <option value="María García">María García</option>
+                                <option value="Carlos López">Carlos López</option>
+                                <option value="Ana Martínez">Ana Martínez</option>
+                                <option value="Luis Rodríguez">Luis Rodríguez</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="cliente">Nombre del Cliente</label>
+                            <input type="text" id="cliente" name="cliente" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="empresa">Empresa</label>
+                            <input type="text" id="empresa" name="empresa">
+                        </div>
+                        <div class="form-group">
+                            <label for="telefono">Teléfono</label>
+                            <input type="tel" id="telefono" name="telefono">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="producto">Producto Solicitado</label>
+                            <input type="text" id="producto" name="producto" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="estado">Estado</label>
+                            <select id="estado" name="estado" required onchange="toggleDerivacion()">
+                                <option value="">Seleccionar estado</option>
+                                <option value="Vendido">Vendido</option>
+                                <option value="No Vendido">No Vendido</option>
+                                <option value="Derivado">Derivado</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="derivacion-group" style="display: none;">
+                            <label for="cliente-derivado">Cliente de Derivación</label>
+                            <select id="cliente-derivado" name="cliente-derivado">
+                                <option value="">Seleccionar cliente</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="motivo">Motivo/Observaciones</label>
+                            <textarea id="motivo" name="motivo" placeholder="Explica el motivo de la decisión o cualquier observación importante"></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="submit-btn">Registrar Contacto</button>
+                </form>
+            </div>
+
+            <!-- Client Form Section -->
+            <div id="form-client" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Registrar Nuevo Cliente</h2>
+                
+                <div class="success-message" id="client-success-message">
+                    ¡Cliente registrado exitosamente!
+                </div>
+
+                <form id="client-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="client-name">Nombre del Cliente</label>
+                            <input type="text" id="client-name" name="client-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="client-company">Empresa</label>
+                            <input type="text" id="client-company" name="client-company" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="client-phone">Teléfono</label>
+                            <input type="tel" id="client-phone" name="client-phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="client-email">Email</label>
+                            <input type="email" id="client-email" name="client-email">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="client-address">Dirección Completa</label>
+                            <input type="text" id="client-address" name="client-address" required 
+                                   placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina">
+                            <div class="address-helper">
+                                Incluye ciudad, provincia y país para mejor geolocalización
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="client-type">Tipo de Cliente</label>
+                            <select id="client-type" name="client-type" required>
+                                <option value="">Seleccionar tipo</option>
+                                <option value="Distribuidor">Distribuidor</option>
+                                <option value="Retail">Retail</option>
+                                <option value="Mayorista">Mayorista</option>
+                                <option value="Corporativo">Corporativo</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="client-status">Estado</label>
+                            <select id="client-status" name="client-status" required>
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                                <option value="Prospecto">Prospecto</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="client-notes">Notas</label>
+                            <textarea id="client-notes" name="client-notes" 
+                                      placeholder="Información adicional sobre el cliente"></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="submit-btn">Registrar Cliente</button>
+                </form>
+            </div>
+
+            <!-- Contacts List Section -->
+            <div id="list-contacts" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Historial de Contactos</h2>
+                
+                <div class="action-buttons">
+                    <button class="action-btn btn-success" onclick="exportContacts()">Exportar a Excel</button>
+                </div>
+
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Vendedor:</label>
+                        <select id="filter-vendedor" onchange="filterContacts()">
+                            <option value="">Todos</option>
+                            <option value="Juan Pérez">Juan Pérez</option>
+                            <option value="María García">María García</option>
+                            <option value="Carlos López">Carlos López</option>
+                            <option value="Ana Martínez">Ana Martínez</option>
+                            <option value="Luis Rodríguez">Luis Rodríguez</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Estado:</label>
+                        <select id="filter-estado" onchange="filterContacts()">
+                            <option value="">Todos</option>
+                            <option value="Vendido">Vendido</option>
+                            <option value="No Vendido">No Vendido</option>
+                            <option value="Derivado">Derivado</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Desde:</label>
+                        <input type="date" id="filter-fecha-desde" onchange="filterContacts()">
+                    </div>
+                    <div class="filter-group">
+                        <label>Hasta:</label>
+                        <input type="date" id="filter-fecha-hasta" onchange="filterContacts()">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="contacts-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Vendedor</th>
+                                <th>Cliente</th>
+                                <th>Empresa</th>
+                                <th>Producto</th>
+                                <th>Estado</th>
+                                <th>Derivado a</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contacts-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Clients List Section -->
+            <div id="list-clients" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Base de Clientes</h2>
+                
+                <div class="action-buttons">
+                    <button class="action-btn btn-success" onclick="exportClients()">Exportar a Excel</button>
+                    <button class="action-btn btn-primary" onclick="showClientsOnMap()">Ver en Mapa</button>
+                </div>
+
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Tipo:</label>
+                        <select id="filter-client-type" onchange="filterClients()">
+                            <option value="">Todos</option>
+                            <option value="Distribuidor">Distribuidor</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Mayorista">Mayorista</option>
+                            <option value="Corporativo">Corporativo</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Estado:</label>
+                        <select id="filter-client-status" onchange="filterClients()">
+                            <option value="">Todos</option>
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                            <option value="Prospecto">Prospecto</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="clients-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Empresa</th>
+                                <th>Teléfono</th>
+                                <th>Email</th>
+                                <th>Dirección</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                                <th>Derivaciones Recibidas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clients-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Map Section -->
+            <div id="map-section" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Mapa de Clientes</h2>
+                
+                <div class="map-controls">
+                    <button class="map-control-btn" onclick="showAllClients()">Todos los Clientes</button>
+                    <button class="map-control-btn" onclick="showActiveClients()">Solo Activos</button>
+                    <button class="map-control-btn" onclick="showByType('Distribuidor')">Distribuidores</button>
+                    <button class="map-control-btn" onclick="showByType('Retail')">Retail</button>
+                </div>
+
+                <div id="map"></div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>Leyenda:</h3>
+                    <p>🔵 Activo | 🔴 Inactivo | 🟡 Prospecto</p>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div id="reports" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Informes y Analytics</h2>
+                
+                <div class="action-buttons">
+                    <button class="action-btn btn-success" onclick="exportFullReport()">Exportar Informe Completo</button>
+                </div>
+
+                <div class="reports-grid">
+                    <div class="report-card">
+                        <h3 class="report-title">Ventas por Vendedor</h3>
+                        <div id="sales-report" class="simple-chart"></div>
+                    </div>
+
+                    <div class="report-card">
+                        <h3 class="report-title">Resumen de Estados</h3>
+                        <div id="status-report" class="status-summary"></div>
+                    </div>
+
+                    <div class="report-card">
+                        <h3 class="report-title">Top Derivaciones</h3>
+                        <div id="referrals-report" class="ranking-chart"></div>
+                    </div>
+
+                    <div class="report-card">
+                        <h3 class="report-title">Evolución Mensual</h3>
+                        <div id="timeline-report" class="timeline-chart"></div>
+                    </div>
+                </div>
+
+                <div id="detailed-reports" style="margin-top: 30px;">
+                    <h3>Informe Detallado de Derivaciones</h3>
+                    <div class="table-container">
+                        <table id="referrals-report-table">
+                            <thead>
+                                <tr>
+                                    <th>Cliente Receptor</th>
+                                    <th>Total Derivaciones</th>
+                                    <th>Este Mes</th>
+                                    <th>Último Contacto</th>
+                                    <th>Vendedor que más deriva</th>
+                                </tr>
+                            </thead>
+                            <tbody id="referrals-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="script.js"></script>
+    
+    <!-- Elementos decorativos laterales -->
+    <div class="decorative-eggs" style="top: 300px; left: 20px; transform: rotate(60deg);"></div>
+    <div class="decorative-eggs" style="top: 450px; right: 30px; transform: rotate(-45deg);"></div>
+    <div class="decorative-eggs" style="bottom: 250px; left: 80px; transform: rotate(15deg);"></div>
+</body>
+</html>
+
+        <div class="content">
+            <!-- Dashboard Section -->
+            <div id="dashboard" class="section active">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Dashboard General</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-contacts">0</div>
+                        <div class="stat-label">Total Contactos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-sales">0</div>
+                        <div class="stat-label">Ventas Realizadas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-referrals">0</div>
+                        <div class="stat-label">Derivaciones</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="conversion-rate">0%</div>
+                        <div class="stat-label">Tasa de Conversión</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-clients">0</div>
+                        <div class="stat-label">Clientes Registrados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="active-clients">0</div>
+                        <div class="stat-label">Clientes Activos</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Form Section -->
+            <div id="form-contact" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Registrar Nuevo Contacto</h2>
+                
+                <div class="success-message" id="contact-success-message">
+                    ¡Contacto registrado exitosamente!
+                </div>
+
+                <form id="contact-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="fecha">Fecha de Contacto</label>
+                            <input type="date" id="fecha" name="fecha" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="vendedor">Vendedor</label>
+                            <select id="vendedor" name="vendedor" required>
+                                <option value="">Seleccionar vendedor</option>
+                                <option value="Juan Pérez">Juan Pérez</option>
+                                <option value="María García">María García</option>
+                                <option value="Carlos López">Carlos López</option>
+                                <option value="Ana Martínez">Ana Martínez</option>
+                                <option value="Luis Rodríguez">Luis Rodríguez</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="cliente">Nombre del Cliente</label>
+                            <input type="text" id="cliente" name="cliente" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="empresa">Empresa</label>
+                            <input type="text" id="empresa" name="empresa">
+                        </div>
+                        <div class="form-group">
+                            <label for="telefono">Teléfono</label>
+                            <input type="tel" id="telefono" name="telefono">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="producto">Producto Solicitado</label>
+                            <input type="text" id="producto" name="producto" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="estado">Estado</label>
+                            <select id="estado" name="estado" required onchange="toggleDerivacion()">
+                                <option value="">Seleccionar estado</option>
+                                <option value="Vendido">Vendido</option>
+                                <option value="No Vendido">No Vendido</option>
+                                <option value="Derivado">Derivado</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="derivacion-group" style="display: none;">
+                            <label for="cliente-derivado">Cliente de Derivación</label>
+                            <select id="cliente-derivado" name="cliente-derivado">
+                                <option value="">Seleccionar cliente</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="motivo">Motivo/Observaciones</label>
+                            <textarea id="motivo" name="motivo" placeholder="Explica el motivo de la decisión o cualquier observación importante"></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="submit-btn">Registrar Contacto</button>
+                </form>
+            </div>
+
+            <!-- Client Form Section -->
+            <div id="form-client" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Registrar Nuevo Cliente</h2>
+                
+                <div class="success-message" id="client-success-message">
+                    ¡Cliente registrado exitosamente!
+                </div>
+
+                <form id="client-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="client-name">Nombre del Cliente</label>
+                            <input type="text" id="client-name" name="client-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="client-company">Empresa</label>
+                            <input type="text" id="client-company" name="client-company" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="client-phone">Teléfono</label>
+                            <input type="tel" id="client-phone" name="client-phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="client-email">Email</label>
+                            <input type="email" id="client-email" name="client-email">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="client-address">Dirección Completa</label>
+                            <input type="text" id="client-address" name="client-address" required 
+                                   placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina">
+                            <div class="address-helper">
+                                Incluye ciudad, provincia y país para mejor geolocalización
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="client-type">Tipo de Cliente</label>
+                            <select id="client-type" name="client-type" required>
+                                <option value="">Seleccionar tipo</option>
+                                <option value="Distribuidor">Distribuidor</option>
+                                <option value="Retail">Retail</option>
+                                <option value="Mayorista">Mayorista</option>
+                                <option value="Corporativo">Corporativo</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="client-status">Estado</label>
+                            <select id="client-status" name="client-status" required>
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                                <option value="Prospecto">Prospecto</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="client-notes">Notas</label>
+                            <textarea id="client-notes" name="client-notes" 
+                                      placeholder="Información adicional sobre el cliente"></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="submit-btn">Registrar Cliente</button>
+                </form>
+            </div>
+
+            <!-- Contacts List Section -->
+            <div id="list-contacts" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Historial de Contactos</h2>
+                
+                <div class="action-buttons">
+                    <button class="action-btn btn-success" onclick="exportContacts()">Exportar a Excel</button>
+                </div>
+
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Vendedor:</label>
+                        <select id="filter-vendedor" onchange="filterContacts()">
+                            <option value="">Todos</option>
+                            <option value="Juan Pérez">Juan Pérez</option>
+                            <option value="María García">María García</option>
+                            <option value="Carlos López">Carlos López</option>
+                            <option value="Ana Martínez">Ana Martínez</option>
+                            <option value="Luis Rodríguez">Luis Rodríguez</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Estado:</label>
+                        <select id="filter-estado" onchange="filterContacts()">
+                            <option value="">Todos</option>
+                            <option value="Vendido">Vendido</option>
+                            <option value="No Vendido">No Vendido</option>
+                            <option value="Derivado">Derivado</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Desde:</label>
+                        <input type="date" id="filter-fecha-desde" onchange="filterContacts()">
+                    </div>
+                    <div class="filter-group">
+                        <label>Hasta:</label>
+                        <input type="date" id="filter-fecha-hasta" onchange="filterContacts()">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="contacts-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Vendedor</th>
+                                <th>Cliente</th>
+                                <th>Empresa</th>
+                                <th>Producto</th>
+                                <th>Estado</th>
+                                <th>Derivado a</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contacts-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Clients List Section -->
+            <div id="list-clients" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Base de Clientes</h2>
+                
+                <div class="action-buttons">
+                    <button class="action-btn btn-success" onclick="exportClients()">Exportar a Excel</button>
+                    <button class="action-btn btn-primary" onclick="showClientsOnMap()">Ver en Mapa</button>
+                </div>
+
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>Tipo:</label>
+                        <select id="filter-client-type" onchange="filterClients()">
+                            <option value="">Todos</option>
+                            <option value="Distribuidor">Distribuidor</option>
+                            <option value="Retail">Retail</option>
+                            <option value="Mayorista">Mayorista</option>
+                            <option value="Corporativo">Corporativo</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Estado:</label>
+                        <select id="filter-client-status" onchange="filterClients()">
+                            <option value="">Todos</option>
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                            <option value="Prospecto">Prospecto</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="clients-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Empresa</th>
+                                <th>Teléfono</th>
+                                <th>Email</th>
+                                <th>Dirección</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                                <th>Derivaciones Recibidas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clients-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Map Section -->
+            <div id="map-section" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Mapa de Clientes</h2>
+                
+                <div class="map-controls">
+                    <button class="map-control-btn" onclick="showAllClients()">Todos los Clientes</button>
+                    <button class="map-control-btn" onclick="showActiveClients()">Solo Activos</button>
+                    <button class="map-control-btn" onclick="showByType('Distribuidor')">Distribuidores</button>
+                    <button class="map-control-btn" onclick="showByType('Retail')">Retail</button>
+                </div>
+
+                <div id="map"></div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>Leyenda:</h3>
+                    <p>🔵 Activo | 🔴 Inactivo | 🟡 Prospecto</p>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div id="reports" class="section">
+                <h2 style="margin-bottom: 30px; color: #333; font-size: 2em;">Informes y Analytics</h2>
+                
+                <div class="action-buttons">
+                    <button class="action-btn btn-success" onclick="exportFullReport()">Exportar Informe Completo</button>
+                </div>
+
+                <div class="reports-grid">
+                    <div class="report-card">
+                        <h3 class="report-title">Ventas por Vendedor</h3>
+                        <div id="sales-report" class="simple-chart"></div>
+                    </div>
+
+                    <div class="report-card">
+                        <h3 class="report-title">Resumen de Estados</h3>
+                        <div id="status-report" class="status-summary"></div>
+                    </div>
+
+                    <div class="report-card">
+                        <h3 class="report-title">Top Derivaciones</h3>
+                        <div id="referrals-report" class="ranking-chart"></div>
+                    </div>
+
+                    <div class="report-card">
+                        <h3 class="report-title">Evolución Mensual</h3>
+                        <div id="timeline-report" class="timeline-chart"></div>
+                    </div>
+                </div>
+
+                <div id="detailed-reports" style="margin-top: 30px;">
+                    <h3>Informe Detallado de Derivaciones</h3>
+                    <div class="table-container">
+                        <table id="referrals-report-table">
+                            <thead>
+                                <tr>
+                                    <th>Cliente Receptor</th>
+                                    <th>Total Derivaciones</th>
+                                    <th>Este Mes</th>
+                                    <th>Último Contacto</th>
+                                    <th>Vendedor que más deriva</th>
+                                </tr>
+                            </thead>
+                            <tbody id="referrals-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
