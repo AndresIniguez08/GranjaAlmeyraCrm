@@ -132,6 +132,7 @@
         </form>
       </div>
     </div>
+
     <div id="app-screen" class="container" style="display: none">
       <div class="header">
         <div class="header-content">
@@ -438,6 +439,7 @@
                   <th>Estado</th>
                   <th>Derivado a</th>
                   <th>Motivo</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="contacts-tbody"></tbody>
@@ -495,6 +497,7 @@
                   <th>Tipo</th>
                   <th>Estado</th>
                   <th>Derivaciones Recibidas</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="clients-tbody"></tbody>
@@ -598,298 +601,158 @@
       <div class="decorativo-derecho">
         <img src="huevo roto.png" alt="huevo roto" />
       </div>
+    </div>
 
-      <div class="content">
-        <!-- Dashboard Section -->
-        <div id="dashboard" class="section active">
-          <h2 style="margin-bottom: 30px; color: #333; font-size: 2em">
-            Dashboard General
-          </h2>
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-number" id="total-contacts">0</div>
-              <div class="stat-label">Total Contactos</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number" id="total-sales">0</div>
-              <div class="stat-label">Ventas Realizadas</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number" id="total-referrals">0</div>
-              <div class="stat-label">Derivaciones</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number" id="conversion-rate">0%</div>
-              <div class="stat-label">Tasa de Conversión</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number" id="total-clients">0</div>
-              <div class="stat-label">Clientes Registrados</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-number" id="active-clients">0</div>
-              <div class="stat-label">Clientes Activos</div>
-            </div>
-          </div>
+    <!-- Modales de Edición -->
+
+    <!-- Modal para Editar Contacto -->
+    <div id="edit-contact-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Editar Contacto</h3>
+          <span class="modal-close" onclick="closeEditContactModal()"
+            >&times;</span
+          >
         </div>
-
-        <!-- Contact Form Section -->
-        <div id="form-contact" class="section">
-          <h2 style="margin-bottom: 30px; color: #333; font-size: 2em">
-            Registrar Nuevo Contacto
-          </h2>
-
-          <div class="success-message" id="contact-success-message">
-            ¡Contacto registrado exitosamente!
-          </div>
-
-          <form id="contact-form">
-            <div class="form-grid">
-              <div class="form-group">
-                <label for="fecha">Fecha de Contacto</label>
-                <input type="date" id="fecha" name="fecha" required />
-              </div>
-              <div class="form-group">
-                <label for="vendedor">Vendedor</label>
-                <select id="vendedor" name="vendedor" required>
-                  <option value="">Seleccionar vendedor</option>
-                  <option value="Juan Pérez">Juan Pérez</option>
-                  <option value="María García">María García</option>
-                  <option value="Carlos López">Carlos López</option>
-                  <option value="Ana Martínez">Ana Martínez</option>
-                  <option value="Luis Rodríguez">Luis Rodríguez</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="cliente">Nombre del Cliente</label>
-                <input type="text" id="cliente" name="cliente" required />
-              </div>
-              <div class="form-group">
-                <label for="empresa">Empresa</label>
-                <input type="text" id="empresa" name="empresa" />
-              </div>
-              <div class="form-group">
-                <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" />
-              </div>
-              <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" />
-              </div>
-              <div class="form-group">
-                <label for="producto">Producto Solicitado</label>
-                <input type="text" id="producto" name="producto" required />
-              </div>
-              <div class="form-group">
-                <label for="estado">Estado</label>
-                <select
-                  id="estado"
-                  name="estado"
-                  required
-                  onchange="toggleDerivacion()"
-                >
-                  <option value="">Seleccionar estado</option>
-                  <option value="Vendido">Vendido</option>
-                  <option value="No Vendido">No Vendido</option>
-                  <option value="Derivado">Derivado</option>
-                </select>
-              </div>
-              <div
-                class="form-group"
-                id="derivacion-group"
-                style="display: none"
-              >
-                <label for="cliente-derivado">Cliente de Derivación</label>
-                <select id="cliente-derivado" name="cliente-derivado">
-                  <option value="">Seleccionar cliente</option>
-                </select>
-              </div>
-              <div class="form-group full-width">
-                <label for="motivo">Motivo/Observaciones</label>
-                <textarea
-                  id="motivo"
-                  name="motivo"
-                  placeholder="Explica el motivo de la decisión o cualquier observación importante"
-                ></textarea>
-              </div>
+        <form id="edit-contact-form">
+          <input type="hidden" id="edit-contact-id" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="edit-fecha">Fecha de Contacto</label>
+              <input type="date" id="edit-fecha" name="fecha" required />
             </div>
-            <button type="submit" class="submit-btn">Registrar Contacto</button>
-          </form>
-        </div>
-
-        <!-- Client Form Section -->
-        <div id="form-client" class="section">
-          <h2 style="margin-bottom: 30px; color: #333; font-size: 2em">
-            Registrar Nuevo Cliente
-          </h2>
-
-          <div class="success-message" id="client-success-message">
-            ¡Cliente registrado exitosamente!
-          </div>
-
-          <form id="client-form">
-            <div class="form-grid">
-              <div class="form-group">
-                <label for="client-name">Nombre del Cliente</label>
-                <input
-                  type="text"
-                  id="client-name"
-                  name="client-name"
-                  required
-                />
-              </div>
-              <div class="form-group">
-                <label for="client-company">Empresa</label>
-                <input
-                  type="text"
-                  id="client-company"
-                  name="client-company"
-                  required
-                />
-              </div>
-              <div class="form-group">
-                <label for="client-phone">Teléfono</label>
-                <input type="tel" id="client-phone" name="client-phone" />
-              </div>
-              <div class="form-group">
-                <label for="client-email">Email</label>
-                <input type="email" id="client-email" name="client-email" />
-              </div>
-              <div class="form-group full-width">
-                <label for="client-address">Dirección Completa</label>
-                <input
-                  type="text"
-                  id="client-address"
-                  name="client-address"
-                  required
-                  placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina"
-                />
-                <div class="address-helper">
-                  Incluye ciudad, provincia y país para mejor geolocalización
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="client-type">Tipo de Cliente</label>
-                <select id="client-type" name="client-type" required>
-                  <option value="">Seleccionar tipo</option>
-                  <option value="Distribuidor">Distribuidor</option>
-                  <option value="Retail">Retail</option>
-                  <option value="Mayorista">Mayorista</option>
-                  <option value="Corporativo">Corporativo</option>
-                  <option value="Otro">Otro</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="client-status">Estado</label>
-                <select id="client-status" name="client-status" required>
-                  <option value="Activo">Activo</option>
-                  <option value="Inactivo">Inactivo</option>
-                  <option value="Prospecto">Prospecto</option>
-                </select>
-              </div>
-              <div class="form-group full-width">
-                <label for="client-notes">Notas</label>
-                <textarea
-                  id="client-notes"
-                  name="client-notes"
-                  placeholder="Información adicional sobre el cliente"
-                ></textarea>
-              </div>
-            </div>
-            <button type="submit" class="submit-btn">Registrar Cliente</button>
-          </form>
-        </div>
-
-        <!-- Contacts List Section -->
-        <div id="list-contacts" class="section">
-          <h2 style="margin-bottom: 30px; color: #333; font-size: 2em">
-            Historial de Contactos
-          </h2>
-
-          <div class="action-buttons">
-            <button class="action-btn btn-success" onclick="exportContacts()">
-              Exportar a Excel
-            </button>
-          </div>
-
-          <div class="filters">
-            <div class="filter-group">
-              <label>Vendedor:</label>
-              <select id="filter-vendedor" onchange="filterContacts()">
-                <option value="">Todos</option>
-
+            <div class="form-group">
+              <label for="edit-vendedor">Vendedor</label>
+              <select id="edit-vendedor" name="vendedor" required>
+                <option value="">Seleccionar vendedor</option>
                 <option value="Juan Larrondo">Juan Larrondo</option>
                 <option value="Andrés Iñiguez">Andrés Iñiguez</option>
                 <option value="Eduardo Schiavi">Eduardo Schiavi</option>
                 <option value="Gabriel Caffarello">Gabriel Caffarello</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label>Estado:</label>
-              <select id="filter-estado" onchange="filterContacts()">
-                <option value="">Todos</option>
+            <div class="form-group">
+              <label for="edit-cliente">Nombre del Cliente</label>
+              <input type="text" id="edit-cliente" name="cliente" required />
+            </div>
+            <div class="form-group">
+              <label for="edit-empresa">Empresa</label>
+              <input type="text" id="edit-empresa" name="empresa" />
+            </div>
+            <div class="form-group">
+              <label for="edit-telefono">Teléfono</label>
+              <input type="tel" id="edit-telefono" name="telefono" />
+            </div>
+            <div class="form-group">
+              <label for="edit-email">Email</label>
+              <input type="email" id="edit-email" name="email" />
+            </div>
+            <div class="form-group">
+              <label for="edit-producto">Producto Solicitado</label>
+              <input type="text" id="edit-producto" name="producto" required />
+            </div>
+            <div class="form-group">
+              <label for="edit-estado">Estado</label>
+              <select
+                id="edit-estado"
+                name="estado"
+                required
+                onchange="toggleEditDerivacion()"
+              >
+                <option value="">Seleccionar estado</option>
                 <option value="Vendido">Vendido</option>
                 <option value="No Vendido">No Vendido</option>
                 <option value="Derivado">Derivado</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label>Desde:</label>
-              <input
-                type="date"
-                id="filter-fecha-desde"
-                onchange="filterContacts()"
-              />
+            <div
+              class="form-group"
+              id="edit-derivacion-group"
+              style="display: none"
+            >
+              <label for="edit-cliente-derivado">Cliente de Derivación</label>
+              <select id="edit-cliente-derivado" name="cliente-derivado">
+                <option value="">Seleccionar cliente</option>
+              </select>
             </div>
-            <div class="filter-group">
-              <label>Hasta:</label>
-              <input
-                type="date"
-                id="filter-fecha-hasta"
-                onchange="filterContacts()"
-              />
+            <div class="form-group full-width">
+              <label for="edit-motivo">Motivo/Observaciones</label>
+              <textarea
+                id="edit-motivo"
+                name="motivo"
+                placeholder="Explica el motivo de la decisión o cualquier observación importante"
+              ></textarea>
             </div>
           </div>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn-cancel"
+              onclick="closeEditContactModal()"
+            >
+              Cancelar
+            </button>
+            <button type="submit" class="btn-save">Guardar Cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
-          <div class="table-container">
-            <table id="contacts-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Vendedor</th>
-                  <th>Cliente</th>
-                  <th>Empresa</th>
-                  <th>Producto</th>
-                  <th>Estado</th>
-                  <th>Derivado a</th>
-                  <th>Motivo</th>
-                </tr>
-              </thead>
-              <tbody id="contacts-tbody"></tbody>
-            </table>
-          </div>
+    <!-- Modal para Editar Cliente -->
+    <div id="edit-client-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Editar Cliente</h3>
+          <span class="modal-close" onclick="closeEditClientModal()"
+            >&times;</span
+          >
         </div>
-
-        <!-- Clients List Section -->
-        <div id="list-clients" class="section">
-          <h2 style="margin-bottom: 30px; color: #333; font-size: 2em">
-            Base de Clientes
-          </h2>
-
-          <div class="action-buttons">
-            <button class="action-btn btn-success" onclick="exportClients()">
-              Exportar a Excel
-            </button>
-            <button class="action-btn btn-primary" onclick="showClientsOnMap()">
-              Ver en Mapa
-            </button>
-          </div>
-
-          <div class="filters">
-            <div class="filter-group">
-              <label>Tipo:</label>
-              <select id="filter-client-type" onchange="filterClients()">
-                <option value="">Todos</option>
+        <form id="edit-client-form">
+          <input type="hidden" id="edit-client-id" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="edit-client-name">Nombre del Cliente</label>
+              <input
+                type="text"
+                id="edit-client-name"
+                name="client-name"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="edit-client-company">Empresa</label>
+              <input
+                type="text"
+                id="edit-client-company"
+                name="client-company"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="edit-client-phone">Teléfono</label>
+              <input type="tel" id="edit-client-phone" name="client-phone" />
+            </div>
+            <div class="form-group">
+              <label for="edit-client-email">Email</label>
+              <input type="email" id="edit-client-email" name="client-email" />
+            </div>
+            <div class="form-group full-width">
+              <label for="edit-client-address">Dirección Completa</label>
+              <input
+                type="text"
+                id="edit-client-address"
+                name="client-address"
+                required
+                placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina"
+              />
+              <div class="address-helper">
+                Incluye ciudad, provincia y país para mejor geolocalización
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="edit-client-type">Tipo de Cliente</label>
+              <select id="edit-client-type" name="client-type" required>
+                <option value="">Seleccionar tipo</option>
                 <option value="Distribuidor">Distribuidor</option>
                 <option value="Retail">Retail</option>
                 <option value="Mayorista">Mayorista</option>
@@ -897,120 +760,34 @@
                 <option value="Otro">Otro</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label>Estado:</label>
-              <select id="filter-client-status" onchange="filterClients()">
-                <option value="">Todos</option>
+            <div class="form-group">
+              <label for="edit-client-status">Estado</label>
+              <select id="edit-client-status" name="client-status" required>
                 <option value="Activo">Activo</option>
                 <option value="Inactivo">Inactivo</option>
                 <option value="Prospecto">Prospecto</option>
               </select>
             </div>
+            <div class="form-group full-width">
+              <label for="edit-client-notes">Notas</label>
+              <textarea
+                id="edit-client-notes"
+                name="client-notes"
+                placeholder="Información adicional sobre el cliente"
+              ></textarea>
+            </div>
           </div>
-
-          <div class="table-container">
-            <table id="clients-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Empresa</th>
-                  <th>Teléfono</th>
-                  <th>Email</th>
-                  <th>Dirección</th>
-                  <th>Tipo</th>
-                  <th>Estado</th>
-                  <th>Derivaciones Recibidas</th>
-                </tr>
-              </thead>
-              <tbody id="clients-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Map Section -->
-        <div id="map-section" class="section">
-          <h2 style="margin-bottom: 30px; color: #333; font-size: 2em">
-            Mapa de Clientes
-          </h2>
-
-          <div class="map-controls">
-            <button class="map-control-btn" onclick="showAllClients()">
-              Todos los Clientes
-            </button>
-            <button class="map-control-btn" onclick="showActiveClients()">
-              Solo Activos
-            </button>
+          <div class="modal-actions">
             <button
-              class="map-control-btn"
-              onclick="showByType('Distribuidor')"
+              type="button"
+              class="btn-cancel"
+              onclick="closeEditClientModal()"
             >
-              Distribuidores
+              Cancelar
             </button>
-            <button class="map-control-btn" onclick="showByType('Retail')">
-              Retail
-            </button>
+            <button type="submit" class="btn-save">Guardar Cambios</button>
           </div>
-
-          <div id="map"></div>
-
-          <div style="margin-top: 20px">
-            <h3>Leyenda:</h3>
-            <p>🔵 Activo | 🔴 Inactivo | 🟡 Prospecto</p>
-          </div>
-        </div>
-
-        <!-- Reports Section -->
-        <div id="reports" class="section">
-          <h2 style="margin-bottom: 30px; color: #333; font-size: 2em">
-            Informes y Analytics
-          </h2>
-
-          <div class="action-buttons">
-            <button class="action-btn btn-success" onclick="exportFullReport()">
-              Exportar Informe Completo
-            </button>
-          </div>
-
-          <div class="reports-grid">
-            <div class="report-card">
-              <h3 class="report-title">Ventas por Vendedor</h3>
-              <div id="sales-report" class="simple-chart"></div>
-            </div>
-
-            <div class="report-card">
-              <h3 class="report-title">Resumen de Estados</h3>
-              <div id="status-report" class="status-summary"></div>
-            </div>
-
-            <div class="report-card">
-              <h3 class="report-title">Top Derivaciones</h3>
-              <div id="referrals-report" class="ranking-chart"></div>
-            </div>
-
-            <div class="report-card">
-              <h3 class="report-title">Evolución Mensual</h3>
-              <div id="timeline-report" class="timeline-chart"></div>
-            </div>
-          </div>
-
-          <div id="detailed-reports" style="margin-top: 30px">
-            <h3>Informe Detallado de Derivaciones</h3>
-            <div class="table-container">
-              <table id="referrals-report-table">
-                <thead>
-                  <tr>
-                    <th>Cliente Receptor</th>
-                    <th>Total Derivaciones</th>
-                    <th>Este Mes</th>
-                    <th>Último Contacto</th>
-                    <th>Vendedor que más deriva</th>
-                  </tr>
-                </thead>
-                <tbody id="referrals-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
 

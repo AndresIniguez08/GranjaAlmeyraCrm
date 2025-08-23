@@ -238,8 +238,36 @@ function toggleDerivacion() {
   }
 }
 
+function toggleEditDerivacion() {
+  const estado = document.getElementById("edit-estado").value;
+  const derivacionGroup = document.getElementById("edit-derivacion-group");
+  const clienteDerivado = document.getElementById("edit-cliente-derivado");
+
+  if (estado === "Derivado") {
+    derivacionGroup.style.display = "block";
+    clienteDerivado.required = true;
+    updateEditClientSelect();
+  } else {
+    derivacionGroup.style.display = "none";
+    clienteDerivado.required = false;
+    clienteDerivado.value = "";
+  }
+}
+
 function updateClientSelect() {
   const select = document.getElementById("cliente-derivado");
+  select.innerHTML = '<option value="">Seleccionar cliente</option>';
+
+  clients.forEach((client) => {
+    const option = document.createElement("option");
+    option.value = client.company;
+    option.textContent = `${client.name} - ${client.company}`;
+    select.appendChild(option);
+  });
+}
+
+function updateEditClientSelect() {
+  const select = document.getElementById("edit-cliente-derivado");
   select.innerHTML = '<option value="">Seleccionar cliente</option>';
 
   clients.forEach((client) => {
@@ -256,6 +284,82 @@ function showSuccessMessage(elementId) {
   setTimeout(() => {
     message.style.display = "none";
   }, 3000);
+}
+
+// === FUNCIONES DE EDICIÓN ===
+
+// Funciones para editar contactos
+function editContact(contactId) {
+  const contact = contacts.find((c) => c.id == contactId);
+  if (!contact) return;
+
+  // Llenar el formulario de edición
+  document.getElementById("edit-contact-id").value = contact.id;
+  document.getElementById("edit-fecha").value = contact.fecha;
+  document.getElementById("edit-vendedor").value = contact.vendedor;
+  document.getElementById("edit-cliente").value = contact.cliente;
+  document.getElementById("edit-empresa").value = contact.empresa || "";
+  document.getElementById("edit-telefono").value = contact.telefono || "";
+  document.getElementById("edit-email").value = contact.email || "";
+  document.getElementById("edit-producto").value = contact.producto;
+  document.getElementById("edit-estado").value = contact.estado;
+  document.getElementById("edit-cliente-derivado").value =
+    contact.clienteDerivado || "";
+  document.getElementById("edit-motivo").value = contact.motivo || "";
+
+  // Mostrar/ocultar derivación según el estado
+  toggleEditDerivacion();
+
+  // Mostrar modal
+  document.getElementById("edit-contact-modal").style.display = "block";
+}
+
+function closeEditContactModal() {
+  document.getElementById("edit-contact-modal").style.display = "none";
+}
+
+function deleteContact(contactId) {
+  if (confirm("¿Estás seguro de que deseas eliminar este contacto?")) {
+    contacts = contacts.filter((c) => c.id != contactId);
+    saveData();
+    renderContactsList();
+    updateDashboard();
+    showSuccessMessage("contact-success-message");
+  }
+}
+
+// Funciones para editar clientes
+function editClient(clientId) {
+  const client = clients.find((c) => c.id == clientId);
+  if (!client) return;
+
+  // Llenar el formulario de edición
+  document.getElementById("edit-client-id").value = client.id;
+  document.getElementById("edit-client-name").value = client.name;
+  document.getElementById("edit-client-company").value = client.company;
+  document.getElementById("edit-client-phone").value = client.phone || "";
+  document.getElementById("edit-client-email").value = client.email || "";
+  document.getElementById("edit-client-address").value = client.address;
+  document.getElementById("edit-client-type").value = client.type;
+  document.getElementById("edit-client-status").value = client.status;
+  document.getElementById("edit-client-notes").value = client.notes || "";
+
+  // Mostrar modal
+  document.getElementById("edit-client-modal").style.display = "block";
+}
+
+function closeEditClientModal() {
+  document.getElementById("edit-client-modal").style.display = "none";
+}
+
+function deleteClient(clientId) {
+  if (confirm("¿Estás seguro de que deseas eliminar este cliente?")) {
+    clients = clients.filter((c) => c.id != clientId);
+    saveData();
+    renderClientsList();
+    updateDashboard();
+    showSuccessMessage("client-success-message");
+  }
 }
 
 // === GEOLOCALIZACIÓN ===
@@ -321,6 +425,14 @@ function renderContactsList(filteredContacts = null) {
               .replace(" ", "-")}">${contact.estado}</span></td>
             <td>${contact.clienteDerivado || "-"}</td>
             <td>${contact.motivo || "-"}</td>
+            <td class="actions-column">
+              <button class="btn-edit" onclick="editContact(${
+                contact.id
+              })" title="Editar">✏️</button>
+              <button class="btn-delete" onclick="deleteContact(${
+                contact.id
+              })" title="Eliminar">🗑️</button>
+            </td>
         `;
       tbody.appendChild(row);
     });
@@ -349,6 +461,14 @@ function renderClientsList(filteredClients = null) {
       client.status
     }</span></td>
             <td><strong>${referralsCount}</strong></td>
+            <td class="actions-column">
+              <button class="btn-edit" onclick="editClient(${
+                client.id
+              })" title="Editar">✏️</button>
+              <button class="btn-delete" onclick="deleteClient(${
+                client.id
+              })" title="Eliminar">🗑️</button>
+            </td>
         `;
     tbody.appendChild(row);
   });
@@ -556,7 +676,6 @@ function generateSalesReport() {
     "Andrés Iñiguez",
     "Eduardo Schiavi",
     "Gabriel Caffarello",
-    ,
   ];
 
   const salesData = vendedores.map((vendedor) => ({
@@ -952,14 +1071,125 @@ function setupEventListeners() {
         e.target.reset();
         updateDashboard();
         renderClientsList();
+        updateClientSelect();
       });
     });
+
+  // Formulario de edición de contactos
+  document
+    .getElementById("edit-contact-form")
+    .addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const contactId = document.getElementById("edit-contact-id").value;
+      const formData = new FormData(e.target);
+
+      const contactIndex = contacts.findIndex((c) => c.id == contactId);
+      if (contactIndex === -1) return;
+
+      // Actualizar el contacto existente
+      contacts[contactIndex] = {
+        ...contacts[contactIndex],
+        fecha: formData.get("fecha"),
+        vendedor: formData.get("vendedor"),
+        cliente: formData.get("cliente"),
+        empresa: formData.get("empresa"),
+        telefono: formData.get("telefono"),
+        email: formData.get("email"),
+        producto: formData.get("producto"),
+        estado: formData.get("estado"),
+        clienteDerivado: formData.get("cliente-derivado") || "",
+        motivo: formData.get("motivo"),
+        editadoPor: currentUser.username,
+        fechaEdicion: new Date().toISOString(),
+      };
+
+      saveData();
+      closeEditContactModal();
+      renderContactsList();
+      updateDashboard();
+      showSuccessMessage("contact-success-message");
+    });
+
+  // Formulario de edición de clientes
+  document
+    .getElementById("edit-client-form")
+    .addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const clientId = document.getElementById("edit-client-id").value;
+      const formData = new FormData(e.target);
+
+      const clientIndex = clients.findIndex((c) => c.id == clientId);
+      if (clientIndex === -1) return;
+
+      const updatedClient = {
+        ...clients[clientIndex],
+        name: formData.get("client-name"),
+        company: formData.get("client-company"),
+        phone: formData.get("client-phone"),
+        email: formData.get("client-email"),
+        address: formData.get("client-address"),
+        type: formData.get("client-type"),
+        status: formData.get("client-status"),
+        notes: formData.get("client-notes"),
+        editadoPor: currentUser.username,
+        fechaEdicion: new Date().toISOString(),
+      };
+
+      // Si cambió la dirección, geocodificar nuevamente
+      if (clients[clientIndex].address !== updatedClient.address) {
+        geocodeAddress(updatedClient.address).then((coords) => {
+          updatedClient.coordinates = coords;
+          clients[clientIndex] = updatedClient;
+          saveData();
+
+          closeEditClientModal();
+          renderClientsList();
+          updateDashboard();
+          updateClientSelect();
+          showSuccessMessage("client-success-message");
+        });
+      } else {
+        clients[clientIndex] = updatedClient;
+        saveData();
+
+        closeEditClientModal();
+        renderClientsList();
+        updateDashboard();
+        updateClientSelect();
+        showSuccessMessage("client-success-message");
+      }
+    });
+
+  // Cerrar modales al hacer clic fuera de ellos
+  window.addEventListener("click", function (event) {
+    const contactModal = document.getElementById("edit-contact-modal");
+    const clientModal = document.getElementById("edit-client-modal");
+
+    if (event.target === contactModal) {
+      closeEditContactModal();
+    }
+    if (event.target === clientModal) {
+      closeEditClientModal();
+    }
+  });
 }
 
 // === INICIALIZACIÓN ===
 function init() {
   loadData();
   setupEventListeners();
+  let initialized = false;
+
+  function init() {
+    if (initialized) return;
+    initialized = true;
+
+    loadData();
+    setupEventListeners();
+    // ... resto del código
+  }
 
   // Establecer fecha actual por defecto
   document.getElementById("fecha").valueAsDate = new Date();
