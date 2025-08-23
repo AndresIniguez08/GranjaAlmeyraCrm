@@ -286,6 +286,37 @@ function showSuccessMessage(elementId) {
   }, 3000);
 }
 
+// Formulario de clientes con coordenadas exactas
+document.getElementById("client-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  const formData = new FormData(e.target);
+  const client = {
+    id: Date.now(),
+    name: formData.get("client-name"),
+    company: formData.get("client-company"),
+    phone: formData.get("client-phone"),
+    email: formData.get("client-email"),
+    address: formData.get("client-address"),
+    type: formData.get("client-type"),
+    status: formData.get("client-status"),
+    notes: formData.get("client-notes"),
+    coordinates: tempCoordinates, // Usar coordenadas exactas obtenidas
+    registradoPor: currentUser.username,
+    fechaRegistro: new Date().toISOString(),
+  };
+
+  clients.push(client);
+  saveData();
+
+  showSuccessMessage("client-success-message");
+  e.target.reset();
+  tempCoordinates = null; // Limpiar coordenadas temporales
+  document.getElementById("coordinates-display").textContent = "";
+  updateDashboard();
+  renderClientsList();
+  updateClientSelect();
+});
 // === FUNCIONES DE EDICIÓN ===
 
 // Funciones para editar contactos
@@ -363,31 +394,191 @@ function deleteClient(clientId) {
 }
 
 // === GEOLOCALIZACIÓN ===
-async function geocodeAddress(address) {
-  console.log("Intentando geocodificar:", address);
+// Variables globales para coordenadas temporales
+let tempCoordinates = null;
 
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-      address
-    )}&limit=1`;
-    console.log("URL:", url);
+// Obtener ubicación actual del usuario
+function getCurrentLocation() {
+  const display = document.getElementById("coordinates-display");
 
-    const response = await fetch(url);
-    console.log("Response status:", response.status);
+  if (!navigator.geolocation) {
+    display.textContent = "Geolocalización no disponible en este navegador";
+    return;
+  }
 
-    const data = await response.json();
-    console.log("Response data:", data);
+  display.textContent = "Obteniendo ubicación...";
 
-    if (data && data.length > 0) {
-      const coords = {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon),
+  navigator.geolocation.getCurrentPosition(
+    function (position) {
+      tempCoordinates = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
       };
-      console.log("Coordenadas encontradas:", coords);
-      return coords;
+
+      display.textContent = `Coordenadas: ${tempCoordinates.lat.toFixed(
+        6
+      )}, ${tempCoordinates.lng.toFixed(6)}`;
+
+      // Geocodificación inversa para obtener la dirección
+      reverseGeocode(tempCoordinates.lat, tempCoordinates.lng);
+    },
+    function (error) {
+      let errorMsg = "Error obteniendo ubicación: ";
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          errorMsg += "Permiso denegado. Habilita la geolocalización.";
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMsg += "Ubicación no disponible.";
+          break;
+        case error.TIMEOUT:
+          errorMsg += "Tiempo de espera agotado.";
+          break;
+        default:
+          errorMsg += "Error desconocido.";
+          break;
+      }
+      display.textContent = errorMsg;
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    }
+  );
+}
+
+// Geocodificación inversa (coordenadas → dirección)
+async function reverseGeocode(lat, lng) {
+  try {
+    const response = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=es`
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      const addressField =
+        document.getElementById("client-address") ||
+        document.getElementById("edit-client-address");
+
+      // Construir dirección legible
+      let address = "";
+      if (data.locality) address += data.locality;
+      if (data.principalSubdivision)
+        address += ", " + data.principalSubdivision;
+      if (data.countryName) address += ", " + data.countryName;
+
+      if (address) {
+        addressField.value = address;
+      }
     }
   } catch (error) {
-    console.error("Error completo:", error);
+    console.error("Error en geocodificación inversa:", error);
+  }
+}
+
+// Geocodificar dirección ingresada manualmente
+async function geocodeCurrentAddress() {
+  const addressField =
+    document.getElementById("client-address") ||
+    document.getElementById("edit-client-address");
+  const address = addressField.value.trim();
+  const display = document.getElementById("coordinates-display");
+
+  if (!address) {
+    display.textContent = "Ingresa una dirección primero";
+    return;
+  }
+
+  display.textContent = "Buscando coordenadas...";
+
+  try {
+    // Usar múltiples APIs como fallback
+    tempCoordinates = await tryMultipleGeocodingServices(address);
+
+    if (tempCoordinates) {
+      display.textContent = `Coordenadas encontradas: ${tempCoordinates.lat.toFixed(
+        6
+      )}, ${tempCoordinates.lng.toFixed(6)}`;
+    } else {
+      display.textContent =
+        "No se pudieron encontrar coordenadas para esa dirección";
+    }
+  } catch (error) {
+    display.textContent = "Error buscando coordenadas";
+    console.error("Error geocodificando:", error);
+  }
+}
+
+// Intentar múltiples servicios de geocodificación
+async function tryMultipleGeocodingServices(address) {
+  const services = [
+    // Servicio 1: BigDataCloud (gratuito, sin API key)
+    async () => {
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/geocode?query=${encodeURIComponent(
+          address
+        )}&localityLanguage=es`
+      );
+      const data = await response.json();
+      if (data && data.results && data.results.length > 0) {
+        const result = data.results[0];
+        return { lat: result.latitude, lng: result.longitude };
+      }
+      return null;
+    },
+
+    // Servicio 2: Nominatim con headers mejorados
+    async () => {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          address
+        )}&limit=1&countrycodes=ar`,
+        {
+          headers: {
+            "User-Agent": "CRM-Granja-Almeyra/1.0 (contacto@granjaalmeyra.com)",
+          },
+        }
+      );
+      const data = await response.json();
+      if (data && data.length > 0) {
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+      return null;
+    },
+
+    // Servicio 3: OpenCage (requiere API key gratuita)
+    async () => {
+      const API_KEY = "TU_API_KEY_OPENCAGE"; // Obtener en opencagedata.com
+      if (API_KEY === "TU_API_KEY_OPENCAGE") return null;
+
+      const response = await fetch(
+        `https://api.opencagedata.com/geocode/v1/json?key=${API_KEY}&q=${encodeURIComponent(
+          address
+        )}&countrycode=ar&language=es`
+      );
+      const data = await response.json();
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0];
+        return { lat: result.geometry.lat, lng: result.geometry.lng };
+      }
+      return null;
+    },
+  ];
+
+  // Intentar cada servicio hasta que uno funcione
+  for (const service of services) {
+    try {
+      const result = await service();
+      if (result) return result;
+    } catch (error) {
+      console.warn(
+        "Servicio de geocodificación falló, intentando siguiente..."
+      );
+    }
+
+    // Pequeño delay entre intentos
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   return null;

@@ -1069,7 +1069,41 @@ tr:hover {
     transform: scale(1.1);
   }
 }
+.address-input-group {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
 
+.address-input-group input {
+  flex: 1;
+}
+
+.location-btn,
+.geocode-btn {
+  background: #f4c430;
+  color: #2d2d2d;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.location-btn:hover,
+.geocode-btn:hover {
+  background: #e6b82d;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .address-input-group {
+    flex-direction: column;
+  }
+}
 /* === ESTILOS DE MODALES === */
 .modal {
   display: none;

@@ -334,16 +334,36 @@
               </div>
               <div class="form-group full-width">
                 <label for="client-address">Dirección Completa</label>
-                <input
-                  type="text"
-                  id="client-address"
-                  name="client-address"
-                  required
-                  placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina"
-                />
+                <div class="address-input-group">
+                  <input
+                    type="text"
+                    id="client-address"
+                    name="client-address"
+                    required
+                    placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina"
+                  />
+                  <button
+                    type="button"
+                    class="location-btn"
+                    onclick="getCurrentLocation()"
+                  >
+                    Mi Ubicación
+                  </button>
+                  <button
+                    type="button"
+                    class="geocode-btn"
+                    onclick="geocodeCurrentAddress()"
+                  >
+                    Buscar
+                  </button>
+                </div>
                 <div class="address-helper">
                   Incluye ciudad, provincia y país para mejor geolocalización
                 </div>
+                <div
+                  id="coordinates-display"
+                  style="font-size: 12px; color: #666; margin-top: 5px"
+                ></div>
               </div>
               <div class="form-group">
                 <label for="client-type">Tipo de Cliente</label>
@@ -738,16 +758,36 @@
             </div>
             <div class="form-group full-width">
               <label for="edit-client-address">Dirección Completa</label>
-              <input
-                type="text"
-                id="edit-client-address"
-                name="client-address"
-                required
-                placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina"
-              />
+              <div class="address-input-group">
+                <input
+                  type="text"
+                  id="edit-client-address"
+                  name="client-address"
+                  required
+                  placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina"
+                />
+                <button
+                  type="button"
+                  class="location-btn"
+                  onclick="getCurrentLocationEdit()"
+                >
+                  Mi Ubicación
+                </button>
+                <button
+                  type="button"
+                  class="geocode-btn"
+                  onclick="geocodeCurrentAddressEdit()"
+                >
+                  Buscar
+                </button>
+              </div>
               <div class="address-helper">
                 Incluye ciudad, provincia y país para mejor geolocalización
               </div>
+              <div
+                id="edit-coordinates-display"
+                style="font-size: 12px; color: #666; margin-top: 5px"
+              ></div>
             </div>
             <div class="form-group">
               <label for="edit-client-type">Tipo de Cliente</label>
