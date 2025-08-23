@@ -1384,7 +1384,12 @@ function setupEventListeners() {
 }
 
 // === INICIALIZACIÓN ===
+let initialized = false;
+
 function init() {
+  if (initialized) return;
+  initialized = true;
+
   loadData();
   setupEventListeners();
 
