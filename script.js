@@ -364,30 +364,32 @@ function deleteClient(clientId) {
 
 // === GEOLOCALIZACIÓN ===
 async function geocodeAddress(address) {
-  const API_KEY = "pk.XXXXX"; // Obtén una clave gratuita en locationiq.com
+  console.log("Intentando geocodificar:", address);
 
   try {
-    const response = await fetch(
-      `https://eu1.locationiq.com/v1/search.php?key=${API_KEY}&q=${encodeURIComponent(
-        address
-      )}&format=json&countrycodes=ar&limit=1`
-    );
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      address
+    )}&limit=1`;
+    console.log("URL:", url);
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    const response = await fetch(url);
+    console.log("Response status:", response.status);
 
     const data = await response.json();
+    console.log("Response data:", data);
 
     if (data && data.length > 0) {
-      return {
+      const coords = {
         lat: parseFloat(data[0].lat),
         lng: parseFloat(data[0].lon),
       };
+      console.log("Coordenadas encontradas:", coords);
+      return coords;
     }
   } catch (error) {
-    console.error("Error geocodificando:", error);
+    console.error("Error completo:", error);
   }
+
   return null;
 }
 
