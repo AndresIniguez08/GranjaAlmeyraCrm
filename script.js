@@ -365,11 +365,24 @@ function deleteClient(clientId) {
 // === GEOLOCALIZACIÓN ===
 async function geocodeAddress(address) {
   try {
+    // Agregar delay para evitar rate limiting
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
         address
-      )}&limit=1`
+      )}&limit=1&countrycodes=ar`, // Limitar a Argentina
+      {
+        headers: {
+          "User-Agent": "CRM-Granja-Almeyra/1.0",
+        },
+      }
     );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const data = await response.json();
 
     if (data && data.length > 0) {
@@ -380,6 +393,17 @@ async function geocodeAddress(address) {
     }
   } catch (error) {
     console.error("Error geocodificando:", error);
+
+    // Fallback: coordenadas por defecto de Buenos Aires
+    if (
+      address.toLowerCase().includes("buenos aires") ||
+      address.toLowerCase().includes("caba")
+    ) {
+      return {
+        lat: -34.6037,
+        lng: -58.3816,
+      };
+    }
   }
   return null;
 }
