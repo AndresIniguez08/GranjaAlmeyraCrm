@@ -745,7 +745,6 @@ function filterClients() {
 }
 
 // === MAPA ===
-// === MAPA ===
 function initMap() {
   if (map) {
     map.remove();
@@ -760,34 +759,33 @@ function initMap() {
 
   markersLayer = L.layerGroup().addTo(map);
 
-  // Intentar geolocalización del usuario
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      function (pos) {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+  // Mostrar clientes directamente
+  showAllClients();
+}
 
-        // Recentrar mapa
-        map.setView([lat, lng], 13);
+// === MOSTRAR CLIENTES EN EL MAPA ===
+function showAllClients() {
+  markersLayer.clearLayers();
 
-        // Marcador del usuario
-        L.marker([lat, lng])
-          .addTo(map)
-          .bindPopup("📍 Tu ubicación")
-          .openPopup();
+  if (clients.length === 0) return;
 
-        // Mostrar clientes en el mapa
-        showAllClients();
-      },
-      function (err) {
-        console.warn("Error geolocalización:", err.message);
-        // Si falla, al menos mostrar los clientes
-        showAllClients();
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-  } else {
-    showAllClients();
+  let bounds = [];
+
+  clients.forEach((client) => {
+    if (client.lat && client.lng) {
+      let marker = L.marker([client.lat, client.lng])
+        .addTo(markersLayer)
+        .bindPopup(
+          `<b>${client.name}</b><br>${client.address}<br>${client.phone}`
+        );
+
+      bounds.push([client.lat, client.lng]);
+    }
+  });
+
+  // Ajustar mapa para que se vean todos los clientes
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, { padding: [50, 50] });
   }
 }
 
