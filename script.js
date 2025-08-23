@@ -1,19 +1,34 @@
 // === SISTEMA DE AUTENTICACIÓN ===
 const USERS = {
   admin: {
-    password: "admin123",
+    password: "She.said5643",
     name: "Administrador",
     role: "admin",
+    firstLogin: false,
   },
-  vendedor1: {
+  "Juan.Larrondo": {
     password: "venta123",
-    name: "Juan Pérez",
+    name: "Juan Larrondo",
     role: "vendedor",
+    firstLogin: true,
   },
-  vendedor2: {
+  "Andres.Iñiguez": {
     password: "venta123",
-    name: "María García",
+    name: "Andrés Iñiguez",
     role: "vendedor",
+    firstLogin: true,
+  },
+  "Eduardo.Schiavi": {
+    password: "venta123",
+    name: "Eduardo Schiavi",
+    role: "vendedor",
+    firstLogin: true,
+  },
+  "Gabriel.Caffarello": {
+    password: "venta123",
+    name: "Gabriel Caffarello",
+    role: "vendedor",
+    firstLogin: true,
   },
 };
 
@@ -21,8 +36,9 @@ let currentUser = null;
 
 // Inicializar el sistema
 document.addEventListener("DOMContentLoaded", function () {
-  // Ocultar la aplicación principal al cargar
+  // Ocultar pantallas secundarias al cargar
   document.getElementById("app-screen").style.display = "none";
+  document.getElementById("password-change-screen").style.display = "none";
 
   // Verificar si hay sesión activa
   const savedUser = localStorage.getItem("current-user");
@@ -33,8 +49,11 @@ document.addEventListener("DOMContentLoaded", function () {
     showLogin();
   }
 
-  // Configurar formulario de login
+  // Configurar formularios
   document.getElementById("login-form").addEventListener("submit", handleLogin);
+  document
+    .getElementById("password-change-form")
+    .addEventListener("submit", handlePasswordChange);
 });
 
 function handleLogin(e) {
@@ -43,23 +62,73 @@ function handleLogin(e) {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
 
-  if (USERS[username] && USERS[username].password === password) {
+  // Obtener datos actualizados de usuarios
+  const userData = getUserData();
+
+  if (userData[username] && userData[username].password === password) {
     currentUser = {
       username: username,
-      name: USERS[username].name,
-      role: USERS[username].role,
+      name: userData[username].name,
+      role: userData[username].role,
     };
 
-    // Guardar sesión
-    localStorage.setItem("current-user", JSON.stringify(currentUser));
-
-    showApp();
+    // Verificar si es primer login
+    if (userData[username].firstLogin) {
+      showPasswordChange();
+    } else {
+      // Guardar sesión y mostrar app
+      localStorage.setItem("current-user", JSON.stringify(currentUser));
+      showApp();
+    }
   } else {
     document.getElementById("login-error").style.display = "block";
     setTimeout(() => {
       document.getElementById("login-error").style.display = "none";
     }, 3000);
   }
+}
+
+function handlePasswordChange(e) {
+  e.preventDefault();
+
+  const newPassword = document.getElementById("new-password").value;
+  const confirmPassword = document.getElementById("confirm-password").value;
+
+  if (newPassword !== confirmPassword || newPassword.length < 6) {
+    document.getElementById("password-error").style.display = "block";
+    setTimeout(() => {
+      document.getElementById("password-error").style.display = "none";
+    }, 3000);
+    return;
+  }
+
+  // Actualizar contraseña en datos de usuario
+  const userData = getUserData();
+  userData[currentUser.username].password = newPassword;
+  userData[currentUser.username].firstLogin = false;
+
+  // Guardar datos actualizados
+  localStorage.setItem("user-data", JSON.stringify(userData));
+
+  // Guardar sesión y mostrar app
+  localStorage.setItem("current-user", JSON.stringify(currentUser));
+  showApp();
+}
+
+function getUserData() {
+  const savedUserData = localStorage.getItem("user-data");
+  return savedUserData ? JSON.parse(savedUserData) : USERS;
+}
+
+function showPasswordChange() {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("password-change-screen").style.display = "flex";
+  document.getElementById("app-screen").style.display = "none";
+
+  // Limpiar campos
+  document.getElementById("new-password").value = "";
+  document.getElementById("confirm-password").value = "";
+  document.getElementById("password-error").style.display = "none";
 }
 
 function logout() {
@@ -70,6 +139,7 @@ function logout() {
 
 function showLogin() {
   document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("password-change-screen").style.display = "none";
   document.getElementById("app-screen").style.display = "none";
 
   // Limpiar campos del login
@@ -80,6 +150,7 @@ function showLogin() {
 
 function showApp() {
   document.getElementById("login-screen").style.display = "none";
+  document.getElementById("password-change-screen").style.display = "none";
   document.getElementById("app-screen").style.display = "block";
   document.getElementById("current-user").textContent = currentUser.name;
 
@@ -481,11 +552,11 @@ function generateSalesReport() {
   if (!container) return;
 
   const vendedores = [
-    "Juan Pérez",
-    "María García",
-    "Carlos López",
-    "Ana Martínez",
-    "Luis Rodríguez",
+    "Juan Larrondo",
+    "Andrés Iñiguez",
+    "Eduardo Schiavi",
+    "Gabriel Caffarello",
+    ,
   ];
 
   const salesData = vendedores.map((vendedor) => ({
