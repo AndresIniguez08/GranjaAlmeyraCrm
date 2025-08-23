@@ -364,19 +364,13 @@ function deleteClient(clientId) {
 
 // === GEOLOCALIZACIÓN ===
 async function geocodeAddress(address) {
-  try {
-    // Agregar delay para evitar rate limiting
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  const API_KEY = "pk.XXXXX"; // Obtén una clave gratuita en locationiq.com
 
+  try {
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      `https://eu1.locationiq.com/v1/search.php?key=${API_KEY}&q=${encodeURIComponent(
         address
-      )}&limit=1&countrycodes=ar`, // Limitar a Argentina
-      {
-        headers: {
-          "User-Agent": "CRM-Granja-Almeyra/1.0",
-        },
-      }
+      )}&format=json&countrycodes=ar&limit=1`
     );
 
     if (!response.ok) {
@@ -393,17 +387,6 @@ async function geocodeAddress(address) {
     }
   } catch (error) {
     console.error("Error geocodificando:", error);
-
-    // Fallback: coordenadas por defecto de Buenos Aires
-    if (
-      address.toLowerCase().includes("buenos aires") ||
-      address.toLowerCase().includes("caba")
-    ) {
-      return {
-        lat: -34.6037,
-        lng: -58.3816,
-      };
-    }
   }
   return null;
 }
