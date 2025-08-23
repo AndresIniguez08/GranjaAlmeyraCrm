@@ -745,11 +745,13 @@ function filterClients() {
 }
 
 // === MAPA ===
+// === MAPA ===
 function initMap() {
   if (map) {
     map.remove();
   }
 
+  // Vista inicial por defecto: Buenos Aires
   map = L.map("map").setView([-34.6037, -58.3816], 10);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -758,7 +760,35 @@ function initMap() {
 
   markersLayer = L.layerGroup().addTo(map);
 
-  showAllClients();
+  // Intentar geolocalización del usuario
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        // Recentrar mapa
+        map.setView([lat, lng], 13);
+
+        // Marcador del usuario
+        L.marker([lat, lng])
+          .addTo(map)
+          .bindPopup("📍 Tu ubicación")
+          .openPopup();
+
+        // Mostrar clientes en el mapa
+        showAllClients();
+      },
+      function (err) {
+        console.warn("Error geolocalización:", err.message);
+        // Si falla, al menos mostrar los clientes
+        showAllClients();
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  } else {
+    showAllClients();
+  }
 }
 
 function showAllClients() {
