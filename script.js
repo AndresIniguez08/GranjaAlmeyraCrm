@@ -36,11 +36,9 @@ let currentUser = null;
 
 // Inicializar el sistema
 document.addEventListener("DOMContentLoaded", function () {
-  // Ocultar pantallas secundarias al cargar
   document.getElementById("app-screen").style.display = "none";
   document.getElementById("password-change-screen").style.display = "none";
 
-  // Verificar si hay sesión activa
   const savedUser = localStorage.getItem("current-user");
   if (savedUser) {
     currentUser = JSON.parse(savedUser);
@@ -49,7 +47,6 @@ document.addEventListener("DOMContentLoaded", function () {
     showLogin();
   }
 
-  // Configurar formularios
   document.getElementById("login-form").addEventListener("submit", handleLogin);
   document
     .getElementById("password-change-form")
@@ -62,7 +59,6 @@ function handleLogin(e) {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
 
-  // Obtener datos actualizados de usuarios
   const userData = getUserData();
 
   if (userData[username] && userData[username].password === password) {
@@ -72,11 +68,9 @@ function handleLogin(e) {
       role: userData[username].role,
     };
 
-    // Verificar si es primer login
     if (userData[username].firstLogin) {
       showPasswordChange();
     } else {
-      // Guardar sesión y mostrar app
       localStorage.setItem("current-user", JSON.stringify(currentUser));
       showApp();
     }
@@ -102,15 +96,11 @@ function handlePasswordChange(e) {
     return;
   }
 
-  // Actualizar contraseña en datos de usuario
   const userData = getUserData();
   userData[currentUser.username].password = newPassword;
   userData[currentUser.username].firstLogin = false;
 
-  // Guardar datos actualizados
   localStorage.setItem("user-data", JSON.stringify(userData));
-
-  // Guardar sesión y mostrar app
   localStorage.setItem("current-user", JSON.stringify(currentUser));
   showApp();
 }
@@ -125,7 +115,6 @@ function showPasswordChange() {
   document.getElementById("password-change-screen").style.display = "flex";
   document.getElementById("app-screen").style.display = "none";
 
-  // Limpiar campos
   document.getElementById("new-password").value = "";
   document.getElementById("confirm-password").value = "";
   document.getElementById("password-error").style.display = "none";
@@ -142,7 +131,6 @@ function showLogin() {
   document.getElementById("password-change-screen").style.display = "none";
   document.getElementById("app-screen").style.display = "none";
 
-  // Limpiar campos del login
   document.getElementById("username").value = "";
   document.getElementById("password").value = "";
   document.getElementById("login-error").style.display = "none";
@@ -154,7 +142,6 @@ function showApp() {
   document.getElementById("app-screen").style.display = "block";
   document.getElementById("current-user").textContent = currentUser.name;
 
-  // Inicializar la aplicación
   init();
 }
 
@@ -163,6 +150,10 @@ let contacts = [];
 let clients = [];
 let map = null;
 let markersLayer = null;
+
+// Variables globales para geolocalización
+let tempCoordinates = null;
+let editTempCoordinates = null;
 
 // === FUNCIONES DE DATOS ===
 function loadData() {
@@ -200,7 +191,6 @@ function showSection(sectionName) {
 
   event.target.classList.add("active");
 
-  // Actualizar contenido según la sección
   switch (sectionName) {
     case "dashboard":
       updateDashboard();
@@ -286,118 +276,9 @@ function showSuccessMessage(elementId) {
   }, 3000);
 }
 
-// Formulario de clientes con coordenadas exactas
-document.getElementById("client-form").addEventListener("submit", function (e) {
-  e.preventDefault();
+// === FUNCIONES DE GEOLOCALIZACIÓN ===
 
-  const formData = new FormData(e.target);
-  const client = {
-    id: Date.now(),
-    name: formData.get("client-name"),
-    company: formData.get("client-company"),
-    phone: formData.get("client-phone"),
-    email: formData.get("client-email"),
-    address: formData.get("client-address"),
-    type: formData.get("client-type"),
-    status: formData.get("client-status"),
-    notes: formData.get("client-notes"),
-    coordinates: tempCoordinates, // Usar coordenadas exactas obtenidas
-    registradoPor: currentUser.username,
-    fechaRegistro: new Date().toISOString(),
-  };
-
-  clients.push(client);
-  saveData();
-
-  showSuccessMessage("client-success-message");
-  e.target.reset();
-  tempCoordinates = null; // Limpiar coordenadas temporales
-  document.getElementById("coordinates-display").textContent = "";
-  updateDashboard();
-  renderClientsList();
-  updateClientSelect();
-});
-// === FUNCIONES DE EDICIÓN ===
-
-// Funciones para editar contactos
-function editContact(contactId) {
-  const contact = contacts.find((c) => c.id == contactId);
-  if (!contact) return;
-
-  // Llenar el formulario de edición
-  document.getElementById("edit-contact-id").value = contact.id;
-  document.getElementById("edit-fecha").value = contact.fecha;
-  document.getElementById("edit-vendedor").value = contact.vendedor;
-  document.getElementById("edit-cliente").value = contact.cliente;
-  document.getElementById("edit-empresa").value = contact.empresa || "";
-  document.getElementById("edit-telefono").value = contact.telefono || "";
-  document.getElementById("edit-email").value = contact.email || "";
-  document.getElementById("edit-producto").value = contact.producto;
-  document.getElementById("edit-estado").value = contact.estado;
-  document.getElementById("edit-cliente-derivado").value =
-    contact.clienteDerivado || "";
-  document.getElementById("edit-motivo").value = contact.motivo || "";
-
-  // Mostrar/ocultar derivación según el estado
-  toggleEditDerivacion();
-
-  // Mostrar modal
-  document.getElementById("edit-contact-modal").style.display = "block";
-}
-
-function closeEditContactModal() {
-  document.getElementById("edit-contact-modal").style.display = "none";
-}
-
-function deleteContact(contactId) {
-  if (confirm("¿Estás seguro de que deseas eliminar este contacto?")) {
-    contacts = contacts.filter((c) => c.id != contactId);
-    saveData();
-    renderContactsList();
-    updateDashboard();
-    showSuccessMessage("contact-success-message");
-  }
-}
-
-// Funciones para editar clientes
-function editClient(clientId) {
-  const client = clients.find((c) => c.id == clientId);
-  if (!client) return;
-
-  // Llenar el formulario de edición
-  document.getElementById("edit-client-id").value = client.id;
-  document.getElementById("edit-client-name").value = client.name;
-  document.getElementById("edit-client-company").value = client.company;
-  document.getElementById("edit-client-phone").value = client.phone || "";
-  document.getElementById("edit-client-email").value = client.email || "";
-  document.getElementById("edit-client-address").value = client.address;
-  document.getElementById("edit-client-type").value = client.type;
-  document.getElementById("edit-client-status").value = client.status;
-  document.getElementById("edit-client-notes").value = client.notes || "";
-
-  // Mostrar modal
-  document.getElementById("edit-client-modal").style.display = "block";
-}
-
-function closeEditClientModal() {
-  document.getElementById("edit-client-modal").style.display = "none";
-}
-
-function deleteClient(clientId) {
-  if (confirm("¿Estás seguro de que deseas eliminar este cliente?")) {
-    clients = clients.filter((c) => c.id != clientId);
-    saveData();
-    renderClientsList();
-    updateDashboard();
-    showSuccessMessage("client-success-message");
-  }
-}
-
-// === GEOLOCALIZACIÓN ===
-// Variables globales para coordenadas temporales
-let tempCoordinates = null;
-
-// Obtener ubicación actual del usuario
+// Para formulario principal
 function getCurrentLocation() {
   const display = document.getElementById("coordinates-display");
 
@@ -418,9 +299,64 @@ function getCurrentLocation() {
       display.textContent = `Coordenadas: ${tempCoordinates.lat.toFixed(
         6
       )}, ${tempCoordinates.lng.toFixed(6)}`;
+      reverseGeocode(
+        tempCoordinates.lat,
+        tempCoordinates.lng,
+        "client-address"
+      );
+    },
+    function (error) {
+      let errorMsg = "Error obteniendo ubicación: ";
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          errorMsg += "Permiso denegado. Habilita la geolocalización.";
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMsg += "Ubicación no disponible.";
+          break;
+        case error.TIMEOUT:
+          errorMsg += "Tiempo de espera agotado.";
+          break;
+        default:
+          errorMsg += "Error desconocido.";
+          break;
+      }
+      display.textContent = errorMsg;
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    }
+  );
+}
 
-      // Geocodificación inversa para obtener la dirección
-      reverseGeocode(tempCoordinates.lat, tempCoordinates.lng);
+// Para modal de edición
+function getCurrentLocationEdit() {
+  const display = document.getElementById("edit-coordinates-display");
+
+  if (!navigator.geolocation) {
+    display.textContent = "Geolocalización no disponible en este navegador";
+    return;
+  }
+
+  display.textContent = "Obteniendo ubicación...";
+
+  navigator.geolocation.getCurrentPosition(
+    function (position) {
+      editTempCoordinates = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+
+      display.textContent = `Coordenadas: ${editTempCoordinates.lat.toFixed(
+        6
+      )}, ${editTempCoordinates.lng.toFixed(6)}`;
+      reverseGeocode(
+        editTempCoordinates.lat,
+        editTempCoordinates.lng,
+        "edit-client-address"
+      );
     },
     function (error) {
       let errorMsg = "Error obteniendo ubicación: ";
@@ -449,7 +385,7 @@ function getCurrentLocation() {
 }
 
 // Geocodificación inversa (coordenadas → dirección)
-async function reverseGeocode(lat, lng) {
+async function reverseGeocode(lat, lng, addressFieldId) {
   try {
     const response = await fetch(
       `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=es`
@@ -457,18 +393,15 @@ async function reverseGeocode(lat, lng) {
 
     if (response.ok) {
       const data = await response.json();
-      const addressField =
-        document.getElementById("client-address") ||
-        document.getElementById("edit-client-address");
+      const addressField = document.getElementById(addressFieldId);
 
-      // Construir dirección legible
       let address = "";
       if (data.locality) address += data.locality;
       if (data.principalSubdivision)
         address += ", " + data.principalSubdivision;
       if (data.countryName) address += ", " + data.countryName;
 
-      if (address) {
+      if (address && addressField) {
         addressField.value = address;
       }
     }
@@ -477,11 +410,9 @@ async function reverseGeocode(lat, lng) {
   }
 }
 
-// Geocodificar dirección ingresada manualmente
+// Geocodificar dirección del formulario principal
 async function geocodeCurrentAddress() {
-  const addressField =
-    document.getElementById("client-address") ||
-    document.getElementById("edit-client-address");
+  const addressField = document.getElementById("client-address");
   const address = addressField.value.trim();
   const display = document.getElementById("coordinates-display");
 
@@ -493,13 +424,42 @@ async function geocodeCurrentAddress() {
   display.textContent = "Buscando coordenadas...";
 
   try {
-    // Usar múltiples APIs como fallback
     tempCoordinates = await tryMultipleGeocodingServices(address);
 
     if (tempCoordinates) {
       display.textContent = `Coordenadas encontradas: ${tempCoordinates.lat.toFixed(
         6
       )}, ${tempCoordinates.lng.toFixed(6)}`;
+    } else {
+      display.textContent =
+        "No se pudieron encontrar coordenadas para esa dirección";
+    }
+  } catch (error) {
+    display.textContent = "Error buscando coordenadas";
+    console.error("Error geocodificando:", error);
+  }
+}
+
+// Geocodificar dirección del modal de edición
+async function geocodeCurrentAddressEdit() {
+  const addressField = document.getElementById("edit-client-address");
+  const address = addressField.value.trim();
+  const display = document.getElementById("edit-coordinates-display");
+
+  if (!address) {
+    display.textContent = "Ingresa una dirección primero";
+    return;
+  }
+
+  display.textContent = "Buscando coordenadas...";
+
+  try {
+    editTempCoordinates = await tryMultipleGeocodingServices(address);
+
+    if (editTempCoordinates) {
+      display.textContent = `Coordenadas encontradas: ${editTempCoordinates.lat.toFixed(
+        6
+      )}, ${editTempCoordinates.lng.toFixed(6)}`;
     } else {
       display.textContent =
         "No se pudieron encontrar coordenadas para esa dirección";
@@ -546,24 +506,6 @@ async function tryMultipleGeocodingServices(address) {
       }
       return null;
     },
-
-    // Servicio 3: OpenCage (requiere API key gratuita)
-    async () => {
-      const API_KEY = "TU_API_KEY_OPENCAGE"; // Obtener en opencagedata.com
-      if (API_KEY === "TU_API_KEY_OPENCAGE") return null;
-
-      const response = await fetch(
-        `https://api.opencagedata.com/geocode/v1/json?key=${API_KEY}&q=${encodeURIComponent(
-          address
-        )}&countrycode=ar&language=es`
-      );
-      const data = await response.json();
-      if (data.results && data.results.length > 0) {
-        const result = data.results[0];
-        return { lat: result.geometry.lat, lng: result.geometry.lng };
-      }
-      return null;
-    },
   ];
 
   // Intentar cada servicio hasta que uno funcione
@@ -582,6 +524,89 @@ async function tryMultipleGeocodingServices(address) {
   }
 
   return null;
+}
+
+// === FUNCIONES DE EDICIÓN ===
+
+// Funciones para editar contactos
+function editContact(contactId) {
+  const contact = contacts.find((c) => c.id == contactId);
+  if (!contact) return;
+
+  document.getElementById("edit-contact-id").value = contact.id;
+  document.getElementById("edit-fecha").value = contact.fecha;
+  document.getElementById("edit-vendedor").value = contact.vendedor;
+  document.getElementById("edit-cliente").value = contact.cliente;
+  document.getElementById("edit-empresa").value = contact.empresa || "";
+  document.getElementById("edit-telefono").value = contact.telefono || "";
+  document.getElementById("edit-email").value = contact.email || "";
+  document.getElementById("edit-producto").value = contact.producto;
+  document.getElementById("edit-estado").value = contact.estado;
+  document.getElementById("edit-cliente-derivado").value =
+    contact.clienteDerivado || "";
+  document.getElementById("edit-motivo").value = contact.motivo || "";
+
+  toggleEditDerivacion();
+  document.getElementById("edit-contact-modal").style.display = "block";
+}
+
+function closeEditContactModal() {
+  document.getElementById("edit-contact-modal").style.display = "none";
+}
+
+function deleteContact(contactId) {
+  if (confirm("¿Estás seguro de que deseas eliminar este contacto?")) {
+    contacts = contacts.filter((c) => c.id != contactId);
+    saveData();
+    renderContactsList();
+    updateDashboard();
+    showSuccessMessage("contact-success-message");
+  }
+}
+
+// Funciones para editar clientes
+function editClient(clientId) {
+  const client = clients.find((c) => c.id == clientId);
+  if (!client) return;
+
+  document.getElementById("edit-client-id").value = client.id;
+  document.getElementById("edit-client-name").value = client.name;
+  document.getElementById("edit-client-company").value = client.company;
+  document.getElementById("edit-client-phone").value = client.phone || "";
+  document.getElementById("edit-client-email").value = client.email || "";
+  document.getElementById("edit-client-address").value = client.address;
+  document.getElementById("edit-client-type").value = client.type;
+  document.getElementById("edit-client-status").value = client.status;
+  document.getElementById("edit-client-notes").value = client.notes || "";
+
+  // Precargar coordenadas existentes
+  editTempCoordinates = client.coordinates;
+  const display = document.getElementById("edit-coordinates-display");
+  if (editTempCoordinates) {
+    display.textContent = `Coordenadas: ${editTempCoordinates.lat.toFixed(
+      6
+    )}, ${editTempCoordinates.lng.toFixed(6)}`;
+  } else {
+    display.textContent = "";
+  }
+
+  document.getElementById("edit-client-modal").style.display = "block";
+}
+
+function closeEditClientModal() {
+  document.getElementById("edit-client-modal").style.display = "none";
+  editTempCoordinates = null;
+  document.getElementById("edit-coordinates-display").textContent = "";
+}
+
+function deleteClient(clientId) {
+  if (confirm("¿Estás seguro de que deseas eliminar este cliente?")) {
+    clients = clients.filter((c) => c.id != clientId);
+    saveData();
+    renderClientsList();
+    updateDashboard();
+    showSuccessMessage("client-success-message");
+  }
 }
 
 // === DASHBOARD ===
@@ -725,7 +750,6 @@ function initMap() {
     map.remove();
   }
 
-  // Centrar en Buenos Aires
   map = L.map("map").setView([-34.6037, -58.3816], 10);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -1239,7 +1263,7 @@ function setupEventListeners() {
       updateDashboard();
     });
 
-  // Formulario de clientes
+  // Formulario de clientes CON GEOLOCALIZACIÓN
   document
     .getElementById("client-form")
     .addEventListener("submit", function (e) {
@@ -1256,23 +1280,21 @@ function setupEventListeners() {
         type: formData.get("client-type"),
         status: formData.get("client-status"),
         notes: formData.get("client-notes"),
-        coordinates: null,
+        coordinates: tempCoordinates, // Usar coordenadas obtenidas
         registradoPor: currentUser.username,
         fechaRegistro: new Date().toISOString(),
       };
 
-      // Geocodificar dirección
-      geocodeAddress(client.address).then((coords) => {
-        client.coordinates = coords;
-        clients.push(client);
-        saveData();
+      clients.push(client);
+      saveData();
 
-        showSuccessMessage("client-success-message");
-        e.target.reset();
-        updateDashboard();
-        renderClientsList();
-        updateClientSelect();
-      });
+      showSuccessMessage("client-success-message");
+      e.target.reset();
+      tempCoordinates = null; // Limpiar coordenadas temporales
+      document.getElementById("coordinates-display").textContent = "";
+      updateDashboard();
+      renderClientsList();
+      updateClientSelect();
     });
 
   // Formulario de edición de contactos
@@ -1287,7 +1309,6 @@ function setupEventListeners() {
       const contactIndex = contacts.findIndex((c) => c.id == contactId);
       if (contactIndex === -1) return;
 
-      // Actualizar el contacto existente
       contacts[contactIndex] = {
         ...contacts[contactIndex],
         fecha: formData.get("fecha"),
@@ -1311,7 +1332,7 @@ function setupEventListeners() {
       showSuccessMessage("contact-success-message");
     });
 
-  // Formulario de edición de clientes
+  // Formulario de edición de clientes CON GEOLOCALIZACIÓN
   document
     .getElementById("edit-client-form")
     .addEventListener("submit", function (e) {
@@ -1333,33 +1354,19 @@ function setupEventListeners() {
         type: formData.get("client-type"),
         status: formData.get("client-status"),
         notes: formData.get("client-notes"),
+        coordinates: editTempCoordinates || clients[clientIndex].coordinates, // Usar nuevas coordenadas o mantener las existentes
         editadoPor: currentUser.username,
         fechaEdicion: new Date().toISOString(),
       };
 
-      // Si cambió la dirección, geocodificar nuevamente
-      if (clients[clientIndex].address !== updatedClient.address) {
-        geocodeAddress(updatedClient.address).then((coords) => {
-          updatedClient.coordinates = coords;
-          clients[clientIndex] = updatedClient;
-          saveData();
+      clients[clientIndex] = updatedClient;
+      saveData();
 
-          closeEditClientModal();
-          renderClientsList();
-          updateDashboard();
-          updateClientSelect();
-          showSuccessMessage("client-success-message");
-        });
-      } else {
-        clients[clientIndex] = updatedClient;
-        saveData();
-
-        closeEditClientModal();
-        renderClientsList();
-        updateDashboard();
-        updateClientSelect();
-        showSuccessMessage("client-success-message");
-      }
+      closeEditClientModal();
+      renderClientsList();
+      updateDashboard();
+      updateClientSelect();
+      showSuccessMessage("client-success-message");
     });
 
   // Cerrar modales al hacer clic fuera de ellos
@@ -1380,16 +1387,6 @@ function setupEventListeners() {
 function init() {
   loadData();
   setupEventListeners();
-  let initialized = false;
-
-  function init() {
-    if (initialized) return;
-    initialized = true;
-
-    loadData();
-    setupEventListeners();
-    // ... resto del código
-  }
 
   // Establecer fecha actual por defecto
   document.getElementById("fecha").valueAsDate = new Date();
