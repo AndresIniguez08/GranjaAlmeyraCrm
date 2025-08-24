@@ -153,7 +153,7 @@ let markersLayer = null;
 
 // === CONFIGURACIÓN DE GOOGLE MAPS ===
 // 🔑 PEGA TU API KEY DE GOOGLE AQUÍ 👇
-const GOOGLE_MAPS_API_KEY = "TU_API_KEY_AQUI";
+const GOOGLE_MAPS_API_KEY = "AIzaSyDepifUo7rRJDC6tORWACb_gIar-qa_LSY";
 
 // Variables globales para geolocalización
 let tempCoordinates = null;
