@@ -151,47 +151,113 @@ let clients = [];
 let map = null;
 let markersLayer = null;
 
-// === CONFIGURACIÓN DE GOOGLE MAPS ===
-// 🔑 PEGA TU API KEY DE GOOGLE AQUÍ 👇
-const GOOGLE_MAPS_API_KEY = "AIzaSyDepifUo7rRJDC6tORWACb_gIar-qa_LSY";
-
 // Variables globales para geolocalización
 let tempCoordinates = null;
 let editTempCoordinates = null;
-let googleMapsLoaded = false;
-let geocoderInstance = null;
-
-// Cargar Google Maps API
-function loadGoogleMapsAPI() {
-  if (googleMapsLoaded) return Promise.resolve();
-
-  return new Promise((resolve, reject) => {
-    // Verificar si ya está cargado
-    if (window.google && window.google.maps) {
-      googleMapsLoaded = true;
-      geocoderInstance = new google.maps.Geocoder();
-      resolve();
-      return;
-    }
-
-    // Crear callback global
-    window.initGoogleMaps = function () {
-      googleMapsLoaded = true;
-      geocoderInstance = new google.maps.Geocoder();
-      resolve();
-    };
-
-    // Cargar script
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initGoogleMaps`;
-    script.async = true;
-    script.defer = true;
-    script.onerror = () => reject(new Error("Error cargando Google Maps API"));
-    document.head.appendChild(script);
-  });
-}
 
 // === FUNCIONES DE GEOLOCALIZACIÓN ===
+
+// Geocodificación con Nominatim (OpenStreetMap)
+async function geocodeWithNominatim(address) {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+    address
+  )}&format=json&countrycodes=ar&limit=1`;
+
+  try {
+    // Nominatim requires a custom User-Agent
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "GranjaAlmeyraCRM/1.0 (https://github.com/jponc/granja-almeyra-crm)",
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+    const data = await response.json();
+
+    if (data && data.length > 0) {
+      return {
+        lat: parseFloat(data[0].lat),
+        lng: parseFloat(data[0].lon),
+      };
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error en geocodificación con Nominatim:", error);
+    throw new Error("El servicio de geocodificación no está disponible.");
+  }
+}
+
+// Geocodificación inversa con Nominatim (coordenadas → dirección)
+async function reverseGeocodeWithNominatim(lat, lng, addressFieldId) {
+  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "GranjaAlmeyraCRM/1.0 (https://github.com/jponc/granja-almeyra-crm)",
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+    const data = await response.json();
+
+    if (data && data.display_name) {
+      const addressField = document.getElementById(addressFieldId);
+      if (addressField) {
+        addressField.value = data.display_name;
+      }
+      return data.display_name;
+    } else {
+      console.warn("Geocodificación inversa con Nominatim falló: No se encontró dirección.");
+      return null;
+    }
+  } catch (error) {
+    console.error("Error en geocodificación inversa con Nominatim:", error);
+    throw new Error("El servicio de geocodificación inversa no está disponible.");
+  }
+}
+
+// Fallback de geolocalización por IP
+async function getLocationByIP(displayElement, isEditForm) {
+  displayElement.textContent = "Intentando ubicación por IP (menos precisa)...";
+  try {
+    const response = await fetch("https://ip-api.com/json");
+    if (!response.ok) {
+      throw new Error(`Error en la solicitud: ${response.statusText}`);
+    }
+    const data = await response.json();
+
+    if (data && data.status === "success" && data.lat && data.lon) {
+      const coords = {
+        lat: data.lat,
+        lng: data.lon,
+      };
+
+      if (isEditForm) {
+        editTempCoordinates = coords;
+      } else {
+        tempCoordinates = coords;
+      }
+
+      displayElement.textContent = `Coordenadas (aprox.): ${coords.lat.toFixed(
+        4
+      )}, ${coords.lng.toFixed(4)}`;
+
+      const addressFieldId = isEditForm
+        ? "edit-client-address"
+        : "client-address";
+      await reverseGeocodeWithNominatim(coords.lat, coords.lng, addressFieldId);
+    } else {
+      throw new Error("No se pudo obtener la ubicación por IP.");
+    }
+  } catch (error) {
+    console.error("Error obteniendo ubicación por IP:", error);
+    displayElement.textContent = "No se pudo determinar la ubicación.";
+  }
+}
 
 // Para formulario principal
 async function getCurrentLocation() {
@@ -216,29 +282,16 @@ async function getCurrentLocation() {
       )}, ${tempCoordinates.lng.toFixed(6)}`;
 
       // Geocodificación inversa para obtener la dirección
-      await reverseGeocodeGoogle(
+      await reverseGeocodeWithNominatim(
         tempCoordinates.lat,
         tempCoordinates.lng,
         "client-address"
       );
     },
-    function (error) {
-      let errorMsg = "Error obteniendo ubicación: ";
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          errorMsg += "Permiso denegado. Habilita la geolocalización.";
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMsg += "Ubicación no disponible.";
-          break;
-        case error.TIMEOUT:
-          errorMsg += "Tiempo de espera agotado.";
-          break;
-        default:
-          errorMsg += "Error desconocido.";
-          break;
-      }
-      display.textContent = errorMsg;
+    async function (error) {
+      console.warn(`Error de geolocalización (${error.code}): ${error.message}`);
+      // Fallback to IP-based geolocation
+      await getLocationByIP(display, false);
     },
     {
       enableHighAccuracy: true,
@@ -271,29 +324,17 @@ async function getCurrentLocationEdit() {
       )}, ${editTempCoordinates.lng.toFixed(6)}`;
 
       // Geocodificación inversa para obtener la dirección
-      await reverseGeocodeGoogle(
+      await reverseGeocodeWithNominatim(
         editTempCoordinates.lat,
         editTempCoordinates.lng,
         "edit-client-address"
       );
     },
-    function (error) {
-      let errorMsg = "Error obteniendo ubicación: ";
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          errorMsg += "Permiso denegado. Habilita la geolocalización.";
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMsg += "Ubicación no disponible.";
-          break;
-        case error.TIMEOUT:
-          errorMsg += "Tiempo de espera agotado.";
-          break;
-        default:
-          errorMsg += "Error desconocido.";
-          break;
-      }
-      display.textContent = errorMsg;
+    async function (error) {
+      console.warn(`Error de geolocalización (${error.code}): ${error.message}`);
+      const display = document.getElementById("edit-coordinates-display");
+      // Fallback to IP-based geolocation
+      await getLocationByIP(display, true);
     },
     {
       enableHighAccuracy: true,
@@ -301,34 +342,6 @@ async function getCurrentLocationEdit() {
       maximumAge: 0,
     }
   );
-}
-
-// Geocodificación inversa con Google (coordenadas → dirección)
-async function reverseGeocodeGoogle(lat, lng, addressFieldId) {
-  try {
-    // Asegurar que Google Maps esté cargado
-    await loadGoogleMapsAPI();
-
-    const latlng = { lat: lat, lng: lng };
-
-    return new Promise((resolve, reject) => {
-      geocoderInstance.geocode({ location: latlng }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          const addressField = document.getElementById(addressFieldId);
-          if (addressField) {
-            // Usar la dirección formateada de Google
-            addressField.value = results[0].formatted_address;
-          }
-          resolve(results[0].formatted_address);
-        } else {
-          console.warn("Geocodificación inversa falló:", status);
-          reject(new Error(`Geocodificación inversa falló: ${status}`));
-        }
-      });
-    });
-  } catch (error) {
-    console.error("Error en geocodificación inversa Google:", error);
-  }
 }
 
 // Geocodificar dirección del formulario principal
@@ -345,7 +358,7 @@ async function geocodeCurrentAddress() {
   display.textContent = "Buscando coordenadas...";
 
   try {
-    tempCoordinates = await geocodeWithGoogle(address);
+    tempCoordinates = await geocodeWithNominatim(address);
 
     if (tempCoordinates) {
       display.textContent = `Coordenadas encontradas: ${tempCoordinates.lat.toFixed(
@@ -375,7 +388,7 @@ async function geocodeCurrentAddressEdit() {
   display.textContent = "Buscando coordenadas...";
 
   try {
-    editTempCoordinates = await geocodeWithGoogle(address);
+    editTempCoordinates = await geocodeWithNominatim(address);
 
     if (editTempCoordinates) {
       display.textContent = `Coordenadas encontradas: ${editTempCoordinates.lat.toFixed(
@@ -388,54 +401,6 @@ async function geocodeCurrentAddressEdit() {
   } catch (error) {
     display.textContent = "Error buscando coordenadas: " + error.message;
     console.error("Error geocodificando:", error);
-  }
-}
-
-// Geocodificación con Google Maps API
-async function geocodeWithGoogle(address) {
-  try {
-    // Asegurar que Google Maps esté cargado
-    await loadGoogleMapsAPI();
-
-    return new Promise((resolve, reject) => {
-      geocoderInstance.geocode(
-        {
-          address: address,
-          region: "AR", // Priorizar resultados de Argentina
-        },
-        (results, status) => {
-          if (status === "OK" && results[0]) {
-            const location = results[0].geometry.location;
-            resolve({
-              lat: location.lat(),
-              lng: location.lng(),
-            });
-          } else {
-            let errorMsg = "Geocodificación falló";
-            switch (status) {
-              case "ZERO_RESULTS":
-                errorMsg = "No se encontraron resultados para esa dirección";
-                break;
-              case "OVER_QUERY_LIMIT":
-                errorMsg = "Límite de consultas excedido";
-                break;
-              case "REQUEST_DENIED":
-                errorMsg = "Solicitud denegada - revisa tu API key";
-                break;
-              case "INVALID_REQUEST":
-                errorMsg = "Solicitud inválida";
-                break;
-              default:
-                errorMsg = `Error de geocodificación: ${status}`;
-            }
-            reject(new Error(errorMsg));
-          }
-        }
-      );
-    });
-  } catch (error) {
-    console.error("Error cargando Google Maps:", error);
-    throw new Error("Error cargando servicio de geocodificación");
   }
 }
 
@@ -778,85 +743,7 @@ function filterClients() {
   renderClientsList(filtered);
 }
 
-// === MAPA MEJORADO CON GOOGLE MAPS ===
-async function initGoogleMap() {
-  try {
-    await loadGoogleMapsAPI();
-
-    const mapElement = document.getElementById("map");
-
-    // Crear mapa de Google
-    const googleMap = new google.maps.Map(mapElement, {
-      zoom: 10,
-      center: { lat: -34.6037, lng: -58.3816 }, // Buenos Aires
-      mapTypeId: "roadmap",
-      styles: [
-        {
-          featureType: "poi",
-          elementType: "labels",
-          stylers: [{ visibility: "off" }],
-        },
-      ],
-    });
-
-    // Agregar marcadores para clientes
-    clients.forEach((client) => {
-      if (client.coordinates) {
-        const referralsCount = contacts.filter(
-          (c) => c.clienteDerivado === client.company
-        ).length;
-
-        // Determinar color según estado
-        let pinColor = "4285f4"; // Azul para activos
-        if (client.status === "Inactivo") pinColor = "ea4335"; // Rojo
-        if (client.status === "Prospecto") pinColor = "fbbc04"; // Amarillo
-
-        // Crear marcador
-        const marker = new google.maps.Marker({
-          position: {
-            lat: client.coordinates.lat,
-            lng: client.coordinates.lng,
-          },
-          map: googleMap,
-          title: client.company,
-          icon: {
-            url: `https://maps.google.com/mapfiles/ms/icons/${
-              pinColor === "4285f4"
-                ? "blue"
-                : pinColor === "ea4335"
-                ? "red"
-                : "yellow"
-            }-dot.png`,
-            scaledSize: new google.maps.Size(32, 32),
-          },
-        });
-
-        // Info window
-        const infoWindow = new google.maps.InfoWindow({
-          content: `
-            <div>
-              <strong>${client.company}</strong><br>
-              ${client.name}<br>
-              ${client.address}<br>
-              <em>${client.type} - ${client.status}</em><br>
-              <strong>Derivaciones recibidas: ${referralsCount}</strong>
-            </div>
-          `,
-        });
-
-        marker.addListener("click", () => {
-          infoWindow.open(googleMap, marker);
-        });
-      }
-    });
-  } catch (error) {
-    console.error("Error inicializando mapa Google:", error);
-    // Fallback al mapa de Leaflet si falla
-    initLeafletMap();
-  }
-}
-
-// Mapa de respaldo con Leaflet (mantener el código original)
+// === MAPA CON LEAFLET ===
 function initLeafletMap() {
   if (map) {
     map.remove();
@@ -865,24 +752,16 @@ function initLeafletMap() {
   map = L.map("map").setView([-34.6037, -58.3816], 10);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap contributors",
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
   markersLayer = L.layerGroup().addTo(map);
 
-  // Código original para mostrar clientes...
   showAllClients();
 }
 
-// Modificar la función initMap para usar Google Maps
 function initMap() {
-  // Intentar Google Maps primero, luego Leaflet como respaldo
-  if (GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY !== "TU_API_KEY_AQUI") {
-    initGoogleMap();
-  } else {
-    console.warn("Google Maps API key no configurada, usando Leaflet");
-    initLeafletMap();
-  }
+  initLeafletMap();
 }
 
 // === MOSTRAR CLIENTES EN EL MAPA ===
