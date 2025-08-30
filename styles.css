@@ -12,6 +12,11 @@ body {
   position: relative;
 }
 
+h2 {
+  margin-bottom: 30px;
+  color: #333;
+  font-size: 2em;
+}
 /* Mobile-first approach */
 @media (min-width: 768px) {
   body {
