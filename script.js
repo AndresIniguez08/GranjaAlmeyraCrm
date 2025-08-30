@@ -167,7 +167,8 @@ async function geocodeWithNominatim(address) {
     // Nominatim requires a custom User-Agent
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "GranjaAlmeyraCRM/1.0 (https://github.com/jponc/granja-almeyra-crm)",
+        "User-Agent":
+          "GranjaAlmeyraCRM/1.0 (https://github.com/jponc/granja-almeyra-crm)",
       },
     });
     if (!response.ok) {
@@ -196,7 +197,8 @@ async function reverseGeocodeWithNominatim(lat, lng, addressFieldId) {
   try {
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "GranjaAlmeyraCRM/1.0 (https://github.com/jponc/granja-almeyra-crm)",
+        "User-Agent":
+          "GranjaAlmeyraCRM/1.0 (https://github.com/jponc/granja-almeyra-crm)",
       },
     });
     if (!response.ok) {
@@ -211,12 +213,16 @@ async function reverseGeocodeWithNominatim(lat, lng, addressFieldId) {
       }
       return data.display_name;
     } else {
-      console.warn("Geocodificación inversa con Nominatim falló: No se encontró dirección.");
+      console.warn(
+        "Geocodificación inversa con Nominatim falló: No se encontró dirección."
+      );
       return null;
     }
   } catch (error) {
     console.error("Error en geocodificación inversa con Nominatim:", error);
-    throw new Error("El servicio de geocodificación inversa no está disponible.");
+    throw new Error(
+      "El servicio de geocodificación inversa no está disponible."
+    );
   }
 }
 
@@ -289,7 +295,9 @@ async function getCurrentLocation() {
       );
     },
     async function (error) {
-      console.warn(`Error de geolocalización (${error.code}): ${error.message}`);
+      console.warn(
+        `Error de geolocalización (${error.code}): ${error.message}`
+      );
       // Fallback to IP-based geolocation
       await getLocationByIP(display, false);
     },
@@ -331,7 +339,9 @@ async function getCurrentLocationEdit() {
       );
     },
     async function (error) {
-      console.warn(`Error de geolocalización (${error.code}): ${error.message}`);
+      console.warn(
+        `Error de geolocalización (${error.code}): ${error.message}`
+      );
       const display = document.getElementById("edit-coordinates-display");
       // Fallback to IP-based geolocation
       await getLocationByIP(display, true);
@@ -752,7 +762,8 @@ async function initLeafletMap() {
   map = L.map("map").setView([-34.6037, -58.3816], 10);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution:
+      '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
   markersLayer = L.layerGroup().addTo(map);
@@ -767,7 +778,9 @@ function initMap() {
 // === MOSTRAR CLIENTES EN EL MAPA ===
 async function showAllClients() {
   if (!markersLayer) {
-    console.warn("markersLayer no está inicializado. El mapa puede no estar listo.");
+    console.warn(
+      "markersLayer no está inicializado. El mapa puede no estar listo."
+    );
     return;
   }
   markersLayer.clearLayers();
@@ -781,16 +794,21 @@ async function showAllClients() {
     // Si no hay coordenadas pero sí dirección, intentar geocodificar
     if (!client.coordinates && client.address) {
       try {
-        console.log(`Geocodificando dirección para ${client.company}: ${client.address}`);
+        console.log(
+          `Geocodificando dirección para ${client.company}: ${client.address}`
+        );
         const coords = await geocodeWithNominatim(client.address);
         if (coords) {
           client.coordinates = coords;
           dataUpdated = true;
         }
         // Esperar 1 segundo para no sobrecargar la API de Nominatim
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (error) {
-        console.error(`No se pudo geocodificar la dirección para ${client.company}:`, error);
+        console.error(
+          `No se pudo geocodificar la dirección para ${client.company}:`,
+          error
+        );
       }
     }
 
@@ -828,7 +846,9 @@ async function showAllClients() {
   }
 
   if (dataUpdated) {
-    console.log("Guardando datos de clientes actualizados con nuevas coordenadas.");
+    console.log(
+      "Guardando datos de clientes actualizados con nuevas coordenadas."
+    );
     saveData();
   }
 
@@ -1439,4 +1459,823 @@ function init() {
   renderContactsList();
   renderClientsList();
   updateClientSelect();
+}
+// === SISTEMA DE PRODUCTOS ===
+
+// Lista de productos disponibles
+const PRODUCTOS_DISPONIBLES = [
+  { id: "b1", name: "B1", category: "Individual" },
+  { id: "b2", name: "B2", category: "Individual" },
+  { id: "b3", name: "B3", category: "Individual" },
+  { id: "caja_180_b1", name: "Caja 180 B1", category: "Caja Grande" },
+  { id: "caja_180_b2", name: "Caja 180 B2", category: "Caja Grande" },
+  { id: "caja_180_b3", name: "Caja 180 B3", category: "Caja Grande" },
+  {
+    id: "caja_18_doc_x6",
+    name: "Caja 18 Docenas (x6)",
+    category: "Caja Docenas",
+  },
+  {
+    id: "caja_18_doc_x12",
+    name: "Caja 18 Docenas (x12)",
+    category: "Caja Docenas",
+  },
+  {
+    id: "estuche_b2_x6",
+    name: "Estuche B2 x6 (Licitación)",
+    category: "Licitación",
+  },
+  {
+    id: "estuche_b2_x12",
+    name: "Estuche B2 x12 (Licitación)",
+    category: "Licitación",
+  },
+  { id: "pack_6_maples_b1", name: "Pack 6 Maples B1", category: "Pack Maples" },
+  { id: "pack_6_maples_b2", name: "Pack 6 Maples B2", category: "Pack Maples" },
+  { id: "pack_6_maples_b3", name: "Pack 6 Maples B3", category: "Pack Maples" },
+];
+
+// Función para actualizar el select de productos
+function updateProductSelect() {
+  const productSelect = document.getElementById("producto");
+  const editProductSelect = document.getElementById("edit-producto");
+
+  if (productSelect) {
+    // Limpiar opciones existentes excepto la primera
+    productSelect.innerHTML = '<option value="">Seleccionar Producto</option>';
+
+    // Agrupar productos por categoría
+    const groupedProducts = {};
+    PRODUCTOS_DISPONIBLES.forEach((product) => {
+      if (!groupedProducts[product.category]) {
+        groupedProducts[product.category] = [];
+      }
+      groupedProducts[product.category].push(product);
+    });
+
+    // Añadir productos agrupados
+    Object.keys(groupedProducts).forEach((category) => {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = category;
+
+      groupedProducts[category].forEach((product) => {
+        const option = document.createElement("option");
+        option.value = product.name;
+        option.textContent = product.name;
+        optgroup.appendChild(option);
+      });
+
+      productSelect.appendChild(optgroup);
+    });
+  }
+
+  // Hacer lo mismo para el select de edición
+  if (editProductSelect) {
+    editProductSelect.innerHTML =
+      '<option value="">Seleccionar Producto</option>';
+
+    const groupedProducts = {};
+    PRODUCTOS_DISPONIBLES.forEach((product) => {
+      if (!groupedProducts[product.category]) {
+        groupedProducts[product.category] = [];
+      }
+      groupedProducts[product.category].push(product);
+    });
+
+    Object.keys(groupedProducts).forEach((category) => {
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = category;
+
+      groupedProducts[category].forEach((product) => {
+        const option = document.createElement("option");
+        option.value = product.name;
+        option.textContent = product.name;
+        optgroup.appendChild(option);
+      });
+
+      editProductSelect.appendChild(optgroup);
+    });
+  }
+}
+
+// === REPORTES DE PRODUCTOS ===
+
+// Generar reporte de productos más solicitados
+function generateProductReport() {
+  const container = document.getElementById("product-report");
+  if (!container) return;
+
+  // Contar productos en contactos
+  const productCounts = {};
+  contacts.forEach((contact) => {
+    const product = contact.producto;
+    if (product && product !== "") {
+      productCounts[product] = (productCounts[product] || 0) + 1;
+    }
+  });
+
+  // Convertir a array y ordenar
+  const sortedProducts = Object.entries(productCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10); // Top 10
+
+  if (sortedProducts.length === 0) {
+    container.innerHTML =
+      '<p style="text-align: center; color: #666;">No hay datos de productos</p>';
+    return;
+  }
+
+  const maxCount = Math.max(...sortedProducts.map(([_, count]) => count));
+
+  container.innerHTML = sortedProducts
+    .map(
+      ([product, count], index) => `
+      <div class="ranking-item">
+        <span class="ranking-position">#${index + 1}</span>
+        <span class="ranking-name">${product}</span>
+        <div class="product-bar">
+          <div class="product-bar-fill" style="width: ${
+            (count / maxCount) * 100
+          }%"></div>
+          <span class="product-count">${count}</span>
+        </div>
+      </div>
+    `
+    )
+    .join("");
+}
+
+// Generar reporte de productos por vendedor
+function generateProductBySellerReport() {
+  const container = document.getElementById("product-by-seller-report");
+  if (!container) return;
+
+  const vendedores = [
+    "Juan Larrondo",
+    "Andrés Iñiguez",
+    "Eduardo Schiavi",
+    "Gabriel Caffarello",
+  ];
+  const productData = {};
+
+  // Inicializar estructura de datos
+  vendedores.forEach((vendedor) => {
+    productData[vendedor] = {};
+    PRODUCTOS_DISPONIBLES.forEach((product) => {
+      productData[vendedor][product.name] = 0;
+    });
+  });
+
+  // Contar productos por vendedor
+  contacts.forEach((contact) => {
+    if (contact.vendedor && contact.producto && contact.producto !== "") {
+      if (
+        productData[contact.vendedor] &&
+        productData[contact.vendedor][contact.producto] !== undefined
+      ) {
+        productData[contact.vendedor][contact.producto]++;
+      }
+    }
+  });
+
+  // Generar HTML
+  let html = '<div class="seller-product-grid">';
+
+  vendedores.forEach((vendedor) => {
+    const vendedorProducts = Object.entries(productData[vendedor])
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1]);
+
+    html += `
+      <div class="seller-product-card">
+        <h4 class="seller-name">${vendedor}</h4>
+        ${
+          vendedorProducts.length > 0
+            ? vendedorProducts
+                .map(
+                  ([product, count]) => `
+            <div class="seller-product-item">
+              <span class="product-name">${product}</span>
+              <span class="product-count">${count}</span>
+            </div>
+          `
+                )
+                .join("")
+            : '<p class="no-products">Sin productos registrados</p>'
+        }
+      </div>
+    `;
+  });
+
+  html += "</div>";
+  container.innerHTML = html;
+}
+
+// Generar reporte de productos por categoría
+function generateProductCategoryReport() {
+  const container = document.getElementById("product-category-report");
+  if (!container) return;
+
+  const categoryCounts = {};
+
+  contacts.forEach((contact) => {
+    if (contact.producto && contact.producto !== "") {
+      const product = PRODUCTOS_DISPONIBLES.find(
+        (p) => p.name === contact.producto
+      );
+      if (product) {
+        const category = product.category;
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+      }
+    }
+  });
+
+  const sortedCategories = Object.entries(categoryCounts).sort(
+    (a, b) => b[1] - a[1]
+  );
+
+  if (sortedCategories.length === 0) {
+    container.innerHTML =
+      '<p style="text-align: center; color: #666;">No hay datos de categorías</p>';
+    return;
+  }
+
+  const total = sortedCategories.reduce((sum, [_, count]) => sum + count, 0);
+
+  container.innerHTML = sortedCategories
+    .map(([category, count]) => {
+      const percentage = Math.round((count / total) * 100);
+      return `
+        <div class="category-item">
+          <div class="category-header">
+            <span class="category-name">${category}</span>
+            <span class="category-stats">${count} (${percentage}%)</span>
+          </div>
+          <div class="category-bar">
+            <div class="category-bar-fill" style="width: ${percentage}%"></div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// Función para obtener estadísticas rápidas de productos
+function getProductStats() {
+  const totalProducts = contacts.filter(
+    (c) => c.producto && c.producto !== ""
+  ).length;
+  const uniqueProducts = [
+    ...new Set(contacts.map((c) => c.producto).filter((p) => p && p !== "")),
+  ].length;
+  const topProduct = getTopProduct();
+
+  return {
+    total: totalProducts,
+    unique: uniqueProducts,
+    topProduct: topProduct,
+  };
+}
+
+function getTopProduct() {
+  const productCounts = {};
+  contacts.forEach((contact) => {
+    if (contact.producto && contact.producto !== "") {
+      productCounts[contact.producto] =
+        (productCounts[contact.producto] || 0) + 1;
+    }
+  });
+
+  const sorted = Object.entries(productCounts).sort((a, b) => b[1] - a[1]);
+  return sorted.length > 0
+    ? { name: sorted[0][0], count: sorted[0][1] }
+    : { name: "N/A", count: 0 };
+}
+
+// Actualizar dashboard con estadísticas de productos
+function updateProductStats() {
+  const stats = getProductStats();
+
+  // Actualizar elementos si existen
+  const totalProductsElement = document.getElementById(
+    "total-products-requested"
+  );
+  const uniqueProductsElement = document.getElementById("unique-products");
+  const topProductElement = document.getElementById("top-product");
+
+  if (totalProductsElement) {
+    totalProductsElement.textContent = stats.total;
+  }
+  if (uniqueProductsElement) {
+    uniqueProductsElement.textContent = stats.unique;
+  }
+  if (topProductElement) {
+    topProductElement.textContent = `${stats.topProduct.name} (${stats.topProduct.count})`;
+  }
+}
+
+// Función para filtrar contactos por producto
+function filterContactsByProduct() {
+  const productFilter = document.getElementById("filter-product");
+  if (!productFilter) return;
+
+  const selectedProduct = productFilter.value;
+
+  if (selectedProduct === "") {
+    renderContactsList();
+    return;
+  }
+
+  const filteredContacts = contacts.filter(
+    (contact) => contact.producto === selectedProduct
+  );
+
+  renderContactsList(filteredContacts);
+}
+
+// Añadir filtro de productos al HTML de filtros
+function addProductFilter() {
+  const filtersContainer = document.querySelector(".filters");
+  if (!filtersContainer) return;
+
+  // Verificar si ya existe
+  if (document.getElementById("filter-product")) return;
+
+  const productFilterGroup = document.createElement("div");
+  productFilterGroup.className = "filter-group";
+  productFilterGroup.innerHTML = `
+    <label for="filter-product">Producto:</label>
+    <select id="filter-product" onchange="filterContactsByProduct()">
+      <option value="">Todos los productos</option>
+    </select>
+  `;
+
+  filtersContainer.appendChild(productFilterGroup);
+
+  // Poblar con productos únicos
+  const uniqueProducts = [
+    ...new Set(contacts.map((c) => c.producto).filter((p) => p && p !== "")),
+  ];
+  const productSelect = document.getElementById("filter-product");
+
+  uniqueProducts.sort().forEach((product) => {
+    const option = document.createElement("option");
+    option.value = product;
+    option.textContent = product;
+    productSelect.appendChild(option);
+  });
+}
+
+// Función para exportar reporte de productos
+function exportProductReport() {
+  const productCounts = {};
+  const categoryStats = {};
+
+  contacts.forEach((contact) => {
+    if (contact.producto && contact.producto !== "") {
+      // Contar productos
+      productCounts[contact.producto] =
+        (productCounts[contact.producto] || 0) + 1;
+
+      // Contar categorías
+      const product = PRODUCTOS_DISPONIBLES.find(
+        (p) => p.name === contact.producto
+      );
+      if (product) {
+        categoryStats[product.category] =
+          (categoryStats[product.category] || 0) + 1;
+      }
+    }
+  });
+
+  // Crear CSV
+  const csvContent = [
+    "REPORTE DE PRODUCTOS SOLICITADOS",
+    "",
+    "Producto,Cantidad Solicitada,Categoría",
+    ...Object.entries(productCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([product, count]) => {
+        const productInfo = PRODUCTOS_DISPONIBLES.find(
+          (p) => p.name === product
+        );
+        const category = productInfo ? productInfo.category : "Sin categoría";
+        return `"${product}",${count},"${category}"`;
+      }),
+    "",
+    "RESUMEN POR CATEGORÍAS",
+    "Categoría,Total",
+    ...Object.entries(categoryStats)
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, count]) => `"${category}",${count}`),
+  ].join("\n");
+
+  // Descargar
+  const blob = new Blob(["\ufeff" + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `reporte-productos-${
+    new Date().toISOString().split("T")[0]
+  }.csv`;
+  link.click();
+}
+
+// Modificar la función generateReports existente para incluir reportes de productos
+const originalGenerateReports = generateReports;
+generateReports = function () {
+  // Ejecutar reportes originales
+  if (originalGenerateReports) {
+    originalGenerateReports();
+  }
+
+  // Generar reportes de productos
+  generateProductReport();
+  generateProductBySellerReport();
+  generateProductCategoryReport();
+  updateProductStats();
+};
+
+// Modificar la función de inicialización para incluir productos
+const originalInit = init;
+init = function () {
+  // Ejecutar inicialización original
+  if (originalInit) {
+    originalInit();
+  }
+
+  // Inicializar sistema de productos
+  updateProductSelect();
+  addProductFilter();
+};
+
+// Modificar renderContactsList para incluir filtro de productos
+const originalRenderContactsList = renderContactsList;
+renderContactsList = function (filteredContacts = null) {
+  // Ejecutar render original
+  originalRenderContactsList(filteredContacts);
+
+  // Actualizar filtro de productos si es necesario
+  if (!filteredContacts) {
+    addProductFilter();
+  }
+};
+// === VALIDACIÓN OBLIGATORIA DE PRODUCTOS ===
+
+// Función para validar que se haya seleccionado un producto
+function validateProductSelection() {
+  const productoSelect = document.getElementById("producto");
+  const producto = productoSelect.value.trim();
+
+  if (!producto || producto === "") {
+    // Mostrar alerta personalizada
+    showProductAlert();
+
+    // Resaltar el campo
+    productoSelect.style.borderColor = "#dc3545";
+    productoSelect.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.25)";
+
+    // Hacer scroll al campo
+    productoSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    return false;
+  }
+
+  // Restablecer estilos si está correcto
+  productoSelect.style.borderColor = "#e1e5e9";
+  productoSelect.style.boxShadow = "none";
+
+  return true;
+}
+
+// Función para validar producto en edición
+function validateEditProductSelection() {
+  const productoSelect = document.getElementById("edit-producto");
+  const producto = productoSelect.value.trim();
+
+  if (!producto || producto === "") {
+    showProductAlert();
+    productoSelect.style.borderColor = "#dc3545";
+    productoSelect.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.25)";
+    productoSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+    return false;
+  }
+
+  productoSelect.style.borderColor = "#e1e5e9";
+  productoSelect.style.boxShadow = "none";
+  return true;
+}
+
+// Función para mostrar alerta personalizada
+function showProductAlert() {
+  // Crear modal de alerta si no existe
+  let alertModal = document.getElementById("product-alert-modal");
+  if (!alertModal) {
+    alertModal = document.createElement("div");
+    alertModal.id = "product-alert-modal";
+    alertModal.className = "product-alert-modal";
+    alertModal.innerHTML = `
+      <div class="product-alert-content">
+        <div class="product-alert-icon">⚠️</div>
+        <h3>Producto Requerido</h3>
+        <p>Debe seleccionar un producto antes de continuar.</p>
+        <p><strong>Por favor, elija una opción de la lista de productos.</strong></p>
+        <button onclick="closeProductAlert()" class="product-alert-btn">Entendido</button>
+      </div>
+    `;
+    document.body.appendChild(alertModal);
+  }
+
+  alertModal.style.display = "flex";
+
+  // Auto-cerrar después de 5 segundos
+  setTimeout(() => {
+    closeProductAlert();
+  }, 5000);
+}
+
+// Función para cerrar la alerta
+function closeProductAlert() {
+  const alertModal = document.getElementById("product-alert-modal");
+  if (alertModal) {
+    alertModal.style.display = "none";
+  }
+}
+
+// === MODIFICACIÓN DE FORMULARIOS ===
+
+// Modificar el event listener del formulario de contactos
+function setupContactFormValidation() {
+  const contactForm = document.getElementById("contact-form");
+  if (contactForm) {
+    // Remover event listener anterior si existe
+    contactForm.removeEventListener("submit", handleContactSubmit);
+
+    // Añadir nuevo event listener con validación
+    contactForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      // Validar producto primero
+      if (!validateProductSelection()) {
+        return; // Detener envío si no hay producto
+      }
+
+      // Si pasa la validación, procesar el formulario
+      const formData = new FormData(e.target);
+      const contact = {
+        id: Date.now(),
+        fecha: formData.get("fecha"),
+        vendedor: formData.get("vendedor"),
+        cliente: formData.get("cliente"),
+        empresa: formData.get("empresa"),
+        telefono: formData.get("telefono"),
+        email: formData.get("email"),
+        producto: formData.get("producto"), // Ahora garantizado que no será vacío
+        estado: formData.get("estado"),
+        clienteDerivado: formData.get("cliente-derivado") || "",
+        motivo: formData.get("motivo"),
+        registradoPor: currentUser.username,
+        fechaRegistro: new Date().toISOString(),
+      };
+
+      contacts.push(contact);
+      saveData();
+
+      showSuccessMessage("contact-success-message");
+      e.target.reset();
+      document.getElementById("derivacion-group").style.display = "none";
+      updateDashboard();
+
+      // Actualizar select de productos
+      updateProductSelect();
+    });
+  }
+}
+
+// Modificar el event listener del formulario de edición
+function setupEditContactFormValidation() {
+  const editContactForm = document.getElementById("edit-contact-form");
+  if (editContactForm) {
+    // Remover event listener anterior si existe
+    editContactForm.removeEventListener("submit", handleEditContactSubmit);
+
+    // Añadir nuevo event listener con validación
+    editContactForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      // Validar producto primero
+      if (!validateEditProductSelection()) {
+        return; // Detener envío si no hay producto
+      }
+
+      const contactId = document.getElementById("edit-contact-id").value;
+      const formData = new FormData(e.target);
+
+      const contactIndex = contacts.findIndex((c) => c.id == contactId);
+      if (contactIndex === -1) return;
+
+      contacts[contactIndex] = {
+        ...contacts[contactIndex],
+        fecha: formData.get("fecha"),
+        vendedor: formData.get("vendedor"),
+        cliente: formData.get("cliente"),
+        empresa: formData.get("empresa"),
+        telefono: formData.get("telefono"),
+        email: formData.get("email"),
+        producto: formData.get("producto"), // Ahora garantizado que no será vacío
+        estado: formData.get("estado"),
+        clienteDerivado: formData.get("cliente-derivado") || "",
+        motivo: formData.get("motivo"),
+        editadoPor: currentUser.username,
+        fechaEdicion: new Date().toISOString(),
+      };
+
+      saveData();
+      closeEditContactModal();
+      renderContactsList();
+      updateDashboard();
+      showSuccessMessage("contact-success-message");
+    });
+  }
+}
+
+// === FUNCIÓN PARA MOSTRAR PRODUCTOS CORRECTAMENTE ===
+
+// Función mejorada para renderizar contactos (reemplaza la existente)
+function renderContactsList(filteredContacts = null) {
+  const contactsToShow = filteredContacts || contacts;
+  const tbody = document.getElementById("contacts-tbody");
+
+  tbody.innerHTML = "";
+
+  contactsToShow
+    .slice()
+    .reverse()
+    .forEach((contact) => {
+      const row = document.createElement("tr");
+
+      // Mostrar el producto seleccionado correctamente
+      const productoDisplay = contact.producto || "Sin producto especificado";
+
+      row.innerHTML = `
+            <td>${formatDate(contact.fecha)}</td>
+            <td>${contact.vendedor}</td>
+            <td>${contact.cliente}</td>
+            <td>${contact.empresa || "-"}</td>
+            <td><strong>${productoDisplay}</strong></td>
+            <td><span class="status-badge status-${contact.estado
+              .toLowerCase()
+              .replace(" ", "-")}">${contact.estado}</span></td>
+            <td>${contact.clienteDerivado || "-"}</td>
+            <td>${contact.motivo || "-"}</td>
+            <td class="actions-column">
+              <button class="btn-edit" onclick="editContact(${
+                contact.id
+              })" title="Editar">✏️</button>
+              <button class="btn-delete" onclick="deleteContact(${
+                contact.id
+              })" title="Eliminar">🗑️</button>
+            </td>
+        `;
+      tbody.appendChild(row);
+    });
+}
+
+// === ESTILOS CSS PARA LA ALERTA ===
+
+// Función para añadir estilos de la alerta
+function addProductAlertStyles() {
+  if (document.getElementById("product-alert-styles")) return;
+
+  const styles = document.createElement("style");
+  styles.id = "product-alert-styles";
+  styles.textContent = `
+    .product-alert-modal {
+      display: none;
+      position: fixed;
+      z-index: 3000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      justify-content: center;
+      align-items: center;
+      animation: alertFadeIn 0.3s ease-out;
+    }
+    
+    .product-alert-content {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      max-width: 400px;
+      margin: 20px;
+      animation: alertSlideIn 0.3s ease-out;
+    }
+    
+    .product-alert-icon {
+      font-size: 3em;
+      margin-bottom: 15px;
+    }
+    
+    .product-alert-content h3 {
+      color: #dc3545;
+      margin-bottom: 15px;
+      font-size: 1.5em;
+      font-weight: 700;
+    }
+    
+    .product-alert-content p {
+      color: #666;
+      margin-bottom: 10px;
+      font-size: 1em;
+      line-height: 1.4;
+    }
+    
+    .product-alert-btn {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: all 0.3s ease;
+      min-width: 120px;
+    }
+    
+    .product-alert-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+    }
+    
+    @keyframes alertFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes alertSlideIn {
+      from { 
+        opacity: 0; 
+        transform: translateY(-30px) scale(0.9); 
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .product-alert-content {
+        padding: 25px 20px;
+        margin: 15px;
+      }
+      
+      .product-alert-icon {
+        font-size: 2.5em;
+      }
+      
+      .product-alert-content h3 {
+        font-size: 1.3em;
+      }
+    }
+  `;
+
+  document.head.appendChild(styles);
+}
+
+// === INICIALIZACIÓN ===
+
+// Modificar la función init existente para incluir las validaciones
+const originalSetupEventListeners = setupEventListeners;
+setupEventListeners = function () {
+  // Ejecutar setup original (si existe)
+  if (originalSetupEventListeners) {
+    originalSetupEventListeners();
+  }
+
+  // Añadir estilos de alerta
+  addProductAlertStyles();
+
+  // Configurar validaciones de formularios
+  setupContactFormValidation();
+  setupEditContactFormValidation();
+
+  // Asegurar que los selects de productos estén actualizados
+  updateProductSelect();
+};
+
+// Función para hacer el select de producto más visible
+function highlightProductField() {
+  const productoSelect = document.getElementById("producto");
+  if (productoSelect) {
+    productoSelect.style.border = "3px solid #f4c430";
+    productoSelect.style.boxShadow = "0 0 10px rgba(244, 196, 48, 0.3)";
+  }
 }
