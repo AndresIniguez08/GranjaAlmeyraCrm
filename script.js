@@ -744,7 +744,7 @@ function filterClients() {
 }
 
 // === MAPA CON LEAFLET ===
-function initLeafletMap() {
+async function initLeafletMap() {
   if (map) {
     map.remove();
   }
@@ -757,7 +757,7 @@ function initLeafletMap() {
 
   markersLayer = L.layerGroup().addTo(map);
 
-  showAllClients();
+  await showAllClients();
 }
 
 function initMap() {
@@ -765,14 +765,35 @@ function initMap() {
 }
 
 // === MOSTRAR CLIENTES EN EL MAPA ===
-function showAllClients() {
+async function showAllClients() {
+  if (!markersLayer) {
+    console.warn("markersLayer no está inicializado. El mapa puede no estar listo.");
+    return;
+  }
   markersLayer.clearLayers();
 
   if (clients.length === 0) return;
 
   let bounds = [];
+  let dataUpdated = false;
 
-  clients.forEach((client) => {
+  for (const client of clients) {
+    // Si no hay coordenadas pero sí dirección, intentar geocodificar
+    if (!client.coordinates && client.address) {
+      try {
+        console.log(`Geocodificando dirección para ${client.company}: ${client.address}`);
+        const coords = await geocodeWithNominatim(client.address);
+        if (coords) {
+          client.coordinates = coords;
+          dataUpdated = true;
+        }
+        // Esperar 1 segundo para no sobrecargar la API de Nominatim
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`No se pudo geocodificar la dirección para ${client.company}:`, error);
+      }
+    }
+
     if (client.coordinates) {
       const referralsCount = contacts.filter(
         (c) => c.clienteDerivado === client.company
@@ -804,7 +825,12 @@ function showAllClients() {
 
       bounds.push([client.coordinates.lat, client.coordinates.lng]);
     }
-  });
+  }
+
+  if (dataUpdated) {
+    console.log("Guardando datos de clientes actualizados con nuevas coordenadas.");
+    saveData();
+  }
 
   // Ajustar mapa para que se vean todos los clientes
   if (bounds.length > 0) {
@@ -890,9 +916,8 @@ function showByType(type) {
 
 function showClientsOnMap() {
   showSection("map");
-  setTimeout(() => {
-    showAllClients();
-  }, 100);
+  // showAllClients() is now called from within initLeafletMap,
+  // which is called when the map section is shown.
 }
 
 // === INFORMES ===
