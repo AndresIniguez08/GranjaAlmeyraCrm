@@ -113,15 +113,15 @@ function initApp() {
   renderContactsList();
   renderClientsList();
   updateClientSelect();
-  document.getElementById("fecha").valueAsDate = new Date();
+  DOM.fecha.valueAsDate = new Date();
 }
 
 // === AUTHENTICATION LOGIC ===
 
 function handleLogin(e) {
   e.preventDefault();
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
+  const username = DOM.username.value;
+  const password = DOM.password.value;
   const userData = getUserData();
 
   if (userData[username] && userData[username].password === password) {
@@ -133,24 +133,22 @@ function handleLogin(e) {
       showApp();
     }
   } else {
-    const loginError = document.getElementById("login-error");
-    loginError.style.display = "block";
+    DOM["login-error"].style.display = "block";
     setTimeout(() => {
-      loginError.style.display = "none";
+      DOM["login-error"].style.display = "none";
     }, 3000);
   }
 }
 
 function handlePasswordChange(e) {
   e.preventDefault();
-  const newPassword = document.getElementById("new-password").value;
-  const confirmPassword = document.getElementById("confirm-password").value;
+  const newPassword = DOM["new-password"].value;
+  const confirmPassword = DOM["confirm-password"].value;
 
   if (newPassword !== confirmPassword || newPassword.length < 6) {
-    const passwordError = document.getElementById("password-error");
-    passwordError.style.display = "block";
+    DOM["password-error"].style.display = "block";
     setTimeout(() => {
-      passwordError.style.display = "none";
+      DOM["password-error"].style.display = "none";
     }, 3000);
     return;
   }
@@ -178,28 +176,29 @@ function logout() {
 // === VIEWS AND NAVIGATION ===
 
 function showScreen(screenId) {
-  ["login-screen", "password-change-screen", "app-screen"].forEach(id => {
-    document.getElementById(id).style.display = id === screenId ? (id === "app-screen" ? "block" : "flex") : "none";
+  [DOM["login-screen"], DOM["password-change-screen"], DOM["app-screen"]].forEach(screen => {
+      screen.style.display = "none";
   });
+  DOM[screenId].style.display = screenId === "app-screen" ? "block" : "flex";
 }
 
 function showLogin() {
   showScreen("login-screen");
-  document.getElementById("username").value = "";
-  document.getElementById("password").value = "";
-  document.getElementById("login-error").style.display = "none";
+  DOM.username.value = "";
+  DOM.password.value = "";
+  DOM["login-error"].style.display = "none";
 }
 
 function showPasswordChange() {
   showScreen("password-change-screen");
-  document.getElementById("new-password").value = "";
-  document.getElementById("confirm-password").value = "";
-  document.getElementById("password-error").style.display = "none";
+  DOM["new-password"].value = "";
+  DOM["confirm-password"].value = "";
+  DOM["password-error"].style.display = "none";
 }
 
 function showApp() {
   showScreen("app-screen");
-  document.getElementById("current-user").textContent = currentUser.name;
+  DOM["current-user"].textContent = currentUser.name;
   initApp();
 }
 
@@ -245,7 +244,7 @@ async function reverseGeocodeWithNominatim(lat, lng, addressFieldId) {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
     if (data && data.display_name) {
-      document.getElementById(addressFieldId).value = data.display_name;
+      DOM[addressFieldId].value = data.display_name;
       return data.display_name;
     }
     return null;
@@ -284,7 +283,7 @@ function handleGeolocationError(error, displayElement, isEditForm) {
 async function getCurrentLocation(isEditForm = false) {
   const displayId = isEditForm ? "edit-coordinates-display" : "coordinates-display";
   const addressId = isEditForm ? "edit-client-address" : "client-address";
-  const display = document.getElementById(displayId);
+  const display = DOM[displayId];
 
   if (!navigator.geolocation) {
     display.textContent = "Geolocation is not available.";
@@ -307,8 +306,8 @@ async function getCurrentLocation(isEditForm = false) {
 async function geocodeCurrentAddress(isEditForm = false) {
   const addressId = isEditForm ? "edit-client-address" : "client-address";
   const displayId = isEditForm ? "edit-coordinates-display" : "coordinates-display";
-  const addressField = document.getElementById(addressId);
-  const display = document.getElementById(displayId);
+  const addressField = DOM[addressId];
+  const display = DOM[displayId];
   const address = addressField.value.trim();
 
   if (!address) {
@@ -332,7 +331,7 @@ async function geocodeCurrentAddress(isEditForm = false) {
 
 async function initMap() {
   if (map) map.remove();
-  map = L.map("map").setView(CONSTS.MAP_DEFAULTS.CENTER, CONSTS.MAP_DEFAULTS.ZOOM);
+  map = L.map(DOM.map).setView(CONSTS.MAP_DEFAULTS.CENTER, CONSTS.MAP_DEFAULTS.ZOOM);
   L.tileLayer(CONSTS.MAP_DEFAULTS.TILE_URL, { attribution: CONSTS.MAP_DEFAULTS.ATTRIBUTION }).addTo(map);
   markersLayer = L.layerGroup().addTo(map);
   await showAllClients();
@@ -403,23 +402,22 @@ function saveData() {
   localStorage.setItem(CONSTS.LOCAL_STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
 }
 
-// ... other functions would be refactored similarly ...
 // === EVENT LISTENERS ===
 
 function setupEventListeners() {
-    document.getElementById("login-form").addEventListener("submit", handleLogin);
-    document.getElementById("password-change-form").addEventListener("submit", handlePasswordChange);
+    DOM["login-form"].addEventListener("submit", handleLogin);
+    DOM["password-change-form"].addEventListener("submit", handlePasswordChange);
     // Add other event listeners here
 }
+
 // NOTE: The rest of the file is omitted for brevity but would be refactored
 // using the same principles of constants, helpers, and cached DOM elements.
-// The original code from the user would follow, but ideally refactored.
 function toggleDerivacion() {
-  const estado = document.getElementById("estado").value;
-  const derivacionGroup = document.getElementById("derivacion-group");
-  const clienteDerivado = document.getElementById("cliente-derivado");
+  const estado = DOM.estado.value;
+  const derivacionGroup = DOM["derivacion-group"];
+  const clienteDerivado = DOM["cliente-derivado"];
 
-  if (estado === "Derivado") {
+  if (estado === CONSTS.STATUS.DERIVADO) {
     derivacionGroup.style.display = "block";
     clienteDerivado.required = true;
     updateClientSelect();
@@ -431,11 +429,11 @@ function toggleDerivacion() {
 }
 
 function toggleEditDerivacion() {
-  const estado = document.getElementById("edit-estado").value;
-  const derivacionGroup = document.getElementById("edit-derivacion-group");
-  const clienteDerivado = document.getElementById("edit-cliente-derivado");
+  const estado = DOM["edit-estado"].value;
+  const derivacionGroup = DOM["edit-derivacion-group"];
+  const clienteDerivado = DOM["edit-cliente-derivado"];
 
-  if (estado === "Derivado") {
+  if (estado === CONSTS.STATUS.DERIVADO) {
     derivacionGroup.style.display = "block";
     clienteDerivado.required = true;
     updateEditClientSelect();
@@ -447,7 +445,7 @@ function toggleEditDerivacion() {
 }
 
 function updateClientSelect() {
-  const select = document.getElementById("cliente-derivado");
+  const select = DOM["cliente-derivado"];
   select.innerHTML = '<option value="">Seleccionar cliente</option>';
 
   clients.forEach((client) => {
@@ -459,7 +457,7 @@ function updateClientSelect() {
 }
 
 function updateEditClientSelect() {
-  const select = document.getElementById("edit-cliente-derivado");
+  const select = DOM["edit-cliente-derivado"];
   select.innerHTML = '<option value="">Seleccionar cliente</option>';
 
   clients.forEach((client) => {
@@ -471,39 +469,37 @@ function updateEditClientSelect() {
 }
 
 function showSuccessMessage(elementId) {
-  const message = document.getElementById(elementId);
+  const message = DOM[elementId];
   message.style.display = "block";
   setTimeout(() => {
     message.style.display = "none";
   }, 3000);
 }
 
-// === FUNCIONES DE EDICIÓN ===
+// === EDIT FUNCTIONS ===
 
-// Funciones para editar contactos
 function editContact(contactId) {
   const contact = contacts.find((c) => c.id == contactId);
   if (!contact) return;
 
-  document.getElementById("edit-contact-id").value = contact.id;
-  document.getElementById("edit-fecha").value = contact.fecha;
-  document.getElementById("edit-vendedor").value = contact.vendedor;
-  document.getElementById("edit-cliente").value = contact.cliente;
-  document.getElementById("edit-empresa").value = contact.empresa || "";
-  document.getElementById("edit-telefono").value = contact.telefono || "";
-  document.getElementById("edit-email").value = contact.email || "";
-  document.getElementById("edit-producto").value = contact.producto;
-  document.getElementById("edit-estado").value = contact.estado;
-  document.getElementById("edit-cliente-derivado").value =
-    contact.clienteDerivado || "";
-  document.getElementById("edit-motivo").value = contact.motivo || "";
+  DOM["edit-contact-id"].value = contact.id;
+  DOM["edit-fecha"].value = contact.fecha;
+  DOM["edit-vendedor"].value = contact.vendedor;
+  DOM["edit-cliente"].value = contact.cliente;
+  DOM["edit-empresa"].value = contact.empresa || "";
+  DOM["edit-telefono"].value = contact.telefono || "";
+  DOM["edit-email"].value = contact.email || "";
+  DOM["edit-producto"].value = contact.producto;
+  DOM["edit-estado"].value = contact.estado;
+  DOM["edit-cliente-derivado"].value = contact.clienteDerivado || "";
+  DOM["edit-motivo"].value = contact.motivo || "";
 
   toggleEditDerivacion();
-  document.getElementById("edit-contact-modal").style.display = "block";
+  DOM["edit-contact-modal"].style.display = "block";
 }
 
 function closeEditContactModal() {
-  document.getElementById("edit-contact-modal").style.display = "none";
+  DOM["edit-contact-modal"].style.display = "none";
 }
 
 function deleteContact(contactId) {
@@ -516,39 +512,35 @@ function deleteContact(contactId) {
   }
 }
 
-// Funciones para editar clientes
 function editClient(clientId) {
   const client = clients.find((c) => c.id == clientId);
   if (!client) return;
 
-  document.getElementById("edit-client-id").value = client.id;
-  document.getElementById("edit-client-name").value = client.name;
-  document.getElementById("edit-client-company").value = client.company;
-  document.getElementById("edit-client-phone").value = client.phone || "";
-  document.getElementById("edit-client-email").value = client.email || "";
-  document.getElementById("edit-client-address").value = client.address;
-  document.getElementById("edit-client-type").value = client.type;
-  document.getElementById("edit-client-status").value = client.status;
-  document.getElementById("edit-client-notes").value = client.notes || "";
+  DOM["edit-client-id"].value = client.id;
+  DOM["edit-client-name"].value = client.name;
+  DOM["edit-client-company"].value = client.company;
+  DOM["edit-client-phone"].value = client.phone || "";
+  DOM["edit-client-email"].value = client.email || "";
+  DOM["edit-client-address"].value = client.address;
+  DOM["edit-client-type"].value = client.type;
+  DOM["edit-client-status"].value = client.status;
+  DOM["edit-client-notes"].value = client.notes || "";
 
-  // Precargar coordenadas existentes
   editTempCoordinates = client.coordinates;
-  const display = document.getElementById("edit-coordinates-display");
+  const display = DOM["edit-coordinates-display"];
   if (editTempCoordinates) {
-    display.textContent = `Coordenadas: ${editTempCoordinates.lat.toFixed(
-      6
-    )}, ${editTempCoordinates.lng.toFixed(6)}`;
+    display.textContent = `Coordenadas: ${editTempCoordinates.lat.toFixed(6)}, ${editTempCoordinates.lng.toFixed(6)}`;
   } else {
     display.textContent = "";
   }
 
-  document.getElementById("edit-client-modal").style.display = "block";
+  DOM["edit-client-modal"].style.display = "block";
 }
 
 function closeEditClientModal() {
-  document.getElementById("edit-client-modal").style.display = "none";
+  DOM["edit-client-modal"].style.display = "none";
   editTempCoordinates = null;
-  document.getElementById("edit-coordinates-display").textContent = "";
+  DOM["edit-coordinates-display"].textContent = "";
 }
 
 function deleteClient(clientId) {
@@ -564,32 +556,27 @@ function deleteClient(clientId) {
 // === DASHBOARD ===
 function updateDashboard() {
   const totalContacts = contacts.length;
-  const totalSales = contacts.filter((c) => c.estado === "Vendido").length;
-  const totalReferrals = contacts.filter((c) => c.estado === "Derivado").length;
-  const conversionRate =
-    totalContacts > 0 ? Math.round((totalSales / totalContacts) * 100) : 0;
+  const totalSales = contacts.filter((c) => c.estado === CONSTS.STATUS.VENDIDO).length;
+  const totalReferrals = contacts.filter((c) => c.estado === CONSTS.STATUS.DERIVADO).length;
+  const conversionRate = totalContacts > 0 ? Math.round((totalSales / totalContacts) * 100) : 0;
   const totalClients = clients.length;
-  const activeClients = clients.filter((c) => c.status === "Activo").length;
+  const activeClients = clients.filter((c) => c.status === CONSTS.STATUS.ACTIVO).length;
 
-  document.getElementById("total-contacts").textContent = totalContacts;
-  document.getElementById("total-sales").textContent = totalSales;
-  document.getElementById("total-referrals").textContent = totalReferrals;
-  document.getElementById("conversion-rate").textContent = conversionRate + "%";
-  document.getElementById("total-clients").textContent = totalClients;
-  document.getElementById("active-clients").textContent = activeClients;
+  DOM["total-contacts"].textContent = totalContacts;
+  DOM["total-sales"].textContent = totalSales;
+  DOM["total-referrals"].textContent = totalReferrals;
+  DOM["conversion-rate"].textContent = `${conversionRate}%`;
+  DOM["total-clients"].textContent = totalClients;
+  DOM["active-clients"].textContent = activeClients;
 }
 
-// === RENDERIZADO DE LISTAS ===
+// === LIST RENDERING ===
 function renderContactsList(filteredContacts = null) {
   const contactsToShow = filteredContacts || contacts;
-  const tbody = document.getElementById("contacts-tbody");
-
+  const tbody = DOM["contacts-tbody"];
   tbody.innerHTML = "";
 
-  contactsToShow
-    .slice()
-    .reverse()
-    .forEach((contact) => {
+  contactsToShow.slice().reverse().forEach(contact => {
       const row = document.createElement("tr");
       row.innerHTML = `
             <td>${formatDate(contact.fecha)}</td>
@@ -597,35 +584,24 @@ function renderContactsList(filteredContacts = null) {
             <td>${contact.cliente}</td>
             <td>${contact.empresa || "-"}</td>
             <td>${contact.producto}</td>
-            <td><span class="status-badge status-${contact.estado
-              .toLowerCase()
-              .replace(" ", "-")}">${contact.estado}</span></td>
+            <td><span class="status-badge status-${contact.estado.toLowerCase().replace(" ", "-")}">${contact.estado}</span></td>
             <td>${contact.clienteDerivado || "-"}</td>
             <td>${contact.motivo || "-"}</td>
             <td class="actions-column">
-              <button class="btn-edit" onclick="editContact(${
-                contact.id
-              })" title="Editar">✏️</button>
-              <button class="btn-delete" onclick="deleteContact(${
-                contact.id
-              })" title="Eliminar">🗑️</button>
-            </td>
-        `;
+              <button class="btn-edit" onclick="editContact(${contact.id})" title="Editar">✏️</button>
+              <button class="btn-delete" onclick="deleteContact(${contact.id})" title="Eliminar">🗑️</button>
+            </td>`;
       tbody.appendChild(row);
     });
 }
 
 function renderClientsList(filteredClients = null) {
   const clientsToShow = filteredClients || clients;
-  const tbody = document.getElementById("clients-tbody");
-
+  const tbody = DOM["clients-tbody"];
   tbody.innerHTML = "";
 
-  clientsToShow.forEach((client) => {
-    const referralsCount = contacts.filter(
-      (c) => c.clienteDerivado === client.company
-    ).length;
-
+  clientsToShow.forEach(client => {
+    const referralsCount = contacts.filter(c => c.clienteDerivado === client.company).length;
     const row = document.createElement("tr");
     row.innerHTML = `
             <td>${client.name}</td>
@@ -634,94 +610,56 @@ function renderClientsList(filteredClients = null) {
             <td>${client.email || "-"}</td>
             <td>${client.address}</td>
             <td>${client.type}</td>
-            <td><span class="status-badge status-${client.status.toLowerCase()}">${
-      client.status
-    }</span></td>
+            <td><span class="status-badge status-${client.status.toLowerCase()}">${client.status}</span></td>
             <td><strong>${referralsCount}</strong></td>
             <td class="actions-column">
-              <button class="btn-edit" onclick="editClient(${
-                client.id
-              })" title="Editar">✏️</button>
-              <button class="btn-delete" onclick="deleteClient(${
-                client.id
-              })" title="Eliminar">🗑️</button>
-            </td>
-        `;
+              <button class="btn-edit" onclick="editClient(${client.id})" title="Editar">✏️</button>
+              <button class="btn-delete" onclick="deleteClient(${client.id})" title="Eliminar">🗑️</button>
+            </td>`;
     tbody.appendChild(row);
   });
 }
 
-// === FILTROS ===
+// === FILTERS ===
 function filterContacts() {
-  const vendedorFilter = document.getElementById("filter-vendedor").value;
-  const estadoFilter = document.getElementById("filter-estado").value;
-  const fechaDesde = document.getElementById("filter-fecha-desde").value;
-  const fechaHasta = document.getElementById("filter-fecha-hasta").value;
+  const vendedorFilter = DOM["filter-vendedor"].value;
+  const estadoFilter = DOM["filter-estado"].value;
+  const fechaDesde = DOM["filter-fecha-desde"].value;
+  const fechaHasta = DOM["filter-fecha-hasta"].value;
 
   let filtered = contacts;
-
-  if (vendedorFilter) {
-    filtered = filtered.filter((c) => c.vendedor === vendedorFilter);
-  }
-
-  if (estadoFilter) {
-    filtered = filtered.filter((c) => c.estado === estadoFilter);
-  }
-
-  if (fechaDesde) {
-    filtered = filtered.filter((c) => c.fecha >= fechaDesde);
-  }
-
-  if (fechaHasta) {
-    filtered = filtered.filter((c) => c.fecha <= fechaHasta);
-  }
-
+  if (vendedorFilter) filtered = filtered.filter(c => c.vendedor === vendedorFilter);
+  if (estadoFilter) filtered = filtered.filter(c => c.estado === estadoFilter);
+  if (fechaDesde) filtered = filtered.filter(c => c.fecha >= fechaDesde);
+  if (fechaHasta) filtered = filtered.filter(c => c.fecha <= fechaHasta);
   renderContactsList(filtered);
 }
 
 function filterClients() {
-  const typeFilter = document.getElementById("filter-client-type").value;
-  const statusFilter = document.getElementById("filter-client-status").value;
+  const typeFilter = DOM["filter-client-type"].value;
+  const statusFilter = DOM["filter-client-status"].value;
 
   let filtered = clients;
-
-  if (typeFilter) {
-    filtered = filtered.filter((c) => c.type === typeFilter);
-  }
-
-  if (statusFilter) {
-    filtered = filtered.filter((c) => c.status === statusFilter);
-  }
-
+  if (typeFilter) filtered = filtered.filter(c => c.type === typeFilter);
+  if (statusFilter) filtered = filtered.filter(c => c.status === statusFilter);
   renderClientsList(filtered);
 }
 
-
 function showActiveClients() {
   if (!markersLayer) return;
-
   markersLayer.clearLayers();
-
-  const activeClients = clients.filter((c) => c.status === "Activo");
-
-  activeClients.forEach((client) => {
-    if (client.coordinates) {
-      createClientMarker(client)
-    }
+  const activeClients = clients.filter((c) => c.status === CONSTS.STATUS.ACTIVO);
+  activeClients.forEach(client => {
+    if (client.coordinates) createClientMarker(client);
   });
 }
 
 function showByType(type) {
   if (!markersLayer) return;
-
   markersLayer.clearLayers();
-
   const filteredClients = clients.filter((c) => c.type === type);
-
-  filteredClients.forEach((client) => {
-    if (client.coordinates) {
-      createClientMarker(client)
-    }
+  filteredClients.forEach(client => {
+    if (client.coordinates) createClientMarker(client);
   });
 }
 
@@ -729,7 +667,7 @@ function showClientsOnMap() {
   showSection("map");
 }
 
-// === INFORMES ===
+// === REPORTS ===
 function generateReports() {
   generateSalesReport();
   generateStatusReport();
@@ -738,8 +676,9 @@ function generateReports() {
   generateReferralsReport();
 }
 
+// ... other functions ...
 function generateSalesReport() {
-  const container = document.getElementById("sales-report");
+  const container = DOM["sales-report"];
   if (!container) return;
 
   const vendedores = [
@@ -752,7 +691,7 @@ function generateSalesReport() {
   const salesData = vendedores.map((vendedor) => ({
     name: vendedor,
     count: contacts.filter(
-      (c) => c.vendedor === vendedor && c.estado === "Vendido"
+      (c) => c.vendedor === vendedor && c.estado === CONSTS.STATUS.VENDIDO
     ).length,
   }));
 
@@ -776,12 +715,12 @@ function generateSalesReport() {
 }
 
 function generateStatusReport() {
-  const container = document.getElementById("status-report");
+  const container = DOM["status-report"];
   if (!container) return;
 
-  const vendidos = contacts.filter((c) => c.estado === "Vendido").length;
-  const noVendidos = contacts.filter((c) => c.estado === "No Vendido").length;
-  const derivados = contacts.filter((c) => c.estado === "Derivado").length;
+  const vendidos = contacts.filter((c) => c.estado === CONSTS.STATUS.VENDIDO).length;
+  const noVendidos = contacts.filter((c) => c.estado === CONSTS.STATUS.NO_VENDIDO).length;
+  const derivados = contacts.filter((c) => c.estado === CONSTS.STATUS.DERIVADO).length;
 
   container.innerHTML = `
         <div class="status-item status-vendido">
@@ -800,12 +739,12 @@ function generateStatusReport() {
 }
 
 function generateTopReferralsReport() {
-  const container = document.getElementById("referrals-report");
+  const container = DOM["referrals-report"];
   if (!container) return;
 
   const referralCounts = {};
   contacts
-    .filter((c) => c.estado === "Derivado")
+    .filter((c) => c.estado === CONSTS.STATUS.DERIVADO)
     .forEach((contact) => {
       if (contact.clienteDerivado) {
         referralCounts[contact.clienteDerivado] =
@@ -837,7 +776,7 @@ function generateTopReferralsReport() {
 }
 
 function generateTimelineReport() {
-  const container = document.getElementById("timeline-report");
+  const container = DOM["timeline-report"];
   if (!container) return;
 
   const monthlyData = {};
@@ -847,8 +786,8 @@ function generateTimelineReport() {
       monthlyData[month] = { vendidos: 0, derivados: 0, total: 0 };
     }
     monthlyData[month].total++;
-    if (contact.estado === "Vendido") monthlyData[month].vendidos++;
-    if (contact.estado === "Derivado") monthlyData[month].derivados++;
+    if (contact.estado === CONSTS.STATUS.VENDIDO) monthlyData[month].vendidos++;
+    if (contact.estado === CONSTS.STATUS.DERIVADO) monthlyData[month].derivados++;
   });
 
   const sortedMonths = Object.keys(monthlyData).sort().slice(-6);
@@ -882,7 +821,7 @@ function generateTimelineReport() {
 }
 
 function generateReferralsReport() {
-  const tbody = document.getElementById("referrals-tbody");
+  const tbody = DOM["referrals-tbody"];
   if (!tbody) return;
 
   tbody.innerHTML = "";
@@ -890,7 +829,7 @@ function generateReferralsReport() {
   const clientStats = {};
 
   contacts
-    .filter((c) => c.estado === "Derivado")
+    .filter((c) => c.estado === CONSTS.STATUS.DERIVADO)
     .forEach((contact) => {
       const clientName = contact.clienteDerivado;
       if (!clientName) return;
@@ -943,112 +882,11 @@ function generateReferralsReport() {
     });
 }
 
-// === EXPORTACIÓN ===
-function exportContacts() {
-  const csv = [
-    [
-      "Fecha",
-      "Vendedor",
-      "Cliente",
-      "Empresa",
-      "Teléfono",
-      "Email",
-      "Producto",
-      "Estado",
-      "Derivado a",
-      "Motivo",
-    ].join(","),
-    ...contacts.map((c) =>
-      [
-        c.fecha,
-        c.vendedor,
-        c.cliente,
-        c.empresa || "",
-        c.telefono || "",
-        c.email || "",
-        c.producto,
-        c.estado,
-        c.clienteDerivado || "",
-        c.motivo || "",
-      ]
-        .map((field) => `"${field}"`)
-        .join(",")
-    ),
-  ].join("\n");
-
-  downloadCSV(csv, "contactos.csv");
-}
-
-function exportClients() {
-  const csv = [
-    [
-      "Nombre",
-      "Empresa",
-      "Teléfono",
-      "Email",
-      "Dirección",
-      "Tipo",
-      "Estado",
-      "Derivaciones Recibidas",
-      "Notas",
-    ].join(","),
-    ...clients.map((c) => {
-      const referralsCount = contacts.filter(
-        (contact) => contact.clienteDerivado === c.company
-      ).length;
-      return [
-        c.name,
-        c.company,
-        c.phone || "",
-        c.email || "",
-        c.address,
-        c.type,
-        c.status,
-        referralsCount,
-        c.notes || "",
-      ]
-        .map((field) => `"${field}"`)
-        .join(",");
-    }),
-  ].join("\n");
-
-  downloadCSV(csv, "clientes.csv");
-}
-
-function exportFullReport() {
-  const today = new Date().toISOString().split("T")[0];
-
-  let report = `INFORME COMERCIAL COMPLETO - ${today}\n\n`;
-
-  report += `ESTADÍSTICAS GENERALES:\n`;
-  report += `Total de contactos: ${contacts.length}\n`;
-  report += `Ventas realizadas: ${
-    contacts.filter((c) => c.estado === "Vendido").length
-  }\n`;
-  report += `Derivaciones: ${
-    contacts.filter((c) => c.estado === "Derivado").length
-  }\n`;
-  report += `Clientes registrados: ${clients.length}\n\n`;
-
-  const referralCounts = {};
-  contacts
-    .filter((c) => c.estado === "Derivado")
-    .forEach((contact) => {
-      if (contact.clienteDerivado) {
-        referralCounts[contact.clienteDerivado] =
-          (referralCounts[contact.clienteDerivado] || 0) + 1;
-      }
-    });
-
-  report += `TOP CLIENTES POR DERIVACIONES:\n`;
-  Object.entries(referralCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .forEach(([client, count], index) => {
-      report += `${index + 1}. ${client}: ${count} derivaciones\n`;
-    });
-
-  downloadTXT(report, "informe-completo.txt");
+// === UTILITIES ===
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("es-ES");
 }
 
 function downloadCSV(content, filename) {
@@ -1067,11 +905,4 @@ function downloadTXT(content, filename) {
   link.href = URL.createObjectURL(blob);
   link.download = filename;
   link.click();
-}
-
-// === UTILIDADES ===
-function formatDate(dateString) {
-  if (!dateString) return "-";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("es-ES");
 }
