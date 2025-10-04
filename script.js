@@ -1464,9 +1464,9 @@ function init() {
 
 // Lista de productos disponibles
 const PRODUCTOS_DISPONIBLES = [
-  { id: "b1", name: "B1", category: "Individual" },
-  { id: "b2", name: "B2", category: "Individual" },
-  { id: "b3", name: "B3", category: "Individual" },
+  { id: "B1", name: "B1", category: "Individual" },
+  { id: "B2", name: "B2", category: "Individual" },
+  { id: "B3", name: "B3", category: "Individual" },
   { id: "caja_180_b1", name: "Caja 180 B1", category: "Caja Grande" },
   { id: "caja_180_b2", name: "Caja 180 B2", category: "Caja Grande" },
   { id: "caja_180_b3", name: "Caja 180 B3", category: "Caja Grande" },
