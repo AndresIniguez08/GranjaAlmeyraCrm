@@ -1464,19 +1464,19 @@ function init() {
 
 // Lista de productos disponibles
 const PRODUCTOS_DISPONIBLES = [
-  { id: "B1", name: "B1", category: "Individual" },
-  { id: "B2", name: "B2", category: "Individual" },
-  { id: "B3", name: "B3", category: "Individual" },
-  { id: "caja_180_b1", name: "Caja 180 B1", category: "Caja Grande" },
-  { id: "caja_180_b2", name: "Caja 180 B2", category: "Caja Grande" },
-  { id: "caja_180_b3", name: "Caja 180 B3", category: "Caja Grande" },
+  { id: "B1", name: "B1", category: "Sin Marca" },
+  { id: "B2", name: "B2", category: "Sin Marca" },
+  { id: "B3", name: "B3", category: "Sin Marca" },
+  { id: "caja 180 B1", name: "Caja 180 B1", category: "Caja Grande" },
+  { id: "caj 180 B2", name: "Caja 180 B2", category: "Caja Grande" },
+  { id: "caja 180 B3", name: "Caja 180 B3", category: "Caja Grande" },
   {
-    id: "caja_18_doc_x6",
+    id: "Caja 18 doc (x6)",
     name: "Caja 18 Docenas (x6)",
     category: "Caja Docenas",
   },
   {
-    id: "caja_18_doc_x12",
+    id: "Caja 18 doc (x12)",
     name: "Caja 18 Docenas (x12)",
     category: "Caja Docenas",
   },
