@@ -549,7 +549,7 @@ function editContact(contactId) {
   document.getElementById("edit-empresa").value = contact.empresa || "";
   document.getElementById("edit-telefono").value = contact.telefono || "";
   document.getElementById("edit-email").value = contact.email || "";
-  document.getElementById("edit-producto").value = contact.producto;
+  document.getElementById("edit-Producto").value = contact.Producto;
   document.getElementById("edit-estado").value = contact.estado;
   document.getElementById("edit-cliente-derivado").value =
     contact.clienteDerivado || "";
@@ -653,7 +653,7 @@ function renderContactsList(filteredContacts = null) {
             <td>${contact.vendedor}</td>
             <td>${contact.cliente}</td>
             <td>${contact.empresa || "-"}</td>
-            <td>${contact.producto}</td>
+            <td>${contact.Producto}</td>
             <td><span class="status-badge status-${contact.estado
               .toLowerCase()
               .replace(" ", "-")}">${contact.estado}</span></td>
@@ -1177,7 +1177,7 @@ function exportContacts() {
         c.empresa || "",
         c.telefono || "",
         c.email || "",
-        c.producto,
+        c.Producto,
         c.estado,
         c.clienteDerivado || "",
         c.motivo || "",
@@ -1304,7 +1304,7 @@ function setupEventListeners() {
         empresa: formData.get("empresa"),
         telefono: formData.get("telefono"),
         email: formData.get("email"),
-        producto: formData.get("producto"),
+        Producto: formData.get("Producto"),
         estado: formData.get("estado"),
         clienteDerivado: formData.get("cliente-derivado") || "",
         motivo: formData.get("motivo"),
@@ -1375,7 +1375,7 @@ function setupEventListeners() {
         empresa: formData.get("empresa"),
         telefono: formData.get("telefono"),
         email: formData.get("email"),
-        producto: formData.get("producto"),
+        Producto: formData.get("Producto"),
         estado: formData.get("estado"),
         clienteDerivado: formData.get("cliente-derivado") || "",
         motivo: formData.get("motivo"),
@@ -1462,7 +1462,7 @@ function init() {
 }
 // === SISTEMA DE PRODUCTOS ===
 
-// Lista de productos disponibles
+// Lista de Productos disponibles
 const PRODUCTOS_DISPONIBLES = [
   { id: "B1", name: "B1", category: "Sin Marca" },
   { id: "B2", name: "B2", category: "Sin Marca" },
@@ -1495,16 +1495,16 @@ const PRODUCTOS_DISPONIBLES = [
   { id: "pack_6_maples_b3", name: "Pack 6 Maples B3", category: "Pack Maples" },
 ];
 
-// Función para actualizar el select de productos
+// Función para actualizar el select de Productos
 function updateProductSelect() {
   const productSelect = document.getElementById("Producto");
-  const editProductSelect = document.getElementById("edit-producto");
+  const editProductSelect = document.getElementById("edit-Producto");
 
   if (productSelect) {
     // Limpiar opciones existentes excepto la primera
     productSelect.innerHTML = '<option value="">Seleccionar Producto</option>';
 
-    // Agrupar productos por categoría
+    // Agrupar Productos por categoría
     const groupedProducts = {};
     PRODUCTOS_DISPONIBLES.forEach((product) => {
       if (!groupedProducts[product.category]) {
@@ -1513,7 +1513,7 @@ function updateProductSelect() {
       groupedProducts[product.category].push(product);
     });
 
-    // Añadir productos agrupados
+    // Añadir Productos agrupados
     Object.keys(groupedProducts).forEach((category) => {
       const optgroup = document.createElement("optgroup");
       optgroup.label = category;
@@ -1560,15 +1560,15 @@ function updateProductSelect() {
 
 // === REPORTES DE PRODUCTOS ===
 
-// Generar reporte de productos más solicitados
+// Generar reporte de Productos más solicitados
 function generateProductReport() {
   const container = document.getElementById("product-report");
   if (!container) return;
 
-  // Contar productos en contactos
+  // Contar Productos en contactos
   const productCounts = {};
   contacts.forEach((contact) => {
-    const product = contact.producto;
+    const product = contact.Producto;
     if (product && product !== "") {
       productCounts[product] = (productCounts[product] || 0) + 1;
     }
@@ -1581,7 +1581,7 @@ function generateProductReport() {
 
   if (sortedProducts.length === 0) {
     container.innerHTML =
-      '<p style="text-align: center; color: #666;">No hay datos de productos</p>';
+      '<p style="text-align: center; color: #666;">No hay datos de Productos</p>';
     return;
   }
 
@@ -1605,7 +1605,7 @@ function generateProductReport() {
     .join("");
 }
 
-// Generar reporte de productos por vendedor
+// Generar reporte de Productos por vendedor
 function generateProductBySellerReport() {
   const container = document.getElementById("product-by-seller-report");
   if (!container) return;
@@ -1626,14 +1626,14 @@ function generateProductBySellerReport() {
     });
   });
 
-  // Contar productos por vendedor
+  // Contar Productos por vendedor
   contacts.forEach((contact) => {
-    if (contact.vendedor && contact.producto && contact.producto !== "") {
+    if (contact.vendedor && contact.Producto && contact.Producto !== "") {
       if (
         productData[contact.vendedor] &&
-        productData[contact.vendedor][contact.producto] !== undefined
+        productData[contact.vendedor][contact.Producto] !== undefined
       ) {
-        productData[contact.vendedor][contact.producto]++;
+        productData[contact.vendedor][contact.Producto]++;
       }
     }
   });
@@ -1661,7 +1661,7 @@ function generateProductBySellerReport() {
           `
                 )
                 .join("")
-            : '<p class="no-products">Sin productos registrados</p>'
+            : '<p class="no-products">Sin Productos registrados</p>'
         }
       </div>
     `;
@@ -1671,7 +1671,7 @@ function generateProductBySellerReport() {
   container.innerHTML = html;
 }
 
-// Generar reporte de productos por categoría
+// Generar reporte de Productos por categoría
 function generateProductCategoryReport() {
   const container = document.getElementById("product-category-report");
   if (!container) return;
@@ -1679,9 +1679,9 @@ function generateProductCategoryReport() {
   const categoryCounts = {};
 
   contacts.forEach((contact) => {
-    if (contact.producto && contact.producto !== "") {
+    if (contact.Producto && contact.Producto !== "") {
       const product = PRODUCTOS_DISPONIBLES.find(
-        (p) => p.name === contact.producto
+        (p) => p.name === contact.Producto
       );
       if (product) {
         const category = product.category;
@@ -1720,13 +1720,13 @@ function generateProductCategoryReport() {
     .join("");
 }
 
-// Función para obtener estadísticas rápidas de productos
+// Función para obtener estadísticas rápidas de Productos
 function getProductStats() {
   const totalProducts = contacts.filter(
-    (c) => c.producto && c.producto !== ""
+    (c) => c.Producto && c.Producto !== ""
   ).length;
   const uniqueProducts = [
-    ...new Set(contacts.map((c) => c.producto).filter((p) => p && p !== "")),
+    ...new Set(contacts.map((c) => c.Producto).filter((p) => p && p !== "")),
   ].length;
   const topProduct = getTopProduct();
 
@@ -1740,9 +1740,9 @@ function getProductStats() {
 function getTopProduct() {
   const productCounts = {};
   contacts.forEach((contact) => {
-    if (contact.producto && contact.producto !== "") {
-      productCounts[contact.producto] =
-        (productCounts[contact.producto] || 0) + 1;
+    if (contact.Producto && contact.Producto !== "") {
+      productCounts[contact.Producto] =
+        (productCounts[contact.Producto] || 0) + 1;
     }
   });
 
@@ -1752,7 +1752,7 @@ function getTopProduct() {
     : { name: "N/A", count: 0 };
 }
 
-// Actualizar dashboard con estadísticas de productos
+// Actualizar dashboard con estadísticas de Productos
 function updateProductStats() {
   const stats = getProductStats();
 
@@ -1774,7 +1774,7 @@ function updateProductStats() {
   }
 }
 
-// Función para filtrar contactos por producto
+// Función para filtrar contactos por Producto
 function filterContactsByProduct() {
   const productFilter = document.getElementById("filter-product");
   if (!productFilter) return;
@@ -1787,13 +1787,13 @@ function filterContactsByProduct() {
   }
 
   const filteredContacts = contacts.filter(
-    (contact) => contact.producto === selectedProduct
+    (contact) => contact.Producto === selectedProduct
   );
 
   renderContactsList(filteredContacts);
 }
 
-// Añadir filtro de productos al HTML de filtros
+// Añadir filtro de Productos al HTML de filtros
 function addProductFilter() {
   const filtersContainer = document.querySelector(".filters");
   if (!filtersContainer) return;
@@ -1806,15 +1806,15 @@ function addProductFilter() {
   productFilterGroup.innerHTML = `
     <label for="filter-product">Producto:</label>
     <select id="filter-product" onchange="filterContactsByProduct()">
-      <option value="">Todos los productos</option>
+      <option value="">Todos los Productos</option>
     </select>
   `;
 
   filtersContainer.appendChild(productFilterGroup);
 
-  // Poblar con productos únicos
+  // Poblar con Productos únicos
   const uniqueProducts = [
-    ...new Set(contacts.map((c) => c.producto).filter((p) => p && p !== "")),
+    ...new Set(contacts.map((c) => c.Producto).filter((p) => p && p !== "")),
   ];
   const productSelect = document.getElementById("filter-product");
 
@@ -1826,20 +1826,20 @@ function addProductFilter() {
   });
 }
 
-// Función para exportar reporte de productos
+// Función para exportar reporte de Productos
 function exportProductReport() {
   const productCounts = {};
   const categoryStats = {};
 
   contacts.forEach((contact) => {
-    if (contact.producto && contact.producto !== "") {
-      // Contar productos
-      productCounts[contact.producto] =
-        (productCounts[contact.producto] || 0) + 1;
+    if (contact.Producto && contact.Producto !== "") {
+      // Contar Productos
+      productCounts[contact.Producto] =
+        (productCounts[contact.Producto] || 0) + 1;
 
       // Contar categorías
       const product = PRODUCTOS_DISPONIBLES.find(
-        (p) => p.name === contact.producto
+        (p) => p.name === contact.Producto
       );
       if (product) {
         categoryStats[product.category] =
@@ -1876,13 +1876,13 @@ function exportProductReport() {
   });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = `reporte-productos-${
+  link.download = `reporte-Productos-${
     new Date().toISOString().split("T")[0]
   }.csv`;
   link.click();
 }
 
-// Modificar la función generateReports existente para incluir reportes de productos
+// Modificar la función generateReports existente para incluir reportes de Productos
 const originalGenerateReports = generateReports;
 generateReports = function () {
   // Ejecutar reportes originales
@@ -1890,14 +1890,14 @@ generateReports = function () {
     originalGenerateReports();
   }
 
-  // Generar reportes de productos
+  // Generar reportes de Productos
   generateProductReport();
   generateProductBySellerReport();
   generateProductCategoryReport();
   updateProductStats();
 };
 
-// Modificar la función de inicialización para incluir productos
+// Modificar la función de inicialización para incluir Productos
 const originalInit = init;
 init = function () {
   // Ejecutar inicialización original
@@ -1905,65 +1905,65 @@ init = function () {
     originalInit();
   }
 
-  // Inicializar sistema de productos
+  // Inicializar sistema de Productos
   updateProductSelect();
   addProductFilter();
 };
 
-// Modificar renderContactsList para incluir filtro de productos
+// Modificar renderContactsList para incluir filtro de Productos
 const originalRenderContactsList = renderContactsList;
 renderContactsList = function (filteredContacts = null) {
   // Ejecutar render original
   originalRenderContactsList(filteredContacts);
 
-  // Actualizar filtro de productos si es necesario
+  // Actualizar filtro de Productos si es necesario
   if (!filteredContacts) {
     addProductFilter();
   }
 };
 // === VALIDACIÓN OBLIGATORIA DE PRODUCTOS ===
 
-// Función para validar que se haya seleccionado un producto
+// Función para validar que se haya seleccionado un Producto
 function validateProductSelection() {
-  const productoSelect = document.getElementById("producto");
-  const producto = productoSelect.value.trim();
+  const ProductoSelect = document.getElementById("Producto");
+  const Producto = ProductoSelect.value.trim();
 
-  if (!producto || producto === "") {
+  if (!Producto || Producto === "") {
     // Mostrar alerta personalizada
     showProductAlert();
 
     // Resaltar el campo
-    productoSelect.style.borderColor = "#dc3545";
-    productoSelect.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.25)";
+    ProductoSelect.style.borderColor = "#dc3545";
+    ProductoSelect.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.25)";
 
     // Hacer scroll al campo
-    productoSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+    ProductoSelect.scrollIntoView({ behavior: "smooth", block: "center" });
 
     return false;
   }
 
   // Restablecer estilos si está correcto
-  productoSelect.style.borderColor = "#e1e5e9";
-  productoSelect.style.boxShadow = "none";
+  ProductoSelect.style.borderColor = "#e1e5e9";
+  ProductoSelect.style.boxShadow = "none";
 
   return true;
 }
 
-// Función para validar producto en edición
+// Función para validar Producto en edición
 function validateEditProductSelection() {
-  const productoSelect = document.getElementById("edit-producto");
-  const producto = productoSelect.value.trim();
+  const ProductoSelect = document.getElementById("edit-Producto");
+  const Producto = ProductoSelect.value.trim();
 
-  if (!producto || producto === "") {
+  if (!Producto || Producto === "") {
     showProductAlert();
-    productoSelect.style.borderColor = "#dc3545";
-    productoSelect.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.25)";
-    productoSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+    ProductoSelect.style.borderColor = "#dc3545";
+    ProductoSelect.style.boxShadow = "0 0 0 3px rgba(220, 53, 69, 0.25)";
+    ProductoSelect.scrollIntoView({ behavior: "smooth", block: "center" });
     return false;
   }
 
-  productoSelect.style.borderColor = "#e1e5e9";
-  productoSelect.style.boxShadow = "none";
+  ProductoSelect.style.borderColor = "#e1e5e9";
+  ProductoSelect.style.boxShadow = "none";
   return true;
 }
 
@@ -1979,8 +1979,8 @@ function showProductAlert() {
       <div class="product-alert-content">
         <div class="product-alert-icon">⚠️</div>
         <h3>Producto Requerido</h3>
-        <p>Debe seleccionar un producto antes de continuar.</p>
-        <p><strong>Por favor, elija una opción de la lista de productos.</strong></p>
+        <p>Debe seleccionar un Producto antes de continuar.</p>
+        <p><strong>Por favor, elija una opción de la lista de Productos.</strong></p>
         <button onclick="closeProductAlert()" class="product-alert-btn">Entendido</button>
       </div>
     `;
@@ -2016,9 +2016,9 @@ function setupContactFormValidation() {
     contactForm.addEventListener("submit", function (e) {
       e.preventDefault();
 
-      // Validar producto primero
+      // Validar Producto primero
       if (!validateProductSelection()) {
-        return; // Detener envío si no hay producto
+        return; // Detener envío si no hay Producto
       }
 
       // Si pasa la validación, procesar el formulario
@@ -2031,7 +2031,7 @@ function setupContactFormValidation() {
         empresa: formData.get("empresa"),
         telefono: formData.get("telefono"),
         email: formData.get("email"),
-        producto: formData.get("producto"), // Ahora garantizado que no será vacío
+        Producto: formData.get("Producto"), // Ahora garantizado que no será vacío
         estado: formData.get("estado"),
         clienteDerivado: formData.get("cliente-derivado") || "",
         motivo: formData.get("motivo"),
@@ -2047,7 +2047,7 @@ function setupContactFormValidation() {
       document.getElementById("derivacion-group").style.display = "none";
       updateDashboard();
 
-      // Actualizar select de productos
+      // Actualizar select de Productos
       updateProductSelect();
     });
   }
@@ -2064,9 +2064,9 @@ function setupEditContactFormValidation() {
     editContactForm.addEventListener("submit", function (e) {
       e.preventDefault();
 
-      // Validar producto primero
+      // Validar Producto primero
       if (!validateEditProductSelection()) {
-        return; // Detener envío si no hay producto
+        return; // Detener envío si no hay Producto
       }
 
       const contactId = document.getElementById("edit-contact-id").value;
@@ -2083,7 +2083,7 @@ function setupEditContactFormValidation() {
         empresa: formData.get("empresa"),
         telefono: formData.get("telefono"),
         email: formData.get("email"),
-        producto: formData.get("producto"), // Ahora garantizado que no será vacío
+        Producto: formData.get("Producto"), // Ahora garantizado que no será vacío
         estado: formData.get("estado"),
         clienteDerivado: formData.get("cliente-derivado") || "",
         motivo: formData.get("motivo"),
@@ -2115,15 +2115,15 @@ function renderContactsList(filteredContacts = null) {
     .forEach((contact) => {
       const row = document.createElement("tr");
 
-      // Mostrar el producto seleccionado correctamente
-      const productoDisplay = contact.producto || "Sin producto especificado";
+      // Mostrar el Producto seleccionado correctamente
+      const ProductoDisplay = contact.Producto || "Sin Producto especificado";
 
       row.innerHTML = `
             <td>${formatDate(contact.fecha)}</td>
             <td>${contact.vendedor}</td>
             <td>${contact.cliente}</td>
             <td>${contact.empresa || "-"}</td>
-            <td><strong>${productoDisplay}</strong></td>
+            <td><strong>${ProductoDisplay}</strong></td>
             <td><span class="status-badge status-${contact.estado
               .toLowerCase()
               .replace(" ", "-")}">${contact.estado}</span></td>
@@ -2267,15 +2267,15 @@ setupEventListeners = function () {
   setupContactFormValidation();
   setupEditContactFormValidation();
 
-  // Asegurar que los selects de productos estén actualizados
+  // Asegurar que los selects de Productos estén actualizados
   updateProductSelect();
 };
 
-// Función para hacer el select de producto más visible
+// Función para hacer el select de Producto más visible
 function highlightProductField() {
-  const productoSelect = document.getElementById("producto");
-  if (productoSelect) {
-    productoSelect.style.border = "3px solid #f4c430";
-    productoSelect.style.boxShadow = "0 0 10px rgba(244, 196, 48, 0.3)";
+  const ProductoSelect = document.getElementById("Producto");
+  if (ProductoSelect) {
+    ProductoSelect.style.border = "3px solid #f4c430";
+    ProductoSelect.style.boxShadow = "0 0 10px rgba(244, 196, 48, 0.3)";
   }
 }
