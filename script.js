@@ -1497,7 +1497,7 @@ const PRODUCTOS_DISPONIBLES = [
 
 // Función para actualizar el select de productos
 function updateProductSelect() {
-  const productSelect = document.getElementById("producto");
+  const productSelect = document.getElementById("Producto");
   const editProductSelect = document.getElementById("edit-producto");
 
   if (productSelect) {
