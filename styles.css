@@ -1925,30 +1925,6 @@ tr:hover {
   }
 }
 
-/* Modo oscuro básico */
-@media (prefers-color-scheme: dark) {
-  /* Mantener el tema dorado de la empresa pero con ajustes */
-  .container {
-    background: #1a1a1a;
-    color: #ffffff;
-  }
-
-  .header {
-    background: #1a1a1a;
-    color: #ffffff;
-  }
-
-  table {
-    background: #2d2d2d;
-    color: #ffffff;
-  }
-
-  .modal-content {
-    background: #2d2d2d;
-    color: #ffffff;
-  }
-}
-
 /* Print styles */
 @media print {
   .nav,
