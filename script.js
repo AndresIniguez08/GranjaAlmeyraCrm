@@ -1,5 +1,3 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -11,7 +9,12 @@ const firebaseConfig = {
   storageBucket: "granja-almeyra-crm.firebasestorage.app",
   messagingSenderId: "710393274898",
   appId: "1:710393274898:web:bfb926608b54ff3bc7aecb",
+};
 
+// Initialize Firebase
+
+// === SISTEMA DE AUTENTICACIÓN ===
+const USERS = {
   admin: {
     password: "She.said5643",
     name: "Administrador",
@@ -43,12 +46,7 @@ const firebaseConfig = {
     firstLogin: true,
   },
 };
-
 let currentUser = null;
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-// === SISTEMA DE AUTENTICACIÓN ===
-
 // Inicializar el sistema
 document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("app-screen").style.display = "none";
