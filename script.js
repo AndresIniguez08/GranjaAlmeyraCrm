@@ -11,12 +11,7 @@ const firebaseConfig = {
   storageBucket: "granja-almeyra-crm.firebasestorage.app",
   messagingSenderId: "710393274898",
   appId: "1:710393274898:web:bfb926608b54ff3bc7aecb",
-};
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-// === SISTEMA DE AUTENTICACIÓN ===
-const USERS = {
   admin: {
     password: "She.said5643",
     name: "Administrador",
@@ -50,6 +45,9 @@ const USERS = {
 };
 
 let currentUser = null;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+// === SISTEMA DE AUTENTICACIÓN ===
 
 // Inicializar el sistema
 document.addEventListener("DOMContentLoaded", function () {
