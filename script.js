@@ -1,3 +1,20 @@
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDepifUo7rRJDC6tORWACb_gIar-qa_LSY",
+  authDomain: "granja-almeyra-crm.firebaseapp.com",
+  projectId: "granja-almeyra-crm",
+  storageBucket: "granja-almeyra-crm.firebasestorage.app",
+  messagingSenderId: "710393274898",
+  appId: "1:710393274898:web:bfb926608b54ff3bc7aecb",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 // === SISTEMA DE AUTENTICACIÓN ===
 const USERS = {
   admin: {
