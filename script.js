@@ -1533,18 +1533,12 @@ generateReports = function () {
   updateProductStats();
 };
 
-// Modificar la función de inicialización para incluir Productos
-const originalInit = init;
-init = function () {
-  // Ejecutar inicialización original
-  if (originalInit) {
-    originalInit();
-  }
+
 
   // Inicializar sistema de Productos
   updateProductSelect();
   addProductFilter();
-};
+;  
 
 // Modificar renderContactsList para incluir filtro de Productos
 const originalRenderContactsList = renderContactsList;
