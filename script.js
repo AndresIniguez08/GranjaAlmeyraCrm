@@ -45,6 +45,12 @@ const USERS = {
     role: "vendedor",
     firstLogin: true,
   },
+  "Natalia.Montero" : {
+    password: "venta123",
+    name: "Natalia Montero",
+    role: "vendedor",
+    firstLogin: true,
+  },
 };
 let currentUser = null;
 // Inicializar el sistema
