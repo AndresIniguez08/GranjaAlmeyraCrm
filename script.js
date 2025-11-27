@@ -977,6 +977,7 @@ function generateSalesReport() {
     "Andrés Iñiguez",
     "Eduardo Schiavi",
     "Gabriel Caffarello",
+    "Natalia Montero",
   ];
 
   const salesData = vendedores.map((vendedor) => ({
@@ -1634,6 +1635,7 @@ function generateProductBySellerReport() {
     "Andrés Iñiguez",
     "Eduardo Schiavi",
     "Gabriel Caffarello",
+    "Natalia Montero",
   ];
   const productData = {};
 
