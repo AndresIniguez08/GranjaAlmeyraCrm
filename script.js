@@ -30,6 +30,7 @@ async function loginUser(username, password) {
       .eq("username", username)
       .eq("password", password)
       .single();
+      console.log("Resultado Supabase:", { data, error });
     if (error || !data) return { success: false, error };
     currentUser = data;
     return { success: true, user: data };
@@ -37,7 +38,7 @@ async function loginUser(username, password) {
     console.error("loginUser error:", err);
     return { success: false, error: err };
   }
-  console.log("Resultado Supabase:", { data, error });
+
 
 }
 
