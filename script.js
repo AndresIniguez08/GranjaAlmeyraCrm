@@ -29,7 +29,7 @@ async function loginUser(username, password) {
       .select("*")
       .eq("username", username)
       .eq("password", password)
-      .single();
+      .maybesingle();
       console.log("Resultado Supabase:", { data, error });
     if (error || !data) return { success: false, error };
     currentUser = data;
