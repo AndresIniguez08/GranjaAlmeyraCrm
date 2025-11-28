@@ -20,7 +20,7 @@ let markersLayer = null;
 let tempCoordinates = null;
 let editTempCoordinates = null;
 let initialized = false;
-
+/*
 // ---------------- AUTH (Login tipo A) ----------------
 async function loginUser(username, password) {
   try {
@@ -106,7 +106,7 @@ function showLogin() {
   document.getElementById("username").value = "";
   document.getElementById("password").value = "";
 }
-
+*/
 function showApp() {
   const loginScreen = document.getElementById("login-screen");
   const passwordScreen = document.getElementById("password-change-screen");
