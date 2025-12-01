@@ -52,16 +52,230 @@ const USERS = {
     firstLogin: true,
   },
 };
+
+/* ---------------------------
+   Supabase integration helpers
+   ---------------------------
+   BEFORE using the app, call:
+     initSupabase('https://YOUR-SUPABASE-URL.supabase.co', 'YOUR-ANON-KEY');
+   or include the UMD CDN:
+     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+   and then call initSupabase with your credentials.
+*/
+let supabase = null;
+initSupabase('https://gntwqahvwwvkwhkdowwh.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudHdxYWh2d3d2a3doa2Rvd3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNDc0NjQsImV4cCI6MjA3OTgyMzQ2NH0.qAgbzFmnG5136V1pTStF_hW7jKaAzoIlSYoWt2qxM9E');
+async function initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY) {
+  if (typeof window !== 'undefined' && window.createClient) {
+    supabase = window.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.info('Supabase initialized (UMD).');
+    return;
+  }
+  try {
+    // Attempt dynamic ESM import (may fail in non-module environments)
+    const module = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+    supabase = module.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.info('Supabase initialized (dynamic import).');
+  } catch (err) {
+    console.warn('No supabase client detected. Call initSupabase(...) with your credentials or include the UMD script.', err);
+  }
+}
+
+/* Cookie helpers for optional session persistence */
+function setCookie(name, value, days = 7) {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
+}
+function getCookie(name) {
+  return document.cookie.split('; ').reduce((r, v) => {
+    const parts = v.split('=');
+    return parts[0] === name ? decodeURIComponent(parts[1]) : r
+  }, '');
+}
+function eraseCookie(name) {
+  setCookie(name, '', -1);
+}
+
+/* In-memory datasets (will be loaded from DB if supabase is initialized) */
+let contacts = [];
+let clients = [];
+// USERS already declared above; we'll update USERS at load if DB has users
+
+/* DB helpers (see earlier assistant message for table schema expectations) */
+async function dbLoadAllData() {
+  if (!supabase) {
+    console.warn('Supabase not initialized — continuing with data in memory.');
+    return;
+  }
+  try {
+    const { data: contactsData, error: contactsError } = await supabase
+      .from('commercial_contacts')
+      .select('*');
+    if (contactsError) throw contactsError;
+    contacts = contactsData || [];
+  } catch (err) {
+    console.error('Error loading commercial_contacts:', err);
+    contacts = [];
+  }
+
+  try {
+    const { data: clientsData, error: clientsError } = await supabase
+      .from('commercial_clients')
+      .select('*');
+    if (clientsError) throw clientsError;
+    clients = clientsData || [];
+  } catch (err) {
+    console.error('Error loading commercial_clients:', err);
+    clients = [];
+  }
+
+  try {
+    const { data: usersData, error: usersError } = await supabase
+      .from('users')
+      .select('*');
+    if (usersError) throw usersError;
+    if (usersData && usersData.length > 0) {
+      // overwrite USERS constant properties for runtime usage
+      for (const u of usersData) {
+        USERS[u.username] = {
+          password: u.password,
+          name: u.name,
+          role: u.role,
+          firstLogin: !!u.firstLogin
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error loading users from DB:', err);
+  }
+
+  // Try restore session from cookie
+  const token = getCookie('granja_session');
+  if (token) {
+    try {
+      const { data: sessionRow, error: sessionError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('token', token)
+        .limit(1)
+        .single();
+      if (!sessionError && sessionRow) {
+        const { data: userRow, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('username', sessionRow.username)
+          .limit(1)
+          .single();
+        if (!userError && userRow) {
+          currentUser = { username: userRow.username, name: userRow.name, role: userRow.role };
+        }
+      }
+    } catch (err) {
+      console.warn('Error restoring session from DB:', err);
+    }
+  }
+}
+
+async function dbSaveAllData() {
+  if (!supabase) {
+    console.warn('Supabase not initialized — changes remain in memory.');
+    return;
+  }
+  try {
+    if (contacts && contacts.length > 0) {
+      await supabase.from('commercial_contacts').upsert(contacts, { onConflict: 'id' });
+    }
+  } catch (err) {
+    console.error('Error upserting contacts:', err);
+  }
+  try {
+    if (clients && clients.length > 0) {
+      await supabase.from('commercial_clients').upsert(clients, { onConflict: 'id' });
+    }
+  } catch (err) {
+    console.error('Error upserting clients:', err);
+  }
+}
+
+/* Minimal DB delete helpers used later */
+async function dbDeleteContact(id) {
+  if (!supabase) return;
+  try {
+    await supabase.from('commercial_contacts').delete().eq('id', id);
+  } catch (err) {
+    console.error('Error deleting contact:', err);
+  }
+}
+async function dbDeleteClient(id) {
+  if (!supabase) return;
+  try {
+    await supabase.from('commercial_clients').delete().eq('id', id);
+  } catch (err) {
+    console.error('Error deleting client:', err);
+  }
+}
+
+/* User upsert helper */
+async function upsertUsers(userObj) {
+  if (!supabase) return;
+  try {
+    const rows = Object.entries(userObj).map(([username,u]) => ({ username, password: u.password, name: u.name, role: u.role, firstLogin: !!u.firstLogin }));
+    await supabase.from('users').upsert(rows, { onConflict: 'username' });
+  } catch (err) {
+    console.error('Error upserting users:', err);
+  }
+}
+
+/* Wrapper functions used by original code */
+function loadData() {
+  // keep sync signature for compatibility: start async load but don't block UI
+  dbLoadAllData().catch(err => console.error(err));
+}
+function saveData() {
+  // async persist in background
+  dbSaveAllData().catch(err => console.error(err));
+}
+
+/* Session creation helper used during login */
+async function createSessionForUser(username) {
+  const token = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  setCookie('granja_session', token, 7);
+  if (!supabase) return;
+  try {
+    await supabase.from('sessions').upsert({ token, username, last_active: new Date().toISOString() }, { onConflict: 'token' });
+  } catch (err) {
+    console.warn('Could not create session in DB:', err);
+  }
+}
+
+/* Logout helper */
+async function clearSession() {
+  const token = getCookie('granja_session');
+  eraseCookie('granja_session');
+  if (!supabase || !token) return;
+  try {
+    await supabase.from('sessions').delete().eq('token', token);
+  } catch (err) {
+    console.warn('Could not delete session in DB:', err);
+  }
+}
 let currentUser = null;
 // Inicializar el sistema
 document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("app-screen").style.display = "none";
   document.getElementById("password-change-screen").style.display = "none";
 
-  const savedUser = localStorage.getItem("current-user");
-  if (savedUser) {
-    currentUser = JSON.parse(savedUser);
-    showApp();
+  // Attempt to restore session and load data (Supabase optional).
+  // If you haven't initialized Supabase, the app will continue using localStorage fallback.
+  loadData();
+  const sessionToken = getCookie('granja_session');
+  if (sessionToken) {
+    // If session restored by dbLoadAllData, currentUser may already be set.
+    if (typeof currentUser !== 'undefined' && currentUser) {
+      showApp();
+    } else {
+      // otherwise show login; dbLoadAllData attempted to restore session if supabase initialized.
+      showLogin();
+    }
   } else {
     showLogin();
   }
@@ -70,7 +284,7 @@ document.addEventListener("DOMContentLoaded", function () {
   document
     .getElementById("password-change-form")
     .addEventListener("submit", handlePasswordChange);
-});
+;
 
 function handleLogin(e) {
   e.preventDefault();
@@ -90,6 +304,9 @@ function handleLogin(e) {
     if (userData[username].firstLogin) {
       showPasswordChange();
     } else {
+      // Persist current user: create session (cookie + sessions table if available)
+      createSessionForUser(currentUser.username).catch(()=>{});
+      // Also keep a localStorage fallback for compatibility
       localStorage.setItem("current-user", JSON.stringify(currentUser));
       showApp();
     }
@@ -119,15 +336,21 @@ function handlePasswordChange(e) {
   userData[currentUser.username].password = newPassword;
   userData[currentUser.username].firstLogin = false;
 
+  // Persist user-data: update DB (if available) and localStorage fallback
+  upsertUsers(userData).catch(()=>{});
   localStorage.setItem("user-data", JSON.stringify(userData));
+  // Persist current user: create session (cookie + sessions table if available)
+  createSessionForUser(currentUser.username).catch(()=>{});
+  // Also keep a localStorage fallback for compatibility
   localStorage.setItem("current-user", JSON.stringify(currentUser));
   showApp();
 }
 
 function getUserData() {
-  const savedUserData = localStorage.getItem("user-data");
-  return savedUserData ? JSON.parse(savedUserData) : USERS;
+  // USERS is kept in memory and loaded from DB at startup if Supabase is initialized.
+  return USERS;
 }
+
 
 function showPasswordChange() {
   document.getElementById("login-screen").style.display = "none";
@@ -140,7 +363,8 @@ function showPasswordChange() {
 }
 
 function logout() {
-  localStorage.removeItem("current-user");
+  // Clear session both locally and in DB
+  clearSession().catch(()=>{});
   currentUser = null;
   showLogin();
 }
@@ -434,22 +658,7 @@ async function geocodeCurrentAddressEdit() {
 }
 
 // === FUNCIONES DE DATOS ===
-function loadData() {
-  const savedContacts = localStorage.getItem("commercial-contacts");
-  const savedClients = localStorage.getItem("commercial-clients");
-
-  if (savedContacts) {
-    contacts = JSON.parse(savedContacts);
-  }
-  if (savedClients) {
-    clients = JSON.parse(savedClients);
-  }
-}
-
-function saveData() {
-  localStorage.setItem("commercial-contacts", JSON.stringify(contacts));
-  localStorage.setItem("commercial-clients", JSON.stringify(clients));
-}
+// NOTE: data load/save helpers are defined earlier to support Supabase integration.
 
 // === NAVEGACIÓN ===
 function showSection(sectionName) {
@@ -586,11 +795,14 @@ function deleteContact(contactId) {
   if (confirm("¿Estás seguro de que deseas eliminar este contacto?")) {
     contacts = contacts.filter((c) => c.id != contactId);
     saveData();
+    // Also attempt to delete directly in DB if possible
+    dbDeleteContact(contactId).catch(()=>{});
     renderContactsList();
     updateDashboard();
     showSuccessMessage("contact-success-message");
   }
 }
+
 
 // Funciones para editar clientes
 function editClient(clientId) {
@@ -631,11 +843,13 @@ function deleteClient(clientId) {
   if (confirm("¿Estás seguro de que deseas eliminar este cliente?")) {
     clients = clients.filter((c) => c.id != clientId);
     saveData();
+    dbDeleteClient(clientId).catch(()=>{});
     renderClientsList();
     updateDashboard();
     showSuccessMessage("client-success-message");
   }
 }
+
 
 // === DASHBOARD ===
 function updateDashboard() {
@@ -2300,3 +2514,4 @@ function highlightProductField() {
     ProductoSelect.style.boxShadow = "0 0 10px rgba(244, 196, 48, 0.3)";
   }
 }
+})
