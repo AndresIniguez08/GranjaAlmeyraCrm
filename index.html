@@ -17,7 +17,29 @@
 
 <!-- Ahora sí tu script -->
 <script src="script.js"></script>
+// Esta función debe quedar global
+  window.initSupabase = function () {
+    window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("✔ Supabase Inicializado ANTES de script.js");
+  };
 
+  // Ejecutar inicialización
+  initSupabase();
+</script>
+
+<!-- 3) Cargar tu script principal -->
+<script src="script.js"></script>
+
+<!-- 4) Hacer globales TODAS las funciones que tus botones usan -->
+<script>
+  window.showSection = showSection;
+  window.logout = logout;
+  window.handleContactSubmit = handleContactSubmit;
+  window.handleClientSubmit = handleClientSubmit;
+  window.showPasswordChange = showPasswordChange;
+  window.handlePasswordChange = handlePasswordChange;
+  window.init = init;
+</script>
 
     <!-- Favicon -->
     <link
