@@ -1,17 +1,5 @@
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDepifUo7rRJDC6tORWACb_gIar-qa_LSY",
-  authDomain: "granja-almeyra-crm.firebaseapp.com",
-  projectId: "granja-almeyra-crm",
-  storageBucket: "granja-almeyra-crm.firebasestorage.app",
-  messagingSenderId: "710393274898",
-  appId: "1:710393274898:web:bfb926608b54ff3bc7aecb",
-};
-
-// Initialize Firebase
+/*
 
 // === SISTEMA DE AUTENTICACIÓN ===
 const USERS = {
@@ -52,6 +40,7 @@ const USERS = {
     firstLogin: true,
   },
 };
+*/
 
 /* ---------------------------
    Supabase integration helpers
@@ -63,6 +52,14 @@ const USERS = {
    and then call initSupabase with your credentials.
 */
 let supabase = null;
+// Esta función debe quedar global
+  window.initSupabase = function () {
+    window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("✔ Supabase Inicializado ANTES de script.js");
+  };
+
+  // Ejecutar inicialización
+  initSupabase();
 initSupabase('https://gntwqahvwwvkwhkdowwh.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudHdxYWh2d3d2a3doa2Rvd3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNDc0NjQsImV4cCI6MjA3OTgyMzQ2NH0.qAgbzFmnG5136V1pTStF_hW7jKaAzoIlSYoWt2qxM9E');
 async function initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY) {
   if (typeof window !== 'undefined' && window.createClient) {
