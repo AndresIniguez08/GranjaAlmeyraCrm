@@ -952,6 +952,13 @@
         }
       })();
     </script>
+    <script>
+    window.addEventListener("load", async () => {
+        await initSupabase();
+        init(); // ← importante
+    });
+</script>
+
 
   </body>
 </html>

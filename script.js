@@ -52,11 +52,7 @@ const USERS = {
    and then call initSupabase with your credentials.
 */
 let supabase = null;
-// Esta función debe quedar global
-  window.initSupabase = function () {
-    window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("✔ Supabase Inicializado ANTES de script.js");
-  };
+
 
   // Ejecutar inicialización
   initSupabase();
