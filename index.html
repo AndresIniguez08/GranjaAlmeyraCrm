@@ -4,42 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CRM Granja Almeyra</title>
-    <!-- Cargar librería supabase-js -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
-
-<script>
-  // Inicializar Supabase ANTES de cargar tu script
-  initSupabase(
-    "https://gntwqahvwwvkwhkdowwh.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudHdxYWh2d3d2a3doa2Rvd3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNDc0NjQsImV4cCI6MjA3OTgyMzQ2NH0.qAgbzFmnG5136V1pTStF_hW7jKaAzoIlSYoWt2qxM9E"
-  );
-</script>
-
-<!-- Ahora sí tu script -->
-<script src="script.js"></script>
-// Esta función debe quedar global
-  window.initSupabase = function () {
-    window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("✔ Supabase Inicializado ANTES de script.js");
-  };
-
-  // Ejecutar inicialización
-  initSupabase();
-</script>
-
-<!-- 3) Cargar tu script principal -->
-<script src="script.js"></script>
-
-<!-- 4) Hacer globales TODAS las funciones que tus botones usan -->
-<script>
-  window.showSection = showSection;
-  window.logout = logout;
-  window.handleContactSubmit = handleContactSubmit;
-  window.handleClientSubmit = handleClientSubmit;
-  window.showPasswordChange = showPasswordChange;
-  window.handlePasswordChange = handlePasswordChange;
-  window.init = init;
-</script>
 
     <!-- Favicon -->
     <link
@@ -885,16 +849,107 @@
       </div>
     </div>
 
-    <!-- Scripts -->
-    <!-- Scripts de Firebase (agregar ANTES del script.js) -->
+    <!-- Scripts section: SUPABASE init BEFORE script.js, then expose globals -->
+
+    <!-- 1) Cargar Supabase UMD (asegúrate de tener conexión a internet) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+
+    <!-- 2) Inicializar Supabase ANTES de cargar script.js -->
+    <script>
+      // --- REEMPLAZA si querés con tus datos (ahora están con los valores que tenías en el HTML original) ---
+      const SUPABASE_URL = "https://gntwqahvwwvkwhkdowwh.supabase.co";
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudHdxYWh2d3d2a3doa2Rvd3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNDc0NjQsImV4cCI6MjA3OTgyMzQ2NH0.qAgbzFmnG5136V1pTStF_hW7jKaAzoIlSYoWt2qxM9E";
+
+      // Init function available global
+      function initSupabase(url = SUPABASE_URL, key = SUPABASE_ANON_KEY) {
+        try {
+          if (!window.supabase && typeof supabase !== "undefined") {
+            window.supabase = supabase.createClient(url, key);
+            console.log("✔ Supabase inicializado");
+          } else if (window.supabase) {
+            console.log("Supabase ya inicializado");
+          } else {
+            console.warn("La librería supabase no está disponible globalmente");
+          }
+        } catch (err) {
+          console.error("Error inicializando Supabase:", err);
+        }
+      }
+
+      // Ejecutar inicialización inmediatamente (antes de cargar script.js)
+      initSupabase();
+    </script>
+
+    <!-- 3) Mantener Firebase scripts si los necesitás (estaban en el HTML original).
+         Si no usás Firebase, podés comentar/ eliminar estas 3 líneas. -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
-    <!-- Tu script -->
+    <!-- 4) Cargar tu script principal UNA sola vez -->
     <script src="script.js"></script>
 
+    <!-- 5) Cargar Leaflet (se usa para el mapa) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-    
+
+    <!-- 6) Exponer funciones globales que el HTML llama por onclick.
+           Se hace después de cargar script.js para asegurar que las funciones existan. -->
+    <script>
+      (function exposeGlobals() {
+        // Lista de nombres que el HTML usa como handlers / onclick
+        const names = [
+          "showSection",
+          "logout",
+          "handleContactSubmit",
+          "handleClientSubmit",
+          "showPasswordChange",
+          "handlePasswordChange",
+          "init",
+          "showClientsOnMap",
+          "showAllClients",
+          "showActiveClients",
+          "showByType",
+          "exportContacts",
+          "exportClients",
+          "exportFullReport",
+          "toggleDerivacion",
+          "toggleEditDerivacion",
+          "geocodeCurrentAddress",
+          "geocodeCurrentAddressEdit",
+          "getCurrentLocation",
+          "getCurrentLocationEdit",
+          "editClient",
+          "editContact",
+          "closeEditContactModal",
+          "closeEditClientModal",
+          "updateClientSelect",
+          "updateEditClientSelect",
+        ];
+
+        names.forEach((n) => {
+          if (typeof window[n] === "undefined" && typeof eval(n) === "function") {
+            window[n] = eval(n);
+          } else if (typeof window[n] === "undefined") {
+            // If still undefined, avoid throwing — log for debugging
+            console.debug(`Función global no encontrada (debe existir en script.js): ${n}`);
+          } else {
+            // already exists on window
+          }
+        });
+
+        // A few safety checks: if init exists, call it after small delay to ensure DOM is ready
+        if (typeof window.init === "function") {
+          // Wait for DOMContentLoaded if not already fired
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", () => {
+              try { window.init(); } catch(e){ console.warn('init() lanzó error:', e); }
+            });
+          } else {
+            try { window.init(); } catch(e){ console.warn('init() lanzó error:', e); }
+          }
+        }
+      })();
+    </script>
+
   </body>
 </html>
