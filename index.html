@@ -21,6 +21,15 @@
     <!-- CSS personalizado -->
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+    <script>
+        // Crear cliente Supabase ANTES que script.js
+        window.supabaseClient = supabase.createClient(
+            "https://gntwqahvwwvkwhkdowwh.supabase.co",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudHdxYWh2d3d2a3doa2Rvd3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNDc0NjQsImV4cCI6MjA3OTgyMzQ2NH0.qAgbzFmnG5136V1pTStF_hW7jKaAzoIlSYoWt2qxM9E"
+        );
+
+        console.log("Supabase UMD inicializado correctamente");
+    </script>
 
   </head>
   <body>
@@ -958,7 +967,47 @@
         init(); // ← importante
     });
 </script>
+<script>
+        // Espera que script.js registre las funciones internas
+        window.addEventListener("load", async () => {
+            try {
+                if (typeof initSupabase === "function") {
+                    await initSupabase(); // usa el cliente UMD ya creado
+                } else {
+                    console.error("initSupabase NO está definido en script.js");
+                }
 
+                if (typeof init === "function") {
+                    init(); // inicializa toda la app
+                } else {
+                    console.error("init() NO está definido en script.js");
+                }
+            } catch (e) {
+                console.error("Error al iniciar la app:", e);
+            }
+        });
+
+        // Exposición global para evitar errores de "no definido"
+        const funcs = [
+            "showSection",
+            "logout",
+            "handleContactSubmit",
+            "handlePasswordChange",
+            "handleLogin",
+            "handleClientSubmit",
+            "updateDashboard",
+            "loadContacts",
+            "loadClients"
+        ];
+
+        funcs.forEach(fn => {
+            if (typeof window[fn] === "undefined" && typeof window[fn] !== "function") {
+                window[fn] = function() {
+                    console.warn(`⚠ La función ${fn} aún no fue cargada por script.js`);
+                };
+            }
+        });
+    </script>
 
   </body>
 </html>
