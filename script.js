@@ -49,51 +49,53 @@ let clients = [];
 
 /* DB helpers (see earlier assistant message for table schema expectations) */
 async function dbLoadAllData() {
-  if (!supabase) {
-    console.warn('Supabase not initialized — continuing with data in memory.');
+  if (!window.supabaseClient) {
+    console.warn("Supabase no está inicializado — trabajando en memoria.");
     return;
   }
+
+  // --- Cargar contactos ---
   try {
-    const { data: contactsData, error: contactsError } = await supabase
-      .from('commercial_contacts')
-      .select('*');
+    const { data: contactsData, error: contactsError } = await window.supabaseClient
+      .from("commercial_contacts")
+      .select("*");
+
     if (contactsError) throw contactsError;
     contacts = contactsData || [];
   } catch (err) {
-    console.error('Error loading commercial_contacts:', err);
+    console.error("Error loading commercial_contacts:", err);
     contacts = [];
   }
 
+  // --- Cargar clientes ---
   try {
-    const { data: clientsData, error: clientsError } = await supabase
-      .from('commercial_clients')
-      .select('*');
+    const { data: clientsData, error: clientsError } = await window.supabaseClient
+      .from("commercial_clients")
+      .select("*");
+
     if (clientsError) throw clientsError;
     clients = clientsData || [];
   } catch (err) {
-    console.error('Error loading commercial_clients:', err);
+    console.error("Error loading commercial_clients:", err);
     clients = [];
   }
 
+  // --- Cargar usuarios ---
   try {
-    const { data: usersData, error: usersError } = await supabase
-      .from('users')
-      .select('*');
+    const { data: usersData, error: usersError } = await window.supabaseClient
+      .from("users")
+      .select("*");
+
     if (usersError) throw usersError;
-    if (usersData && usersData.length > 0) {
-      // overwrite USERS constant properties for runtime usage
-      for (const u of usersData) {
-        USERS[u.username] = {
-          password: u.password,
-          name: u.name,
-          role: u.role,
-          firstLogin: !!u.firstLogin
-        };
-      }
-    }
+
+    // Guardar usuarios en memoria global, no en USERS
+    window.allUsers = usersData || [];
+
   } catch (err) {
-    console.error('Error loading users from DB:', err);
+    console.error("Error loading users from DB:", err);
+    window.allUsers = [];
   }
+}
 
   // Try restore session from cookie
   const token = getCookie('granja_session');
@@ -120,7 +122,7 @@ async function dbLoadAllData() {
       console.warn('Error restoring session from DB:', err);
     }
   }
-}
+
 
 async function dbSaveAllData() {
   if (!supabase) {
@@ -1456,6 +1458,52 @@ function formatDate(dateString) {
   if (!dateString) return "-";
   const date = new Date(dateString);
   return date.toLocaleDateString("es-ES");
+}
+async function handleLogin(event) {
+    event.preventDefault();
+
+    const username = document.getElementById("login-username").value.trim();
+    const password = document.getElementById("login-password").value.trim();
+
+    if (!username || !password) {
+        alert("Por favor completa usuario y contraseña.");
+        return;
+    }
+
+    try {
+        const { data: userData, error } = await window.supabaseClient
+            .from("users")
+            .select("*")
+            .eq("username", username)
+            .single();
+
+        if (error || !userData) {
+            alert("Usuario incorrecto.");
+            return;
+        }
+
+        if (userData.password !== password) {
+            alert("Contraseña incorrecta.");
+            return;
+        }
+
+        // Guardar usuario en sesión temporal
+        window.currentUser = userData;
+
+        // Si es el primer login → pedir cambio de contraseña
+        if (userData.firstLogin === true) {
+            showSection("change-password-section");
+            return;
+        }
+
+        // Login correcto → ir al dashboard
+        showSection("dashboard-section");
+        updateDashboard();
+
+    } catch (e) {
+        console.error("Error al iniciar sesión:", e);
+        alert("Error al conectar con la base de datos.");
+    }
 }
 
 // === EVENT LISTENERS ===
