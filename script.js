@@ -2478,3 +2478,4 @@ function highlightProductField() {
     ProductoSelect.style.boxShadow = "0 0 10px rgba(244, 196, 48, 0.3)";
   }
 }
+window.handleLogin = handleLogin;
