@@ -896,6 +896,8 @@ function closeEditClientModal() {
 }
 
 // === GUARDAR CAMBIOS DEL CLIENTE ===
+// === CLIENTES: GUARDAR CAMBIOS / EDICIÓN / BORRADO ===
+
 async function saveClientToDB(client) {
   try {
     const safe = {
@@ -921,18 +923,29 @@ async function saveClientToDB(client) {
       safe.coordinates = client.coordinates;
     }
 
-    // === PATCH con manejo del 406 ===
-    const { data, error } = await window.supabase
+    console.log("Actualizando cliente con ID:", client.id);
+
+    // 1️⃣ Realizar UPDATE
+    const { error } = await window.supabase
       .from("commercial_clients")
       .update(safe)
-      .eq("id", client.id)
-      .select("*"); // sin maybeSingle()
+      .eq("id", client.id.toString().trim());
 
     if (error) throw error;
-    if (!data || data.length === 0) throw new Error("No se actualizó ningún registro");
 
-    console.log("Cliente actualizado correctamente:", data[0]);
-    return data[0];
+    // 2️⃣ Verificar que el registro existe y fue actualizado
+    const { data: verify, error: verifyErr } = await window.supabase
+      .from("commercial_clients")
+      .select("*")
+      .eq("id", client.id.toString().trim())
+      .limit(1);
+
+    if (verifyErr) throw verifyErr;
+    if (!verify || verify.length === 0)
+      throw new Error("No se actualizó ningún registro");
+
+    console.log("Cliente actualizado correctamente:", verify[0]);
+    return verify[0];
   } catch (e) {
     console.error("saveClientToDB error:", e);
     throw e;
@@ -989,13 +1002,7 @@ async function handleEditClientSubmit(e) {
   }
 }
 
-// Exponer al scope global
-window.handleEditClientSubmit = handleEditClientSubmit;
-window.editClient = editClient;
-window.closeEditClientModal = closeEditClientModal;
-
-
-
+// === BORRADO DE CLIENTE ===
 async function deleteClient(id) {
   if (!confirm("¿Estás seguro de eliminar este cliente?")) return;
 
@@ -1009,6 +1016,12 @@ async function deleteClient(id) {
     alert("Error borrando cliente");
   }
 }
+
+// Exponer al scope global
+window.handleEditClientSubmit = handleEditClientSubmit;
+window.editClient = editClient;
+window.closeEditClientModal = closeEditClientModal;
+
 
 // === DASHBOARD ===
 
