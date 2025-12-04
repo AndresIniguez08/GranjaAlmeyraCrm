@@ -1131,7 +1131,13 @@ function generateReports() {
   generateTopReferralsReport();
   generateTimelineReport();
   generateReferralsReport();
+
+  // 🔸 Nuevos reportes
+  generateTopProductsReport();
+  generateProductsBySellerReport();
+  generateRequestsByCategoryReport();
 }
+
 
 // Ventas por vendedor
 function generateSalesReport() {
