@@ -1709,3 +1709,28 @@ console.log("🌍 Funciones de geolocalización registradas correctamente en win
 document.addEventListener("DOMContentLoaded", () => {
   initApp().catch(err => console.error("initApp error:", err));
 });
+// --- Mostrar secciones y asegurar que el mapa se cargue correctamente ---
+function showSection(sectionId) {
+  document.querySelectorAll(".section").forEach((section) => {
+    section.classList.remove("active");
+  });
+
+  const targetSection = document.getElementById(sectionId);
+  if (targetSection) {
+    targetSection.classList.add("active");
+  }
+
+  // Si el usuario va al mapa directamente
+  if (sectionId === "map-section") {
+    setTimeout(() => {
+      // Si ya existe el mapa, solo refrescarlo
+      if (window.map) {
+        window.map.invalidateSize();
+      } else if (typeof initMap === "function") {
+        initMap(); // Inicializar por primera vez
+      } else {
+        console.error("❌ initMap() no está definida");
+      }
+    }, 400);
+  }
+}
