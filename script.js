@@ -1723,8 +1723,6 @@ window.filterContactsByProduct = filterContactsByProduct;
 // ======================================================
 // === EJECUTAR INIT CUANDO EL DOM ESTÉ LISTO ===========
 // ======================================================
-
-
 // ======================
 // EXPONER FUNCIONES AL SCOPE GLOBAL
 // ======================
