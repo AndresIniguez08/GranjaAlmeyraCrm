@@ -1741,8 +1741,11 @@ function setupEventListeners() {
 
 window.showSection = showSection;
 window.logout = logout;
-window.showLogin = showLogin;
-window.showApp = showApp;
+window.handleLogin = handleLogin;
+window.handlePasswordChange = handlePasswordChange;
+window.updateDashboard = updateDashboard;
+window.loadContacts = loadContacts;
+window.loadClients = loadClients;
 window.editContact = editContact;
 window.editClient = editClient;
 window.deleteContact = deleteContact;
@@ -1757,21 +1760,3 @@ window.exportFullReport = exportFullReport;
 window.filterContacts = filterContacts;
 window.filterClients = filterClients;
 window.filterContactsByProduct = filterContactsByProduct;
-
-
-// ======================================================
-// === EJECUTAR INIT CUANDO EL DOM ESTÉ LISTO ===========
-// ======================================================
-// ======================
-// EXPONER FUNCIONES AL SCOPE GLOBAL
-// ======================
-
-window.showSection = showSection;
-window.logout = logout;
-window.handleLogin = handleLogin;
-window.handleContactSubmit = handleContactSubmit;
-window.handleClientSubmit = handleClientSubmit;
-window.handlePasswordChange = handlePasswordChange;
-window.updateDashboard = updateDashboard;
-window.loadContacts = loadContacts;
-window.loadClients = loadClients;
