@@ -1724,9 +1724,7 @@ window.filterContactsByProduct = filterContactsByProduct;
 // === EJECUTAR INIT CUANDO EL DOM ESTÉ LISTO ===========
 // ======================================================
 
-document.addEventListener("DOMContentLoaded", () => {
-  init();
-});
+
 // ======================
 // EXPONER FUNCIONES AL SCOPE GLOBAL
 // ======================
