@@ -573,6 +573,7 @@ window.toggleEditDerivacion = toggleEditDerivacion;
 
 async function handleEditContactSubmit(e) {
   e.preventDefault();
+
   if (!currentUser) {
     alert("Sesión expirada");
     return;
@@ -580,11 +581,9 @@ async function handleEditContactSubmit(e) {
 
   const form = e.target;
   const formData = new FormData(form);
-  const id =
-    formData.get("edit-contact-id") ||
-    document.getElementById("edit-contact-id").value;
+  const id = formData.get("edit-contact-id") || document.getElementById("edit-contact-id").value;
 
-  const old = contacts.find((c) => c.id === id);
+  const old = contacts.find(c => c.id === id);
   if (!old) {
     alert("No se encontró el contacto a editar.");
     return;
@@ -598,53 +597,37 @@ async function handleEditContactSubmit(e) {
     empresa: formData.get("empresa"),
     telefono: formData.get("telefono"),
     email: formData.get("email"),
-    producto:
-      formData.get("producto") || formData.get("Producto") || old.producto,
+    producto: formData.get("producto") || old.producto,
     estado: formData.get("estado"),
     cliente_derivado: formData.get("cliente-derivado") || "",
     motivo: formData.get("motivo") || "",
     editado_por: currentUser.username,
-    fecha_edicion: new Date().toISOString(),
+    fecha_edicion: new Date().toISOString()
   };
 
   try {
-    const safe = {
-      fecha: updated.fecha,
-      vendedor: updated.vendedor,
-      cliente: updated.cliente,
-      empresa: updated.empresa,
-      telefono: updated.telefono,
-      email: updated.email,
-      producto: updated.producto,
-      estado: updated.estado,
-      cliente_derivado: updated.cliente_derivado,
-      motivo: updated.motivo,
-      editado_por: updated.editado_por,
-      fecha_edicion: updated.fecha_edicion,
-    };
-
-    const { data, error } = await window.supabase
+    const { error } = await window.supabase
       .from("commercial_contacts")
-      .update(safe)
-      .eq("id", id)
-      .select("*")
-      .maybeSingle();
+      .update(updated)
+      .eq("id", id);
 
     if (error) throw error;
-    if (!data) throw new Error("No se devolvieron datos desde Supabase");
 
-    const idx = contacts.findIndex((c) => c.id === id);
-    if (idx !== -1) contacts[idx] = data;
+    // 🔹 Actualizamos localmente sin esperar respuesta del servidor
+    const idx = contacts.findIndex(c => c.id === id);
+    if (idx !== -1) contacts[idx] = { ...contacts[idx], ...updated };
 
-    hideElement("edit-contact-modal");
+    closeEditContactModal();
     updateDashboard();
     renderContactsList();
+
     alert("✅ Contacto actualizado correctamente");
   } catch (err) {
     console.error("Error al editar contacto:", err);
     alert("Error al guardar los cambios");
   }
 }
+
 
 async function deleteContact(id) {
   if (!confirm("¿Estás seguro de eliminar este contacto?")) return;
