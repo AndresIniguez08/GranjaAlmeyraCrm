@@ -178,6 +178,11 @@
             <div class="stat-number" id="active-clients">0</div>
             <div class="stat-label">Clientes Activos</div>
           </div>
+          <!-- NUEVA tarjeta de productos solicitados dentro del dashboard -->
+          <div class="stat-card">
+            <div class="stat-number" id="total-products">0</div>
+            <div class="stat-label">Productos Solicitados</div>
+          </div>
         </div>
       </div>
 
@@ -229,22 +234,13 @@
                 <option value="B1">B1</option>
                 <option value="B2">B2</option>
                 <option value="B3">B3</option>
-
                 <option value="Caja 180 B1">Caja 180 B1</option>
                 <option value="Caja 180 B2">Caja 180 B2</option>
                 <option value="Caja 180 B3">Caja 180 B3</option>
-                <option value="Caja 18 Docenas (x6)">
-                  Caja 18 Docenas (x6)
-                </option>
-                <option value="Caja 18 Docenas (x12)">
-                  Caja 18 Docenas (x12)
-                </option>
-                <option value="Estuche B2 x6 (Licitacion)">
-                  Estuche B2 x6 (Licitacion)
-                </option>
-                <option value="Estuche B2 x12 (Licitacion)">
-                  Estuche B2 x12 (Licitacion)
-                </option>
+                <option value="Caja 18 Docenas (x6)">Caja 18 Docenas (x6)</option>
+                <option value="Caja 18 Docenas (x12)">Caja 18 Docenas (x12)</option>
+                <option value="Estuche B2 x6 (Licitacion)">Estuche B2 x6 (Licitacion)</option>
+                <option value="Estuche B2 x12 (Licitacion)">Estuche B2 x12 (Licitacion)</option>
                 <option value="Pack 6 Maples B1">Pack 6 Maples B1</option>
                 <option value="Pack 6 Maples B2">Pack 6 Maples B2</option>
                 <option value="Pack 6 Maples B3">Pack 6 Maples B3</option>
@@ -306,7 +302,6 @@
               <div class="address-input-group">
                 <input type="text" id="client-address" name="client-address" required
                   placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina" />
-
                 <button type="button" class="geocode-btn" onclick="geocodeCurrentAddress()">
                   Buscar
                 </button>
@@ -461,11 +456,6 @@
           </table>
         </div>
       </div>
-      <!-- Nuevas tarjetas de estadísticas -->
-      <div class="stat-card">
-        <div class="stat-number" id="total-products">0</div>
-        <div class="stat-label">Productos Solicitados</div>
-      </div>
 
       <!-- Map Section -->
       <div id="map-section" class="section">
@@ -543,21 +533,25 @@
             </table>
           </div>
         </div>
+
+        <!-- NUEVOS REPORTES DE PRODUCTOS -->
+        <div class="reports-grid" style="margin-top: 30px;">
+          <div class="report-card">
+            <h3 class="report-title">Productos Más Solicitados</h3>
+            <div id="top-products-report" class="ranking-chart"></div>
+          </div>
+
+          <div class="report-card">
+            <h3 class="report-title">Productos por Vendedor</h3>
+            <div id="products-by-seller-report" class="ranking-chart"></div>
+          </div>
+
+          <div class="report-card">
+            <h3 class="report-title">Solicitudes por Categoría</h3>
+            <div id="requests-by-category-report" class="ranking-chart"></div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="report-card">
-      <h3 class="report-title">Productos Más Solicitados</h3>
-      <div id="product-report" class="ranking-chart"></div>
-    </div>
-
-    <div class="report-card">
-      <h3 class="report-title">Productos por Vendedor</h3>
-      <div id="product-by-seller-report"></div>
-    </div>
-
-    <div class="report-card">
-      <h3 class="report-title">Solicitudes por Categoría</h3>
-      <div id="product-category-report"></div>
     </div>
 
     <!-- Elementos decorativos laterales -->
