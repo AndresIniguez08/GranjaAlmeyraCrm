@@ -1379,7 +1379,6 @@ function exportFullReport() {
 // Por ahora dejo stubs para que no rompa nada.
 
 let map = null;
-let markersLayer = null;
 
 function initMap() {
   // Si no hay Leaflet, no hacemos nada
@@ -1463,174 +1462,101 @@ function showByType(type) {
     });
   if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
 }
-// === MAPA DE CLIENTES (versión definitiva y estable) ===
 
+// === MAPA DE CLIENTES (Versión estable y actualizada) ===
 let mapView = null;
-
-// Inicializa el mapa Leaflet
-function initLeafletMap() {
-  try {
-    if (!mapView) {
-      mapView = L.map("map").setView([-34.6037, -58.3816], 6);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-      }).addTo(mapView);
-    }
-  } catch (e) {
-    console.error("initLeafletMap error:", e);
-  }
-}
-
-// Restablece la vista inicial del mapa
-function resetMapView() {
+// Inicializa el mapa Leaflet solo una vez
+async function initLeafletMap() {
   if (mapView) {
-    mapView.setView([-34.6037, -58.3816], 6);
-    mapView.eachLayer(layer => {
-      if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
-        mapView.removeLayer(layer);
-      }
-    });
+    mapView.remove(); // eliminar mapa previo si existe
   }
+
+  mapView = L.map("map").setView([-34.6037, -58.3816], 6);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors",
+  }).addTo(mapView);
+
+  markersLayer = L.layerGroup().addTo(mapView);
+
+  await showAllClientsOnMap();
 }
 
-// Muestra todos los clientes con coordenadas
-function showClientsOnMap() {
-  try {
-    // Inicializar si no existe
-    if (!mapView) initLeafletMap();
+// Muestra todos los clientes en el mapa
+async function showAllClientsOnMap() {
+  if (!markersLayer) return;
 
-    // Limpiar marcadores previos
-    mapView.eachLayer(layer => {
-      if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
-        mapView.removeLayer(layer);
-      }
-    });
+  markersLayer.clearLayers();
 
-    // Agregar marcadores
-    const coords = [];
-    clients.forEach(c => {
-      if (c.coordinates && typeof c.coordinates === "object") {
-        const lat = parseFloat(c.coordinates.lat);
-        const lng = parseFloat(c.coordinates.lng);
-
-        if (!isNaN(lat) && !isNaN(lng)) {
-          const marker = L.marker([lat, lng]).addTo(mapView);
-          marker.bindPopup(`
-            <b>${c.name}</b><br>
-            ${c.company || ""}<br>
-            ${c.address || ""}<br>
-            <em>${c.type || ""} - ${c.status || ""}</em>
-          `);
-          coords.push([lat, lng]);
-        }
-      }
-    });
-
-    // Ajustar vista
-    if (coords.length > 0) {
-      const bounds = L.latLngBounds(coords);
-      mapView.fitBounds(bounds, { padding: [50, 50] });
-    } else {
-      resetMapView();
-      alert("No hay clientes con coordenadas registradas.");
-    }
-  } catch (err) {
-    console.error("showClientsOnMap error:", err);
-  }
-}
-
-// === GEOLOCALIZACIÓN REAL (OpenStreetMap / Nominatim) ===
-
-// Buscar coordenadas a partir de la dirección (alta de cliente)
-async function geocodeCurrentAddress() {
-  const addressInput = document.getElementById("client-address");
-  const coordDisplay = document.getElementById("coordinates-display");
-  if (!addressInput || !coordDisplay) return;
-
-  const address = addressInput.value.trim();
-  if (!address) return alert("Por favor ingresá una dirección para geocodificar.");
-
-  coordDisplay.textContent = "Buscando ubicación...";
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data || data.length === 0) {
-      coordDisplay.textContent = "No se encontró ubicación.";
-      return alert("No se encontró la dirección ingresada.");
-    }
-
-    const { lat, lon } = data[0];
-    coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
-    coordDisplay.dataset.lat = lat;
-    coordDisplay.dataset.lng = lon;
-
-    alert(`Ubicación encontrada:\nLat: ${lat}\nLng: ${lon}`);
-  } catch (err) {
-    coordDisplay.textContent = "Error al obtener coordenadas.";
-    console.error("Error en geocodeCurrentAddress:", err);
-    alert("Ocurrió un error al obtener la ubicación.");
-  }
-}
-
-// Buscar coordenadas desde formulario de edición
-async function geocodeCurrentAddressEdit() {
-  const addressInput = document.getElementById("edit-client-address");
-  const coordDisplay = document.getElementById("edit-coordinates-display");
-  if (!addressInput || !coordDisplay) return;
-
-  const address = addressInput.value.trim();
-  if (!address) return alert("Por favor ingresá una dirección para geocodificar.");
-
-  coordDisplay.textContent = "Buscando ubicación...";
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data || data.length === 0) {
-      coordDisplay.textContent = "No se encontró ubicación.";
-      return alert("No se encontró la dirección ingresada.");
-    }
-
-    const { lat, lon } = data[0];
-    coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
-    coordDisplay.dataset.lat = lat;
-    coordDisplay.dataset.lng = lon;
-
-    alert(`Ubicación encontrada:\nLat: ${lat}\nLng: ${lon}`);
-  } catch (err) {
-    coordDisplay.textContent = "Error al obtener coordenadas.";
-    console.error("Error en geocodeCurrentAddressEdit:", err);
-    alert("Ocurrió un error al obtener la ubicación.");
-  }
-}
-
-// Obtener ubicación actual del navegador (modo edición)
-function getCurrentLocationEdit() {
-  const coordDisplay = document.getElementById("edit-coordinates-display");
-  if (!navigator.geolocation) {
-    alert("Tu navegador no soporta geolocalización.");
+  if (!clients || clients.length === 0) {
+    alert("No hay clientes registrados.");
     return;
   }
 
-  coordDisplay.textContent = "Obteniendo tu ubicación actual...";
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      const lat = pos.coords.latitude.toFixed(6);
-      const lon = pos.coords.longitude.toFixed(6);
-      coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
-      coordDisplay.dataset.lat = lat;
-      coordDisplay.dataset.lng = lon;
-      alert(`Ubicación actual:\nLat: ${lat}\nLng: ${lon}`);
-    },
-    err => {
-      coordDisplay.textContent = "No se pudo obtener ubicación.";
-      alert("Error al obtener ubicación: " + err.message);
+  const coords = [];
+
+  for (const c of clients) {
+    if (!c.coordinates && c.address) {
+      try {
+        // Geocodificar automáticamente si no tiene coordenadas
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          c.address
+        )}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const { lat, lon } = data[0];
+          c.coordinates = { lat: parseFloat(lat), lng: parseFloat(lon) };
+        }
+      } catch (err) {
+        console.warn(`No se pudo geocodificar: ${c.address}`, err);
+      }
     }
-  );
+
+    if (c.coordinates) {
+      const lat = parseFloat(c.coordinates.lat);
+      const lng = parseFloat(c.coordinates.lng);
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        const marker = L.marker([lat, lng]).addTo(markersLayer);
+        marker.bindPopup(`
+          <b>${c.name}</b><br>
+          ${c.company || ""}<br>
+          ${c.address || ""}<br>
+          <em>${c.type || ""} - ${c.status || ""}</em>
+        `);
+        coords.push([lat, lng]);
+      }
+    }
+  }
+
+  if (coords.length > 0) {
+    const bounds = L.latLngBounds(coords);
+    mapView.fitBounds(bounds, { padding: [50, 50] });
+  } else {
+    resetMapView();
+  }
 }
+
+// Restablece la vista inicial
+function resetMapView() {
+  if (mapView) {
+    mapView.setView([-34.6037, -58.3816], 6);
+  }
+}
+
+// Botón "Ver en mapa"
+function showClientsOnMap() {
+  showSection("map");
+  initLeafletMap(); // Reinicia el mapa y actualiza marcadores
+}
+
+// 🔁 Actualiza mapa después de guardar o editar cliente
+async function refreshMapAfterSave() {
+  if (document.getElementById("map").offsetParent !== null) {
+    await showAllClientsOnMap();
+  }
+}
+
 
 // === EXPOSICIÓN GLOBAL (window) ===
 
