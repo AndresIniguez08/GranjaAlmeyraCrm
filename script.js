@@ -1601,6 +1601,22 @@ window.showClientsOnMap = showClientsOnMap;
 window.geocodeCurrentAddress = geocodeCurrentAddress;
 window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
 window.getCurrentLocationEdit = getCurrentLocationEdit;
+// ==========================
+// 📍 EXPONER FUNCIONES GLOBALES
+// ==========================
+
+// Se asegura que todas las funciones queden accesibles al HTML
+window.addEventListener("DOMContentLoaded", () => {
+  window.showClientsOnMap = showClientsOnMap;
+  window.geocodeCurrentAddress = geocodeCurrentAddress;
+  window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
+  window.getCurrentLocationEdit = getCurrentLocationEdit;
+  window.resetMapView = resetMapView;
+  window.initLeafletMap = initLeafletMap;
+
+  console.log("🌎 Funciones de geolocalización expuestas al contexto global correctamente");
+});
+
 
 // === DOM READY ===
 
