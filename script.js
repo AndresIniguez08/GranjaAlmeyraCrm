@@ -265,23 +265,31 @@ async function loadClientsFromDB() {
 // Guardar un contacto (insert o update según tenga id)
 async function saveClientToDB(client) {
   try {
+    // construir body seguro
+    const safe = {
+      name: client.name?.toString() || "Sin nombre",
+      company: client.company?.toString() || "",
+      phone: client.phone?.toString() || "",
+      email: client.email?.toString() || "",
+      address: client.address?.toString() || "",
+      type: client.type?.toString() || "",
+      status: client.status?.toString() || "",
+      notes: client.notes?.toString() || "",
+      registered_by: currentUser?.username?.toString() || "",
+      fecha_date: client.fecha_date?.toString() || "",
+      registered_at: new Date().toISOString(),
+      // 👇 solo agregamos coordinates si es un JSON válido
+      ...(client.coordinates
+        ? { coordinates: client.coordinates }
+        : {})
+    };
+
     const { data, error } = await window.supabase
       .from("commercial_clients")
-      .update({
-        name: client.name,
-        company: client.company,
-        phone: client.phone || "",
-        email: client.email || "",
-        address: client.address || "",
-        type: client.type || "",
-        status: client.status || "",
-        notes: client.notes || "",
-        registradoPor: currentUser?.username || null,
-        fechaRegistro: new Date().toISOString(),
-      })
+      .update(safe)
       .eq("id", client.id)
       .select("*")
-      .maybeSingle(); // 👈 evita el 406 si la fila no se devuelve correctamente
+      .maybeSingle();
 
     if (error) throw error;
     if (!data) throw new Error("No se actualizó ningún registro");
@@ -293,6 +301,8 @@ async function saveClientToDB(client) {
     throw e;
   }
 }
+
+
 
 
 
