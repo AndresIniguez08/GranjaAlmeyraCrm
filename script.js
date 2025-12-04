@@ -58,66 +58,371 @@ function hideElement(id) {
 // ...
 
 /*****************************************************
- *  BLOQUE 2 - LOGIN, PASSWORD, CONTACTOS (CORREGIDO)
+ *  BLOQUE 2 - LOGIN, PASSWORD, CONTACTOS
  *****************************************************/
 
-// === CONTACTOS: EDICIÓN / BORRADO ===
+// === LOGIN ===
 
-function editContact(id) {
+async function handleLogin(e) {
+  e.preventDefault();
+  const db = window.supabase;
+  if (!db) {
+    alert("Supabase no está disponible");
+    return;
+  }
+
+  const usernameInput = document.getElementById("username");
+  const passwordInput = document.getElementById("password");
+  const errorBox = document.getElementById("login-error");
+
+  const username = usernameInput ? usernameInput.value.trim() : "";
+  const password = passwordInput ? passwordInput.value.trim() : "";
+
+  if (!username || !password) {
+    if (errorBox) {
+      errorBox.textContent = "Completa usuario y contraseña";
+      errorBox.style.display = "block";
+    } else {
+      alert("Completa usuario y contraseña");
+    }
+    return;
+  }
+
   try {
-    const c = contacts.find(x => x.id === id);
-    if (!c) {
-      console.warn("No se encontró el contacto con id:", id);
+    const { data: userRows, error } = await db
+      .from("users")
+      .select("*")
+      .eq("username", username)
+      .eq("password", password)
+      .limit(1);
+
+    if (error || !userRows || userRows.length === 0) {
+      if (errorBox) {
+        errorBox.textContent = "Usuario o contraseña incorrectos";
+        errorBox.style.display = "block";
+      } else {
+        alert("Usuario o contraseña incorrectos");
+      }
       return;
     }
 
-    console.log("📝 Editando contacto:", c);
+    currentUser = userRows[0];
 
-    // Mostrar modal
-    const modal = document.getElementById("edit-contact-modal");
-    if (!modal) {
-      console.error("❌ No se encontró el modal de edición");
-      return;
+    // Crear sesión
+    await createSession(currentUser);
+
+    // Mostrar nombre
+    const currentUserSpan = document.getElementById("current-user");
+    if (currentUserSpan) {
+      currentUserSpan.textContent = currentUser.name || currentUser.username;
     }
-    modal.style.display = "block";
 
-    // Rellenar los campos
-    const setVal = (fieldId, val) => {
-      const el = document.getElementById(fieldId);
-      if (el) el.value = val || "";
-    };
-
-    setVal("edit-contact-id", c.id);
-    setVal("edit-fecha", c.fecha);
-    setVal("edit-vendedor", c.vendedor);
-    setVal("edit-cliente", c.cliente);
-    setVal("edit-empresa", c.empresa);
-    setVal("edit-telefono", c.telefono);
-    setVal("edit-email", c.email);
-    setVal("edit-producto", c.producto);
-    setVal("edit-estado", c.estado);
-    setVal("edit-cliente-derivado", c.cliente_derivado);
-    setVal("edit-motivo", c.motivo);
-
-    // Mostrar u ocultar derivación si corresponde
-    toggleEditDerivacion();
-  } catch (err) {
-    console.error("Error en editContact:", err);
+    // ¿primer login?
+    if (currentUser.first_login) {
+      showSection("password-change-screen");
+    } else {
+      showSection("dashboard");
+      showSection("app-screen");
+      updateDashboard();
+      renderContactsList();
+      renderClientsList();
+    }
+  } catch (e) {
+    console.error("Error en login:", e);
+    if (errorBox) {
+      errorBox.textContent = "Error al conectar con la base de datos";
+      errorBox.style.display = "block";
+    } else {
+      alert("Error al conectar con la base de datos");
+    }
   }
 }
 
-async function handleEditContactSubmit(e) {
+// === CAMBIO DE CONTRASEÑA ===
+
+async function handlePasswordChange(e) {
+  e.preventDefault();
+  const db = window.supabase;
+  if (!db || !currentUser) return;
+
+  const newPwdInput = document.getElementById("new-password");
+  const confirmInput = document.getElementById("confirm-password");
+  const errorBox = document.getElementById("password-error");
+
+  const newPwd = newPwdInput ? newPwdInput.value.trim() : "";
+  const confirmPwd = confirmInput ? confirmInput.value.trim() : "";
+
+  if (!newPwd || newPwd.length < 6 || newPwd !== confirmPwd) {
+    if (errorBox) {
+      errorBox.textContent =
+        "Las contraseñas no coinciden o son muy cortas (mínimo 6 caracteres)";
+      errorBox.style.display = "block";
+    } else {
+      alert("Las contraseñas no coinciden o son muy cortas");
+    }
+    return;
+  }
+
+  try {
+    const { error } = await db
+      .from("users")
+      .update({
+        password: newPwd,
+        first_login: false,
+      })
+      .eq("username", currentUser.username);
+
+    if (error) throw error;
+
+    currentUser.first_login = false;
+
+    showSection("app-screen");
+    showSection("dashboard");
+    updateDashboard();
+    renderContactsList();
+    renderClientsList();
+  } catch (e) {
+    console.error("Error cambiando contraseña:", e);
+    if (errorBox) {
+      errorBox.textContent = "Error al cambiar la contraseña";
+      errorBox.style.display = "block";
+    } else {
+      alert("Error al cambiar la contraseña");
+    }
+  }
+}
+
+// === LOGOUT ===
+
+async function logout() {
+  await clearSession();
+  currentUser = null;
+  showSection("login-screen");
+}
+
+// === EVENT LISTENERS GENERALES ===
+
+function setupEventListeners() {
+  const loginForm = document.getElementById("login-form");
+  if (loginForm) {
+    loginForm.addEventListener("submit", handleLogin);
+  }
+
+  const pwdForm = document.getElementById("password-change-form");
+  if (pwdForm) {
+    pwdForm.addEventListener("submit", handlePasswordChange);
+  }
+
+  const contactForm = document.getElementById("contact-form");
+  if (contactForm) {
+    contactForm.addEventListener("submit", handleContactSubmit);
+  }
+
+  const clientForm = document.getElementById("client-form");
+  if (clientForm) {
+    clientForm.addEventListener("submit", handleClientSubmit);
+  }
+
+  const editContactForm = document.getElementById("edit-contact-form");
+  if (editContactForm) {
+    editContactForm.addEventListener("submit", handleEditContactSubmit);
+  }
+
+  const editClientForm = document.getElementById("edit-client-form");
+  if (editClientForm) {
+    editClientForm.addEventListener("submit", handleEditClientSubmit);
+  }
+}
+
+// === CONTACTOS: ALTA ===
+
+async function handleContactSubmit(e) {
   e.preventDefault();
   if (!currentUser) {
-    alert("Sesión expirada, iniciá sesión nuevamente.");
+    alert("Sesión expirada, vuelve a iniciar sesión");
     return;
   }
 
   const form = e.target;
   const formData = new FormData(form);
-  const id = formData.get("edit-contact-id") || document.getElementById("edit-contact-id").value;
 
-  const old = contacts.find(c => c.id === id);
+  const contact = {
+    fecha: formData.get("fecha") || null,
+    vendedor: formData.get("vendedor") || "",
+    cliente: formData.get("cliente") || "",
+    empresa: formData.get("empresa") || "",
+    telefono: formData.get("telefono") || "",
+    email: formData.get("email") || "",
+    producto: formData.get("Producto") || "",
+    estado: formData.get("estado") || "",
+    cliente_derivado: formData.get("cliente-derivado") || "",
+    motivo: formData.get("motivo") || "",
+    registrado_por: currentUser.username,
+    fecha_registro: new Date().toISOString(),
+  };
+
+  try {
+    const saved = await saveContactToDB(contact);
+    contacts.push(saved);
+    showMessage("contact-success-message");
+    form.reset();
+    const derivGroup = document.getElementById("derivacion-group");
+    if (derivGroup) derivGroup.style.display = "none";
+    updateDashboard();
+    renderContactsList();
+    updateClientSelectFromContacts();
+  } catch (e) {
+    console.error("Error guardando contacto:", e);
+    alert("Error guardando contacto");
+  }
+}
+
+// === CONTACTOS: LISTA Y FILTROS ===
+
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString("es-ES");
+}
+
+function renderContactsList(filtered = null) {
+  const tbody = document.getElementById("contacts-tbody");
+  if (!tbody) return;
+
+  const data = filtered || contacts;
+  tbody.innerHTML = "";
+
+  [...data]
+    .sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""))
+    .reverse()
+    .forEach((c) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+      <td>${formatDate(c.fecha)}</td>
+      <td>${c.vendedor || ""}</td>
+      <td>${c.cliente || ""}</td>
+      <td>${c.empresa || ""}</td>
+      <td>${c.producto || ""}</td>
+      <td><span class="status-badge status-${(c.estado || "")
+        .toLowerCase()
+        .replace(/\s+/g, "-")}">${c.estado || "-"}</span></td>
+      <td>${c.cliente_derivado || "-"}</td>
+      <td>${c.motivo || "-"}</td>
+      <td class="actions-column">
+        <button class="btn-edit" onclick="editContact('${c.id}')">✏️</button>
+        <button class="btn-delete" onclick="deleteContact('${c.id}')">🗑️</button>
+      </td>
+    `;
+      tbody.appendChild(tr);
+    });
+}
+
+function filterContacts() {
+  const vendedorSel = document.getElementById("filter-vendedor");
+  const estadoSel = document.getElementById("filter-estado");
+  const desdeInput = document.getElementById("filter-fecha-desde");
+  const hastaInput = document.getElementById("filter-fecha-hasta");
+
+  const vendedor = vendedorSel ? vendedorSel.value : "";
+  const estado = estadoSel ? estadoSel.value : "";
+  const desde = desdeInput ? desdeInput.value : "";
+  const hasta = hastaInput ? hastaInput.value : "";
+
+  let filtered = [...contacts];
+
+  if (vendedor) {
+    filtered = filtered.filter((c) => c.vendedor === vendedor);
+  }
+  if (estado) {
+    filtered = filtered.filter((c) => c.estado === estado);
+  }
+  if (desde) {
+    filtered = filtered.filter((c) => (c.fecha || "") >= desde);
+  }
+  if (hasta) {
+    filtered = filtered.filter((c) => (c.fecha || "") <= hasta);
+  }
+
+  renderContactsList(filtered);
+}
+
+// === CONTACTOS: EDICIÓN / BORRADO ===
+
+function editContact(id) {
+  const c = contacts.find((x) => x.id === id);
+  if (!c) {
+    console.warn("No se encontró el contacto con id:", id);
+    return;
+  }
+
+  showElement("edit-contact-modal");
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || "";
+  };
+
+  setVal("edit-contact-id", c.id);
+  setVal("edit-fecha", c.fecha);
+  setVal("edit-vendedor", c.vendedor);
+  setVal("edit-cliente", c.cliente);
+  setVal("edit-empresa", c.empresa);
+  setVal("edit-telefono", c.telefono);
+  setVal("edit-email", c.email);
+  setVal("edit-producto", c.producto);
+  setVal("edit-estado", c.estado);
+  setVal("edit-cliente-derivado", c.cliente_derivado);
+  setVal("edit-motivo", c.motivo);
+
+  toggleEditDerivacion();
+}
+
+// Mostrar / ocultar campo de derivación (alta)
+function toggleDerivacion() {
+  const estado = document.getElementById("estado")?.value || "";
+  const derivGroup = document.getElementById("derivacion-group");
+  if (!derivGroup) return;
+
+  if (estado === "Derivado") {
+    derivGroup.style.display = "block";
+    updateClientSelectFromClients();
+  } else {
+    derivGroup.style.display = "none";
+  }
+}
+
+// Mostrar / ocultar campo de derivación (edición)
+function toggleEditDerivacion() {
+  const estado = document.getElementById("edit-estado")?.value || "";
+  const derivGroup = document.getElementById("edit-derivacion-group");
+  if (!derivGroup) return;
+
+  if (estado === "Derivado") {
+    derivGroup.style.display = "block";
+    updateClientSelectFromClients();
+  } else {
+    derivGroup.style.display = "none";
+  }
+}
+
+window.toggleDerivacion = toggleDerivacion;
+window.toggleEditDerivacion = toggleEditDerivacion;
+
+async function handleEditContactSubmit(e) {
+  e.preventDefault();
+  if (!currentUser) {
+    alert("Sesión expirada");
+    return;
+  }
+
+  const form = e.target;
+  const formData = new FormData(form);
+  const id =
+    formData.get("edit-contact-id") ||
+    document.getElementById("edit-contact-id").value;
+
+  const old = contacts.find((c) => c.id === id);
   if (!old) {
     alert("No se encontró el contacto a editar.");
     return;
@@ -131,20 +436,34 @@ async function handleEditContactSubmit(e) {
     empresa: formData.get("empresa"),
     telefono: formData.get("telefono"),
     email: formData.get("email"),
-    producto: formData.get("producto") || old.producto,
+    producto:
+      formData.get("producto") || formData.get("Producto") || old.producto,
     estado: formData.get("estado"),
     cliente_derivado: formData.get("cliente-derivado") || "",
     motivo: formData.get("motivo") || "",
     editado_por: currentUser.username,
-    fecha_edicion: new Date().toISOString()
+    fecha_edicion: new Date().toISOString(),
   };
 
   try {
-    console.log("💾 Guardando cambios en Supabase:", updated);
+    const safe = {
+      fecha: updated.fecha,
+      vendedor: updated.vendedor,
+      cliente: updated.cliente,
+      empresa: updated.empresa,
+      telefono: updated.telefono,
+      email: updated.email,
+      producto: updated.producto,
+      estado: updated.estado,
+      cliente_derivado: updated.cliente_derivado,
+      motivo: updated.motivo,
+      editado_por: updated.editado_por,
+      fecha_edicion: updated.fecha_edicion,
+    };
 
     const { data, error } = await window.supabase
       .from("commercial_contacts")
-      .update(updated)
+      .update(safe)
       .eq("id", id)
       .select("*")
       .maybeSingle();
@@ -152,17 +471,17 @@ async function handleEditContactSubmit(e) {
     if (error) throw error;
     if (!data) throw new Error("No se devolvieron datos desde Supabase");
 
-    // Actualizar localmente
-    const idx = contacts.findIndex(c => c.id === id);
+    const idx = contacts.findIndex((c) => c.id === id);
     if (idx !== -1) contacts[idx] = data;
 
-    closeEditContactModal();
+    // cerramos modal directamente sin usar símbolo local
+    hideElement("edit-contact-modal");
     updateDashboard();
     renderContactsList();
     alert("✅ Contacto actualizado correctamente");
   } catch (err) {
     console.error("Error al editar contacto:", err);
-    alert("❌ Error al guardar los cambios");
+    alert("Error al guardar los cambios");
   }
 }
 
@@ -171,29 +490,27 @@ async function deleteContact(id) {
 
   try {
     await window.supabase.from("commercial_contacts").delete().eq("id", id);
-    contacts = contacts.filter(c => c.id !== id);
+    contacts = contacts.filter((c) => c.id !== id);
     updateDashboard();
     renderContactsList();
-    alert("🗑️ Contacto eliminado correctamente");
   } catch (e) {
     console.error("Error borrando contacto:", e);
     alert("Error borrando contacto");
   }
 }
 
-function closeEditContactModal() {
-  const modal = document.getElementById("edit-contact-modal");
-  if (modal) modal.style.display = "none";
-}
+// función usada por el botón "Cancelar" del modal
+window.closeEditContactModal = function () {
+  hideElement("edit-contact-modal");
+};
 
-// 🔹 Registrar funciones globalmente para uso desde HTML (onclick, submit, etc.)
+// Exponer funciones globalmente
 window.editContact = editContact;
 window.handleEditContactSubmit = handleEditContactSubmit;
 window.deleteContact = deleteContact;
-window.closeEditContactModal = closeEditContactModal;
-
-console.log("✅ Funciones globales de edición de contactos registradas correctamente");
-
+window.logout = logout;
+window.handleLogin = handleLogin;
+window.handlePasswordChange = handlePasswordChange;
 
 
 /*****************************************************
