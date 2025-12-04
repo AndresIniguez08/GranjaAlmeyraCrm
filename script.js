@@ -14,6 +14,21 @@
      este bloque configura window.supabase usando tus credenciales.
    - Si ya definiste window.supabase en index.html, no lo sobreescribe.
 */
+function showSection(sectionId) {
+  // Ocultar todas las secciones visibles
+  document.querySelectorAll("div[data-section]").forEach(div => {
+    div.style.display = "none";
+  });
+
+  // Mostrar la sección seleccionada
+  const target = document.getElementById(sectionId);
+  if (target) {
+    target.style.display = "block";
+  } else {
+    console.warn("showSection: No existe la sección:", sectionId);
+  }
+}
+
 (function initSupabaseClient() {
   try {
     // If the page already created window.supabase, keep it
