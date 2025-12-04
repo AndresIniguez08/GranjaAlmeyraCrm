@@ -1647,6 +1647,18 @@ window.addEventListener("DOMContentLoaded", () => {
 
   console.log("🌎 Funciones de geolocalización expuestas al contexto global correctamente");
 });
+// =========================================
+// ✅ Registro global de funciones del mapa
+// =========================================
+window.showClientsOnMap = typeof showClientsOnMap !== "undefined" ? showClientsOnMap : () => {};
+window.geocodeCurrentAddress = typeof geocodeCurrentAddress !== "undefined" ? geocodeCurrentAddress : () => {};
+window.geocodeCurrentAddressEdit = typeof geocodeCurrentAddressEdit !== "undefined" ? geocodeCurrentAddressEdit : () => {};
+window.getCurrentLocationEdit = typeof getCurrentLocationEdit !== "undefined" ? getCurrentLocationEdit : () => {};
+window.resetMapView = typeof resetMapView !== "undefined" ? resetMapView : () => {};
+window.initLeafletMap = typeof initLeafletMap !== "undefined" ? initLeafletMap : () => {};
+
+console.log("🌍 Funciones del mapa y geolocalización registradas correctamente en window");
+
 
 
 // === DOM READY ===
