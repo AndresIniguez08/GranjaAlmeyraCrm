@@ -1725,7 +1725,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initApp().catch(err => console.error("initApp error:", err));
 });
 // --- Mostrar secciones y asegurar que el mapa se cargue correctamente ---
-function showSection(sectionId) {
+function showMapSection(sectionId) {
   document.querySelectorAll(".section").forEach((section) => {
     section.classList.remove("active");
   });
