@@ -261,6 +261,37 @@ async function loadClientsFromDB() {
     console.error("loadClientsFromDB error:", e);
   }
 }
+// === GUARDAR CONTACTO EN SUPABASE ===
+async function saveContactToDB(contact) {
+  try {
+    const safe = {
+      fecha: contact.fecha || new Date().toISOString().slice(0, 10),
+      vendedor: contact.vendedor?.toString() || "",
+      cliente: contact.cliente?.toString() || "",
+      empresa: contact.empresa?.toString() || "",
+      telefono: contact.telefono?.toString() || "",
+      email: contact.email?.toString() || "",
+      producto: contact.producto?.toString() || "",
+      estado: contact.estado?.toString() || "",
+      cliente_derivado: contact.cliente_derivado?.toString() || "",
+      motivo: contact.motivo?.toString() || "",
+      registrado_por: currentUser?.username || "",
+      fecha_registro: new Date().toISOString(),
+    };
+
+    const { data, error } = await window.supabase
+      .from("commercial_contacts")
+      .insert(safe)
+      .select("*")
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error("saveContactToDB error:", err);
+    throw err;
+  }
+}
 
 // Guardar un contacto (insert o update según tenga id)
 async function saveClientToDB(client) {
