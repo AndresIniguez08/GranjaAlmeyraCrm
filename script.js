@@ -129,6 +129,16 @@ function showSection(sectionId) {
     }
   }
 }
+function showElement(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = "flex";
+}
+
+function hideElement(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = "none";
+}
+
 
 // === SESIONES CON UUID (tabla sessions: token uuid pk, user_id text, created_at) ===
 
