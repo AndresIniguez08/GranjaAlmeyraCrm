@@ -1464,9 +1464,7 @@ function addProductAlertStyles() {
 function setupContactFormValidation() {
   const contactForm = document.getElementById("contact-form");
   if (!contactForm) return;
-  try {
-    contactForm.removeEventListener("submit", handleContactSubmit);
-  } catch (e) {}
+  
   contactForm.addEventListener("submit", function(e) {
     e.preventDefault();
     if (!validateProductSelection()) return;
