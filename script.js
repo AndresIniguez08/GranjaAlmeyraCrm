@@ -1556,6 +1556,37 @@ async function refreshMapAfterSave() {
     await showAllClientsOnMap();
   }
 }
+window.geocodeCurrentAddress = async function geocodeCurrentAddress() {
+  const addressInput = document.getElementById("client-address");
+  const coordDisplay = document.getElementById("coordinates-display");
+  if (!addressInput || !coordDisplay) return;
+
+  const address = addressInput.value.trim();
+  if (!address) return alert("Por favor ingresá una dirección para geocodificar.");
+
+  coordDisplay.textContent = "Buscando ubicación...";
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      coordDisplay.textContent = "No se encontró ubicación.";
+      return alert("No se encontró la dirección ingresada.");
+    }
+
+    const { lat, lon } = data[0];
+    coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
+    coordDisplay.dataset.lat = lat;
+    coordDisplay.dataset.lng = lon;
+
+    alert(`Ubicación encontrada:\nLat: ${lat}\nLng: ${lon}`);
+  } catch (err) {
+    coordDisplay.textContent = "Error al obtener coordenadas.";
+    console.error("Error en geocodeCurrentAddress:", err);
+    alert("Ocurrió un error al obtener la ubicación.");
+  }
+};
 
 
 // === EXPOSICIÓN GLOBAL (window) ===
