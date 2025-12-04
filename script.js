@@ -310,33 +310,35 @@ async function deleteContactFromDB(id) {
 
 // Guardar cliente en DB
 async function saveClientToDB(client) {
-  const db = window.supabase;
-  if (!db) return;
-
   try {
-    if (!client.id) {
-      const { data, error } = await db
-        .from("commercial_clients")
-        .insert(client)
-        .select("*")
-        .single();
-      if (error) throw error;
-      return data;
-    } else {
-      const { data, error } = await db
-        .from("commercial_clients")
-        .update(client)
-        .eq("id", client.id)
-        .select("*")
-        .single();
-      if (error) throw error;
-      return data;
-    }
+    const { data, error } = await window.supabase
+      .from("commercial_clients")
+      .update({
+        name: client.name,
+        company: client.company,
+        phone: client.phone || "",
+        email: client.email || "",
+        address: client.address || "",
+        type: client.type || "",
+        status: client.status || "",
+        notes: client.notes || "",
+        registradoPor: currentUser?.username || null,
+        fechaRegistro: new Date().toISOString()
+      })
+      .eq("id", client.id)
+      .select(); // usa select() sin pasar "*" explícitamente
+
+    if (error) throw error;
+    if (!data || !data.length) throw new Error("No se actualizó ningún registro");
+
+    console.log("Cliente actualizado:", data[0]);
+    return data[0];
   } catch (e) {
     console.error("saveClientToDB error:", e);
     throw e;
   }
 }
+
 
 async function deleteClientFromDB(id) {
   const db = window.supabase;
