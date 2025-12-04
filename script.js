@@ -740,6 +740,40 @@ function editContact(id) {
 
   toggleEditDerivacion();
 }
+// === DERIVACIÓN: Mostrar / Ocultar y Cargar Clientes ===
+
+// Mostrar u ocultar el campo de derivación en el formulario de nuevo contacto
+function toggleDerivacion() {
+  const estado = document.getElementById("estado")?.value || "";
+  const derivGroup = document.getElementById("derivacion-group");
+  if (!derivGroup) return;
+
+  if (estado === "Derivado") {
+    derivGroup.style.display = "block";
+    updateClientSelectFromClients(); // llenar lista con clientes disponibles
+  } else {
+    derivGroup.style.display = "none";
+  }
+}
+
+// Mostrar u ocultar el campo de derivación en el formulario de edición de contacto
+function toggleEditDerivacion() {
+  const estado = document.getElementById("edit-estado")?.value || "";
+  const derivGroup = document.getElementById("edit-derivacion-group");
+  if (!derivGroup) return;
+
+  if (estado === "Derivado") {
+    derivGroup.style.display = "block";
+    updateClientSelectFromClients(); // también carga las empresas
+  } else {
+    derivGroup.style.display = "none";
+  }
+}
+
+// Registrar globalmente (por si se usan desde el HTML)
+window.toggleDerivacion = toggleDerivacion;
+window.toggleEditDerivacion = toggleEditDerivacion;
+
 
 function closeEditContactModal() {
   hideElement("edit-contact-modal");
@@ -1537,9 +1571,7 @@ function exportFullReport() {
 
   downloadTextFile(report, "informe-completo.txt", "text/plain;charset=utf-8");
 }
-/*****************************************************
- *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL
- *****************************************************/
+
 
 /*****************************************************
  *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL (CORREGIDO)
