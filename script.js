@@ -58,46 +58,58 @@ function hideElement(id) {
 // ...
 
 /*****************************************************
- *  BLOQUE 2 - LOGIN, PASSWORD, CONTACTOS
+ *  BLOQUE 2 - LOGIN, PASSWORD, CONTACTOS (CORREGIDO)
  *****************************************************/
-
-// (Login, logout y demás funciones permanecen igual hasta handleContactSubmit)
 
 // === CONTACTOS: EDICIÓN / BORRADO ===
 
 function editContact(id) {
-  const c = contacts.find(x => x.id === id);
-  if (!c) {
-    console.warn("No se encontró el contacto con id:", id);
-    return;
+  try {
+    const c = contacts.find(x => x.id === id);
+    if (!c) {
+      console.warn("No se encontró el contacto con id:", id);
+      return;
+    }
+
+    console.log("📝 Editando contacto:", c);
+
+    // Mostrar modal
+    const modal = document.getElementById("edit-contact-modal");
+    if (!modal) {
+      console.error("❌ No se encontró el modal de edición");
+      return;
+    }
+    modal.style.display = "block";
+
+    // Rellenar los campos
+    const setVal = (fieldId, val) => {
+      const el = document.getElementById(fieldId);
+      if (el) el.value = val || "";
+    };
+
+    setVal("edit-contact-id", c.id);
+    setVal("edit-fecha", c.fecha);
+    setVal("edit-vendedor", c.vendedor);
+    setVal("edit-cliente", c.cliente);
+    setVal("edit-empresa", c.empresa);
+    setVal("edit-telefono", c.telefono);
+    setVal("edit-email", c.email);
+    setVal("edit-producto", c.producto);
+    setVal("edit-estado", c.estado);
+    setVal("edit-cliente-derivado", c.cliente_derivado);
+    setVal("edit-motivo", c.motivo);
+
+    // Mostrar u ocultar derivación si corresponde
+    toggleEditDerivacion();
+  } catch (err) {
+    console.error("Error en editContact:", err);
   }
-
-  showElement("edit-contact-modal");
-
-  const setVal = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.value = val || "";
-  };
-
-  setVal("edit-contact-id", c.id);
-  setVal("edit-fecha", c.fecha);
-  setVal("edit-vendedor", c.vendedor);
-  setVal("edit-cliente", c.cliente);
-  setVal("edit-empresa", c.empresa);
-  setVal("edit-telefono", c.telefono);
-  setVal("edit-email", c.email);
-  setVal("edit-producto", c.producto);
-  setVal("edit-estado", c.estado);
-  setVal("edit-cliente-derivado", c.cliente_derivado);
-  setVal("edit-motivo", c.motivo);
-
-  toggleEditDerivacion();
 }
 
 async function handleEditContactSubmit(e) {
   e.preventDefault();
   if (!currentUser) {
-    alert("Sesión expirada");
+    alert("Sesión expirada, iniciá sesión nuevamente.");
     return;
   }
 
@@ -119,7 +131,7 @@ async function handleEditContactSubmit(e) {
     empresa: formData.get("empresa"),
     telefono: formData.get("telefono"),
     email: formData.get("email"),
-    producto: formData.get("producto") || formData.get("Producto") || old.producto,
+    producto: formData.get("producto") || old.producto,
     estado: formData.get("estado"),
     cliente_derivado: formData.get("cliente-derivado") || "",
     motivo: formData.get("motivo") || "",
@@ -128,6 +140,8 @@ async function handleEditContactSubmit(e) {
   };
 
   try {
+    console.log("💾 Guardando cambios en Supabase:", updated);
+
     const { data, error } = await window.supabase
       .from("commercial_contacts")
       .update(updated)
@@ -138,6 +152,7 @@ async function handleEditContactSubmit(e) {
     if (error) throw error;
     if (!data) throw new Error("No se devolvieron datos desde Supabase");
 
+    // Actualizar localmente
     const idx = contacts.findIndex(c => c.id === id);
     if (idx !== -1) contacts[idx] = data;
 
@@ -147,7 +162,7 @@ async function handleEditContactSubmit(e) {
     alert("✅ Contacto actualizado correctamente");
   } catch (err) {
     console.error("Error al editar contacto:", err);
-    alert("Error al guardar los cambios");
+    alert("❌ Error al guardar los cambios");
   }
 }
 
@@ -159,22 +174,25 @@ async function deleteContact(id) {
     contacts = contacts.filter(c => c.id !== id);
     updateDashboard();
     renderContactsList();
+    alert("🗑️ Contacto eliminado correctamente");
   } catch (e) {
     console.error("Error borrando contacto:", e);
     alert("Error borrando contacto");
   }
 }
+
 function closeEditContactModal() {
-  hideElement("edit-contact-modal");
+  const modal = document.getElementById("edit-contact-modal");
+  if (modal) modal.style.display = "none";
 }
 
-// Exponer funciones globalmente para que los botones HTML puedan usarlas
+// 🔹 Registrar funciones globalmente para uso desde HTML (onclick, submit, etc.)
 window.editContact = editContact;
 window.handleEditContactSubmit = handleEditContactSubmit;
 window.deleteContact = deleteContact;
 window.closeEditContactModal = closeEditContactModal;
 
-
+console.log("✅ Funciones globales de edición de contactos registradas correctamente");
 
 
 
