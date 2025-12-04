@@ -720,22 +720,13 @@ function toggleDerivacion() {
 
   if (estadoSel.value === "Derivado") {
     derivGroup.style.display = "block";
+    // 🔹 Actualiza la lista de clientes cuando el estado es "Derivado"
+    updateClientSelectFromClients();
   } else {
     derivGroup.style.display = "none";
   }
 }
 
-function toggleEditDerivacion() {
-  const estadoSel = document.getElementById("edit-estado");
-  const derivGroup = document.getElementById("edit-derivacion-group");
-  if (!estadoSel || !derivGroup) return;
-
-  if (estadoSel.value === "Derivado") {
-    derivGroup.style.display = "block";
-  } else {
-    derivGroup.style.display = "none";
-  }
-}
 
 function editContact(id) {
   const c = contacts.find(x => x.id === id);
