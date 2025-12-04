@@ -265,7 +265,7 @@ async function loadClientsFromDB() {
 // Guardar un contacto (insert o update según tenga id)
 async function saveClientToDB(client) {
   try {
-    // construir body seguro
+    // construir objeto seguro para actualización
     const safe = {
       name: client.name?.toString() || "Sin nombre",
       company: client.company?.toString() || "",
@@ -276,13 +276,18 @@ async function saveClientToDB(client) {
       status: client.status?.toString() || "",
       notes: client.notes?.toString() || "",
       registered_by: currentUser?.username?.toString() || "",
-      fecha_date: client.fecha_date?.toString() || "",
-      registered_at: new Date().toISOString(),
-      // 👇 solo agregamos coordinates si es un JSON válido
-      ...(client.coordinates
-        ? { coordinates: client.coordinates }
-        : {})
+      registered_at: new Date().toISOString()
     };
+
+    // agregar coordenadas sólo si son válidas
+    if (
+      client.coordinates &&
+      typeof client.coordinates === "object" &&
+      client.coordinates.lat &&
+      client.coordinates.lng
+    ) {
+      safe.coordinates = client.coordinates;
+    }
 
     const { data, error } = await window.supabase
       .from("commercial_clients")
@@ -294,13 +299,14 @@ async function saveClientToDB(client) {
     if (error) throw error;
     if (!data) throw new Error("No se actualizó ningún registro");
 
-    console.log("Cliente actualizado:", data);
+    console.log("Cliente actualizado correctamente:", data);
     return data;
   } catch (e) {
     console.error("saveClientToDB error:", e);
     throw e;
   }
 }
+
 
 
 
@@ -889,42 +895,51 @@ function closeEditClientModal() {
 
 async function handleEditClientSubmit(e) {
   e.preventDefault();
+
   if (!currentUser) {
-    alert("Sesión expirada");
+    alert("Sesión expirada. Iniciá sesión nuevamente.");
     return;
   }
 
   const form = e.target;
-  const formData = new FormData(form);
-  const id = formData.get("edit-client-id") || document.getElementById("edit-client-id").value;
+  const id = document.getElementById("edit-client-id").value;
 
-  const old = clients.find(c => c.id === id);
-  if (!old) return;
-
-  const updated = {
-    ...old,
-    name: formData.get("client-name") || old.name,
-    company: formData.get("client-company") || old.company,
-    phone: formData.get("client-phone") || old.phone,
-    email: formData.get("client-email") || old.email,
-    address: formData.get("client-address") || old.address,
-    type: formData.get("client-type") || old.type,
-    status: formData.get("client-status") || old.status,
-    notes: formData.get("client-notes") || old.notes
+  // armar el objeto actualizado
+  const updatedClient = {
+    id,
+    name: form.querySelector("#edit-client-name").value.trim(),
+    company: form.querySelector("#edit-client-company").value.trim(),
+    phone: form.querySelector("#edit-client-phone").value.trim(),
+    email: form.querySelector("#edit-client-email").value.trim(),
+    address: form.querySelector("#edit-client-address").value.trim(),
+    type: form.querySelector("#edit-client-type").value,
+    status: form.querySelector("#edit-client-status").value,
+    notes: form.querySelector("#edit-client-notes").value.trim(),
   };
 
+  // intentar leer las coordenadas visibles en el formulario
+  const coordsDisplay = document.getElementById("edit-coordinates-display");
+  if (coordsDisplay && coordsDisplay.dataset.lat && coordsDisplay.dataset.lng) {
+    updatedClient.coordinates = {
+      lat: parseFloat(coordsDisplay.dataset.lat),
+      lng: parseFloat(coordsDisplay.dataset.lng),
+    };
+  }
+
   try {
-    const saved = await saveClientToDB(updated);
-    const idx = clients.findIndex(c => c.id === id);
+    const saved = await saveClientToDB(updatedClient);
+    const idx = clients.findIndex((c) => c.id === id);
     if (idx !== -1) clients[idx] = saved;
     closeEditClientModal();
     updateDashboard();
     renderClientsList();
-  } catch (e) {
-    console.error("Error editando cliente:", e);
-    alert("Error guardando cambios");
+    alert("Cliente actualizado correctamente ✅");
+  } catch (err) {
+    console.error("Error editando cliente:", err);
+    alert("Error guardando los cambios del cliente ❌");
   }
 }
+
 
 async function deleteClient(id) {
   if (!confirm("¿Estás seguro de eliminar este cliente?")) return;
