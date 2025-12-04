@@ -1407,19 +1407,107 @@ function showClientsOnMap() {
   initMap();
 }
 
-// === GEOLOCALIZACIÓN STUBS ===
+// === GEOLOCALIZACIÓN REAL (OpenStreetMap / Nominatim) ===
 
-function geocodeCurrentAddress() {
-  alert("Geocodificación no implementada en esta versión. (stub geocodeCurrentAddress)");
+// Buscar coordenadas a partir de la dirección actual del formulario de cliente
+async function geocodeCurrentAddress() {
+  const addressInput = document.getElementById("client-address");
+  const coordDisplay = document.getElementById("coordinates-display");
+  if (!addressInput || !coordDisplay) return;
+
+  const address = addressInput.value.trim();
+  if (!address) {
+    alert("Por favor ingresá una dirección para geocodificar.");
+    return;
+  }
+
+  coordDisplay.textContent = "Buscando ubicación...";
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      coordDisplay.textContent = "No se encontró ubicación.";
+      alert("No se encontró la dirección ingresada.");
+      return;
+    }
+
+    const { lat, lon } = data[0];
+    coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
+    alert(`Ubicación encontrada:\nLat: ${lat}\nLng: ${lon}`);
+
+    // Guardar las coordenadas en memoria temporal del formulario
+    addressInput.dataset.lat = lat;
+    addressInput.dataset.lng = lon;
+  } catch (err) {
+    coordDisplay.textContent = "Error al obtener coordenadas.";
+    console.error("Error en geocodeCurrentAddress:", err);
+    alert("Ocurrió un error al obtener la ubicación.");
+  }
 }
 
-function geocodeCurrentAddressEdit() {
-  alert("Geocodificación no implementada en esta versión. (stub geocodeCurrentAddressEdit)");
+// Versión para el formulario de edición de cliente
+async function geocodeCurrentAddressEdit() {
+  const addressInput = document.getElementById("edit-client-address");
+  const coordDisplay = document.getElementById("edit-coordinates-display");
+  if (!addressInput || !coordDisplay) return;
+
+  const address = addressInput.value.trim();
+  if (!address) {
+    alert("Por favor ingresá una dirección para geocodificar.");
+    return;
+  }
+
+  coordDisplay.textContent = "Buscando ubicación...";
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      coordDisplay.textContent = "No se encontró ubicación.";
+      alert("No se encontró la dirección ingresada.");
+      return;
+    }
+
+    const { lat, lon } = data[0];
+    coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
+    alert(`Ubicación encontrada:\nLat: ${lat}\nLng: ${lon}`);
+
+    // Guardar en dataset
+    addressInput.dataset.lat = lat;
+    addressInput.dataset.lng = lon;
+  } catch (err) {
+    coordDisplay.textContent = "Error al obtener coordenadas.";
+    console.error("Error en geocodeCurrentAddressEdit:", err);
+    alert("Ocurrió un error al obtener la ubicación.");
+  }
 }
 
+// Obtener ubicación actual del navegador
 function getCurrentLocationEdit() {
-  alert("Geolocalización no implementada en esta versión. (stub getCurrentLocationEdit)");
+  const coordDisplay = document.getElementById("edit-coordinates-display");
+  if (!navigator.geolocation) {
+    alert("Tu navegador no soporta geolocalización.");
+    return;
+  }
+
+  coordDisplay.textContent = "Obteniendo tu ubicación actual...";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lon = pos.coords.longitude.toFixed(6);
+      coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
+      alert(`Ubicación actual:\nLat: ${lat}\nLng: ${lon}`);
+    },
+    (err) => {
+      coordDisplay.textContent = "No se pudo obtener ubicación.";
+      alert("Error al obtener ubicación: " + err.message);
+    }
+  );
 }
+
 
 // === EXPOSICIÓN GLOBAL (window) ===
 
