@@ -1596,6 +1596,11 @@ window.toggleEditDerivacion = toggleEditDerivacion;
 window.geocodeCurrentAddress = geocodeCurrentAddress;
 window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
 window.getCurrentLocationEdit = getCurrentLocationEdit;
+// === Exponer funciones al contexto global ===
+window.showClientsOnMap = showClientsOnMap;
+window.geocodeCurrentAddress = geocodeCurrentAddress;
+window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
+window.getCurrentLocationEdit = getCurrentLocationEdit;
 
 // === DOM READY ===
 
