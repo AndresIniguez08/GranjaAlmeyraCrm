@@ -70,25 +70,39 @@ function showError(id, msg) {
 
 // === showSection: maneja login, cambio de password y secciones internas ===
 function showSection(sectionId) {
-  // Pantallas principales
   const screens = ["login-screen", "password-change-screen", "app-screen"];
+
+  // 1) Ocultar SIEMPRE las pantallas principales
   screens.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = "none";
+    if (!el) return;
+    if (id === "app-screen") {
+      el.style.display = "none";
+    } else {
+      el.style.display = "none";
+    }
   });
 
-  // Si piden una pantalla principal
+  // 2) Si el parámetro es una pantalla principal
   if (screens.includes(sectionId)) {
     const el = document.getElementById(sectionId);
-    if (el) el.style.display = sectionId === "app-screen" ? "block" : "flex";
+    if (el) {
+      // login y cambio de password en modo "flex" para centrar
+      if (sectionId === "login-screen" || sectionId === "password-change-screen") {
+        el.style.display = "flex";
+      } else {
+        el.style.display = "block";
+      }
+    }
     return;
   }
 
-  // Si piden una sección interna del app-screen
+  // 3) Todo lo demás son secciones internas dentro de app-screen
   const appScreen = document.getElementById("app-screen");
   if (!appScreen) return;
   appScreen.style.display = "block";
 
+  // IDs de secciones internas
   const sections = [
     "dashboard",
     "form-contact",
@@ -99,47 +113,26 @@ function showSection(sectionId) {
     "reports"
   ];
 
+  // Ocultar todas las secciones internas
   sections.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = "none";
+    if (el) {
+      el.style.display = "none";
+      el.classList.remove("active");
+    }
   });
 
-  function showSection(sectionId) {
-  // Ocultar todas las secciones
-  const sections = document.querySelectorAll(".section");
-  sections.forEach((section) => (section.style.display = "none"));
+  // Caso especial: si viene "map", lo mapeamos a "map-section"
+  let realId = sectionId === "map" ? "map-section" : sectionId;
 
-  // Caso especial para el mapa
-  let realId = sectionId;
-  if (sectionId === "map") realId = "map-section";
-
-  // Mostrar la sección seleccionada
+  // Mostrar la sección correspondiente
   const target = document.getElementById(realId);
   if (target) {
     target.style.display = "block";
+    target.classList.add("active");
   }
 
-  // === Inicializar mapa si es la sección del mapa ===
-  if (realId === "map-section") {
-    setTimeout(() => {
-      if (typeof initMap === "function") {
-        try {
-          initMap();
-          if (window.map) {
-            window.map.invalidateSize();
-          }
-        } catch (err) {
-          console.error("❌ Error al inicializar mapa:", err);
-        }
-      } else {
-        console.error("❌ initMap no está definida");
-      }
-    }, 400);
-  }
-}
-
-
-  // Si entramos a informes, generamos los reportes
+  // 4) Si entramos a informes, generamos los reportes
   if (realId === "reports") {
     try {
       generateReports();
@@ -148,33 +141,16 @@ function showSection(sectionId) {
     }
   }
 
-  // Si entramos al mapa, inicializamos
-  function initMap() {
-  if (window.map) {
-    window.map.invalidateSize();
-    return;
+  // 5) Si entramos al mapa, inicializamos Leaflet
+  if (realId === "map-section") {
+    setTimeout(() => {
+      if (typeof initLeafletMap === "function") {
+        initLeafletMap();
+      } else {
+        console.error("❌ initLeafletMap no está definida");
+      }
+    }, 300);
   }
-
-  const map = L.map("map").setView([-34.61, -58.38], 7);
-  window.map = map;
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "© OpenStreetMap contributors"
-  }).addTo(map);
-
-  console.log("🗺️ Mapa inicializado correctamente");
-}
-
-}
-function showElement(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = "flex";
-}
-
-function hideElement(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = "none";
 }
 
 
@@ -1638,9 +1614,10 @@ function resetMapView() {
 
 // Botón "Ver en mapa"
 function showClientsOnMap() {
-  showSection("map");
-  initLeafletMap();
+  // Mostramos directamente la sección del mapa
+  showSection("map-section");
 }
+
 
 // === GEOLOCALIZACIÓN ===
 
