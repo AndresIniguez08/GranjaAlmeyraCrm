@@ -1070,6 +1070,10 @@ function updateDashboard() {
     const totalClients = clients.length;
     const activeClients = clients.filter(c => c.status === "Activo").length;
 
+    // 🔸 Nuevo cálculo: total de productos solicitados
+    const totalProducts = contacts.filter(c => c.producto && c.producto.trim() !== "").length;
+
+    // Asignar valores al DOM
     const setText = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = val;
@@ -1081,10 +1085,16 @@ function updateDashboard() {
     setText("conversion-rate", `${conversionRate}%`);
     setText("total-clients", totalClients);
     setText("active-clients", activeClients);
+
+    // 🔸 Actualizar contador de productos solicitados
+    const productsBox = document.getElementById("total-products");
+    if (productsBox) productsBox.textContent = totalProducts;
+
   } catch (e) {
     console.warn("updateDashboard error:", e);
   }
 }
+
 
 // === SELECT DE CLIENTES PARA DERIVACIÓN ===
 
