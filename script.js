@@ -1542,7 +1542,7 @@ function exportFullReport() {
  *****************************************************/
 
 /*****************************************************
- *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL
+ *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL (CORREGIDO)
  *****************************************************/
 
 // === MAPA DE CLIENTES (Versión final estable con Leaflet) ===
@@ -1608,7 +1608,6 @@ async function showAllClientsOnMap() {
 
         // 🔹 Calcular cantidad de derivaciones de este cliente
         const derivCount = contacts.filter(x => x.cliente_derivado === c.company).length;
-        console.log(`Derivaciones para ${c.company}:`, derivCount);
 
         const marker = L.marker([lat, lng]).addTo(markersLayer);
 
@@ -1644,10 +1643,9 @@ function resetMapView() {
 
 // Botón "Ver en mapa"
 function showClientsOnMap() {
-  // Mostramos directamente la sección del mapa
+  // Mostramos directamente la sección del mapa usando la función principal
   showSection("map-section");
 }
-
 
 // === GEOLOCALIZACIÓN ===
 
@@ -1740,23 +1738,8 @@ function getCurrentLocationEdit() {
   );
 }
 
-// === REGISTRO GLOBAL (window) ===
-window.showClientsOnMap = showClientsOnMap;
-window.geocodeCurrentAddress = geocodeCurrentAddress;
-window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
-window.getCurrentLocationEdit = getCurrentLocationEdit;
-window.initLeafletMap = initLeafletMap;
-window.resetMapView = resetMapView;
-
-console.log("🌍 Funciones de geolocalización registradas correctamente en window");
-
-// === DOM READY ===
-document.addEventListener("DOMContentLoaded", () => {
-  initApp().catch(err => console.error("initApp error:", err));
-});
-
-// --- Mostrar secciones y asegurar que el mapa se cargue correctamente ---
-function showSection(sectionId) {
+// --- Mostrar secciones del mapa (solo afecta al mapa) ---
+function showMapSection(sectionId) {
   document.querySelectorAll(".section").forEach((section) => {
     section.classList.remove("active");
   });
@@ -1769,14 +1752,27 @@ function showSection(sectionId) {
   // Si el usuario va al mapa directamente
   if (sectionId === "map-section") {
     setTimeout(() => {
-      // Si ya existe el mapa, solo refrescarlo
-      if (window.map) {
-        window.map.invalidateSize();
-      } else if (typeof initMap === "function") {
-        initMap(); // Inicializar por primera vez
+      if (mapView) {
+        mapView.invalidateSize();
       } else {
-        console.error("❌ initMap() no está definida");
+        initLeafletMap();
       }
     }, 400);
   }
 }
+
+// === REGISTRO GLOBAL (window) ===
+window.showClientsOnMap = showClientsOnMap;
+window.showMapSection = showMapSection;
+window.geocodeCurrentAddress = geocodeCurrentAddress;
+window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
+window.getCurrentLocationEdit = getCurrentLocationEdit;
+window.initLeafletMap = initLeafletMap;
+window.resetMapView = resetMapView;
+
+console.log("🌍 Funciones de geolocalización registradas correctamente en window");
+
+// === DOM READY ===
+document.addEventListener("DOMContentLoaded", () => {
+  initApp().catch(err => console.error("initApp error:", err));
+});
