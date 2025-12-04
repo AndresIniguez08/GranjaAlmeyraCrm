@@ -192,7 +192,8 @@ async function restoreSessionFromCookie() {
   const db = window.supabase;
   if (!db) return;
   try {
-    const token = getCookie("granja_session");
+    const token = crypto.randomUUID();
+
     if (!token) return;
     const { data: sessionRow, error: sessionError } = await db.from("sessions").select("*").eq("token", token).limit(1).single();
     if (sessionError || !sessionRow) return;
