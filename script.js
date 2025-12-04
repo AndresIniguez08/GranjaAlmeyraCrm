@@ -1162,6 +1162,92 @@ function generateSalesReport() {
     </div>
   `).join("");
 }
+// === NUEVOS REPORTES DE PRODUCTOS ===
+
+// 🥚 Productos más solicitados
+function generateTopProductsReport() {
+  const container = document.getElementById("top-products-report");
+  if (!container) return;
+
+  const counts = {};
+  contacts.forEach(c => {
+    if (c.producto && c.producto.trim() !== "") {
+      const name = c.producto.trim();
+      counts[name] = (counts[name] || 0) + 1;
+    }
+  });
+
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  if (sorted.length === 0) {
+    container.innerHTML = `<p style="text-align:center;color:#666;">No hay productos registrados</p>`;
+    return;
+  }
+
+  container.innerHTML = sorted.map(([prod, count], i) => `
+    <div class="ranking-item">
+      <span class="ranking-position">#${i + 1}</span>
+      <span class="ranking-name">${prod}</span>
+      <span class="ranking-value">${count}</span>
+    </div>
+  `).join("");
+}
+
+// 👩‍💼 Productos por vendedor
+function generateProductsBySellerReport() {
+  const container = document.getElementById("products-by-seller-report");
+  if (!container) return;
+
+  const sellers = {};
+  contacts.forEach(c => {
+    if (!c.vendedor || !c.producto) return;
+    if (!sellers[c.vendedor]) sellers[c.vendedor] = {};
+    const prod = c.producto.trim();
+    sellers[c.vendedor][prod] = (sellers[c.vendedor][prod] || 0) + 1;
+  });
+
+  const html = Object.entries(sellers).map(([seller, products]) => {
+    const items = Object.entries(products)
+      .sort((a, b) => b[1] - a[1])
+      .map(([prod, count]) => `<li>${prod}: ${count}</li>`)
+      .join("");
+    return `
+      <div class="seller-block">
+        <strong>${seller}</strong>
+        <ul>${items}</ul>
+      </div>
+    `;
+  }).join("");
+
+  container.innerHTML = html || `<p style="text-align:center;color:#666;">Sin registros de productos por vendedor</p>`;
+}
+
+// 📦 Solicitudes por categoría (usa el campo "type" del cliente derivado)
+function generateRequestsByCategoryReport() {
+  const container = document.getElementById("requests-by-category-report");
+  if (!container) return;
+
+  const counts = {};
+  contacts.forEach(c => {
+    if (c.type && c.type.trim() !== "") {
+      counts[c.type] = (counts[c.type] || 0) + 1;
+    }
+  });
+
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (sorted.length === 0) {
+    container.innerHTML = `<p style="text-align:center;color:#666;">No hay categorías registradas</p>`;
+    return;
+  }
+
+  container.innerHTML = sorted.map(([cat, count]) => `
+    <div class="ranking-item">
+      <span class="ranking-name">${cat}</span>
+      <span class="ranking-value">${count}</span>
+    </div>
+  `).join("");
+}
+
 
 // Resumen de estados
 function generateStatusReport() {
