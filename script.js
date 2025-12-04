@@ -771,7 +771,14 @@ function editContact(id) {
   setVal("edit-cliente-derivado", c.cliente_derivado);
   setVal("edit-motivo", c.motivo);
 
+  // 🔹 Actualiza opciones de derivación si el estado es Derivado
   toggleEditDerivacion();
+
+  // 🔹 Vincula el evento submit al formulario solo una vez
+  const form = document.getElementById("edit-contact-form");
+  if (form) {
+    form.onsubmit = handleEditContactSubmit;
+  }
 }
 
 function closeEditContactModal() {
@@ -794,27 +801,38 @@ async function handleEditContactSubmit(e) {
 
   const updated = {
     ...old,
-    fecha: formData.get("fecha"),
-    vendedor: formData.get("vendedor"),
-    cliente: formData.get("cliente"),
-    empresa: formData.get("empresa"),
-    telefono: formData.get("telefono"),
-    email: formData.get("email"),
-    producto: formData.get("producto") || formData.get("Producto") || old.producto,
-    estado: formData.get("estado"),
-    cliente_derivado: formData.get("cliente-derivado") || "",
-    motivo: formData.get("motivo") || "",
+    fecha: formData.get("edit-fecha"),
+    vendedor: formData.get("edit-vendedor"),
+    cliente: formData.get("edit-cliente"),
+    empresa: formData.get("edit-empresa"),
+    telefono: formData.get("edit-telefono"),
+    email: formData.get("edit-email"),
+    producto: formData.get("edit-producto") || old.producto,
+    estado: formData.get("edit-estado"),
+    cliente_derivado: formData.get("edit-cliente-derivado") || "",
+    motivo: formData.get("edit-motivo") || "",
     editado_por: currentUser.username,
     fecha_edicion: new Date().toISOString()
   };
 
   try {
-    const saved = await saveContactToDB(updated);
+    // 🔹 Actualiza directamente en Supabase
+    const { data, error } = await window.supabase
+      .from("commercial_contacts")
+      .update(updated)
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+
+    if (error) throw error;
+
     const idx = contacts.findIndex(c => c.id === id);
-    if (idx !== -1) contacts[idx] = saved;
+    if (idx !== -1 && data) contacts[idx] = data;
+
     closeEditContactModal();
     updateDashboard();
     renderContactsList();
+    alert("✅ Contacto actualizado correctamente");
   } catch (e) {
     console.error("Error editando contacto:", e);
     alert("Error guardando cambios");
@@ -834,6 +852,40 @@ async function deleteContact(id) {
     alert("Error borrando contacto");
   }
 }
+
+// 🔹 Muestra el campo 'Cliente derivado' solo si el estado es 'Derivado'
+function toggleEditDerivacion() {
+  const estadoSel = document.getElementById("edit-estado");
+  const derivGroup = document.getElementById("edit-derivacion-group");
+  const selectDeriv = document.getElementById("edit-cliente-derivado");
+  if (!estadoSel || !derivGroup || !selectDeriv) return;
+
+  if (estadoSel.value === "Derivado") {
+    derivGroup.style.display = "block";
+
+    // Cargar lista de clientes si no está cargada
+    if (!clients || clients.length === 0) {
+      loadClientsFromDB().then(() => fillDerivClientList(selectDeriv));
+    } else {
+      fillDerivClientList(selectDeriv);
+    }
+  } else {
+    derivGroup.style.display = "none";
+  }
+}
+
+function fillDerivClientList(selectEl) {
+  selectEl.innerHTML = `<option value="">Seleccionar cliente</option>`;
+  clients.forEach(c => {
+    if (c.company) {
+      const opt = document.createElement("option");
+      opt.value = c.company;
+      opt.textContent = c.company;
+      selectEl.appendChild(opt);
+    }
+  });
+}
+
 /*****************************************************
  *  BLOQUE 3 - CLIENTES, DASHBOARD, REPORTES, EXPORT
  *****************************************************/
