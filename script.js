@@ -104,12 +104,40 @@ function showSection(sectionId) {
     if (el) el.style.display = "none";
   });
 
-  // Botones del menú: manejar caso especial 'map'
+  function showSection(sectionId) {
+  // Ocultar todas las secciones
+  const sections = document.querySelectorAll(".section");
+  sections.forEach((section) => (section.style.display = "none"));
+
+  // Caso especial para el mapa
   let realId = sectionId;
   if (sectionId === "map") realId = "map-section";
 
+  // Mostrar la sección seleccionada
   const target = document.getElementById(realId);
-  if (target) target.style.display = "block";
+  if (target) {
+    target.style.display = "block";
+  }
+
+  // === Inicializar mapa si es la sección del mapa ===
+  if (realId === "map-section") {
+    setTimeout(() => {
+      if (typeof initMap === "function") {
+        try {
+          initMap();
+          if (window.map) {
+            window.map.invalidateSize();
+          }
+        } catch (err) {
+          console.error("❌ Error al inicializar mapa:", err);
+        }
+      } else {
+        console.error("❌ initMap no está definida");
+      }
+    }, 400);
+  }
+}
+
 
   // Si entramos a informes, generamos los reportes
   if (realId === "reports") {
@@ -121,13 +149,23 @@ function showSection(sectionId) {
   }
 
   // Si entramos al mapa, inicializamos
-  if (realId === "map-section") {
-    try {
-      initMap();
-    } catch (e) {
-      console.warn("initMap error:", e);
-    }
+  function initMap() {
+  if (window.map) {
+    window.map.invalidateSize();
+    return;
   }
+
+  const map = L.map("map").setView([-34.61, -58.38], 7);
+  window.map = map;
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "© OpenStreetMap contributors"
+  }).addTo(map);
+
+  console.log("🗺️ Mapa inicializado correctamente");
+}
+
 }
 function showElement(id) {
   const el = document.getElementById(id);
