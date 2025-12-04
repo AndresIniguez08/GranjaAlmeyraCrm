@@ -1537,6 +1537,10 @@ function exportFullReport() {
  *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL
  *****************************************************/
 
+/*****************************************************
+ *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL
+ *****************************************************/
+
 // === MAPA DE CLIENTES (Versión final estable con Leaflet) ===
 let mapView = null;
 let markersLayer = null;
@@ -1596,12 +1600,12 @@ async function showAllClientsOnMap() {
     if (c.coordinates) {
       const lat = parseFloat(c.coordinates.lat);
       const lng = parseFloat(c.coordinates.lng);
-
       if (!isNaN(lat) && !isNaN(lng)) {
+
         // 🔹 Calcular cantidad de derivaciones de este cliente
         const derivCount = contacts.filter(x => x.cliente_derivado === c.company).length;
+        console.log(`Derivaciones para ${c.company}:`, derivCount);
 
-        // Crear marcador
         const marker = L.marker([lat, lng]).addTo(markersLayer);
 
         // 🔹 Popup con datos + cantidad de derivaciones
@@ -1626,7 +1630,6 @@ async function showAllClientsOnMap() {
     resetMapView();
   }
 }
-
 
 // Restablece la vista inicial
 function resetMapView() {
@@ -1747,6 +1750,7 @@ console.log("🌍 Funciones de geolocalización registradas correctamente en win
 document.addEventListener("DOMContentLoaded", () => {
   initApp().catch(err => console.error("initApp error:", err));
 });
+
 // --- Mostrar secciones y asegurar que el mapa se cargue correctamente ---
 function showMapSection(sectionId) {
   document.querySelectorAll(".section").forEach((section) => {
