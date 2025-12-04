@@ -1727,6 +1727,43 @@ window.filterClients = filterClients;
 console.log(
   "🌍 Funciones de geolocalización y reportes registradas correctamente en window"
 );
+/*****************************************************
+ *  BLOQUE FINAL - BOTONES DE NAVEGACIÓN
+ *****************************************************/
+
+function setupNavigation() {
+  const buttons = [
+    { id: "btn-dashboard", section: "dashboard" },
+    { id: "btn-register-contact", section: "form-contact" },
+    { id: "btn-view-contacts", section: "list-contacts" },
+    { id: "btn-register-client", section: "form-client" },
+    { id: "btn-view-clients", section: "list-clients" },
+    { id: "btn-map", section: "map-section" },
+    { id: "btn-reports", section: "reports" },
+  ];
+
+  buttons.forEach(({ id, section }) => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.onclick = () => showSection(section);
+    }
+  });
+
+  const logoutBtn = document.getElementById("btn-logout");
+  if (logoutBtn) logoutBtn.onclick = logout;
+}
+
+// === INICIALIZACIÓN FINAL ===
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof initApp === "function") {
+    initApp().catch((err) => console.error("initApp error:", err));
+  } else {
+    console.error("⚠️ initApp no está definida o cargó fuera de orden.");
+  }
+
+  // 🔹 Vincula los botones de navegación
+  setupNavigation();
+});
 
 // === DOM READY (unificado y al final de TODO el script) ===
 document.addEventListener("DOMContentLoaded", () => {
