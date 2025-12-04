@@ -262,8 +262,10 @@ async function loadClientsFromDB() {
   }
 }
 // === GUARDAR CONTACTO EN SUPABASE ===
+// === GUARDAR CONTACTO EN SUPABASE (versión corregida) ===
 async function saveContactToDB(contact) {
   try {
+    // Crear un objeto con las columnas válidas EXACTAS de la tabla commercial_contacts
     const safe = {
       fecha: contact.fecha || new Date().toISOString().slice(0, 10),
       vendedor: contact.vendedor?.toString() || "",
@@ -279,13 +281,18 @@ async function saveContactToDB(contact) {
       fecha_registro: new Date().toISOString(),
     };
 
+    console.log("🧾 Enviando a Supabase:", safe);
+
     const { data, error } = await window.supabase
       .from("commercial_contacts")
-      .insert(safe)
+      .insert([safe])
       .select("*")
       .maybeSingle();
 
     if (error) throw error;
+    if (!data) throw new Error("No se insertó el contacto");
+
+    console.log("✅ Contacto guardado correctamente:", data);
     return data;
   } catch (err) {
     console.error("saveContactToDB error:", err);
@@ -293,10 +300,8 @@ async function saveContactToDB(contact) {
   }
 }
 
-// Guardar un contacto (insert o update según tenga id)
 async function saveClientToDB(client) {
   try {
-    // construir objeto seguro para actualización
     const safe = {
       name: client.name?.toString() || "Sin nombre",
       company: client.company?.toString() || "",
