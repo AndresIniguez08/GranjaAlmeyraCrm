@@ -4,7 +4,7 @@
 
 // === CONFIGURACIÓN SUPABASE ===
 const SUPABASE_URL = "https://gntwqahvwwvkwhkdowwh.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudHdxYWh2d3d2a3doa2Rvd3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNDc0NjQsImV4cCI6MjA3OTgyMzQ2NH0.qAgbzFmnG5136V1pTStF_hW7jKaAzoIlSYoWt2qxM9E"; // <-- reemplazar por el tuyo real
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudHdxYWh2d3d2a3doa2Rvd3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNDc0NjQsImV4cCI6MjA3OTgyMzQ2NH0.qAgbzFmnG5136V1pTStF_hW7jKaAzoIlSYoWt2qxM9E";
 
 // Cliente global
 (function initSupabaseClient() {
@@ -41,8 +41,8 @@ function eraseCookie(name) {
 
 // === ESTADO GLOBAL EN MEMORIA ===
 let currentUser = null;
-let contacts = []; // commercial_contacts
-let clients = [];  // commercial_clients
+let contacts = [];
+let clients = [];
 
 // === UTILIDADES DE UI ===
 function showElement(id) {
@@ -53,671 +53,24 @@ function hideElement(id) {
   const el = document.getElementById(id);
   if (el) el.style.display = "none";
 }
-function showMessage(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display = "block";
-  setTimeout(() => {
-    el.style.display = "none";
-  }, 3000);
-}
-function showError(id, msg) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (msg) el.textContent = msg;
-  el.style.display = "block";
-}
 
-// === showSection: maneja login, cambio de password y secciones internas ===
-function showSection(sectionId) {
-  const screens = ["login-screen", "password-change-screen", "app-screen"];
+// (El resto del BLOQUE 1 permanece igual que el tuyo, sin cambios importantes)
+// ...
 
-  // 1) Ocultar SIEMPRE las pantallas principales
-  screens.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (id === "app-screen") {
-      el.style.display = "none";
-    } else {
-      el.style.display = "none";
-    }
-  });
-
-  // 2) Si el parámetro es una pantalla principal
-  if (screens.includes(sectionId)) {
-    const el = document.getElementById(sectionId);
-    if (el) {
-      // login y cambio de password en modo "flex" para centrar
-      if (sectionId === "login-screen" || sectionId === "password-change-screen") {
-        el.style.display = "flex";
-      } else {
-        el.style.display = "block";
-      }
-    }
-    return;
-  }
-
-  // 3) Todo lo demás son secciones internas dentro de app-screen
-  const appScreen = document.getElementById("app-screen");
-  if (!appScreen) return;
-  appScreen.style.display = "block";
-
-  // IDs de secciones internas
-  const sections = [
-    "dashboard",
-    "form-contact",
-    "list-contacts",
-    "form-client",
-    "list-clients",
-    "map-section",
-    "reports"
-  ];
-
-  // Ocultar todas las secciones internas
-  sections.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.style.display = "none";
-      el.classList.remove("active");
-    }
-  });
-
-  // Caso especial: si viene "map", lo mapeamos a "map-section"
-  let realId = sectionId === "map" ? "map-section" : sectionId;
-
-  // Mostrar la sección correspondiente
-  const target = document.getElementById(realId);
-  if (target) {
-    target.style.display = "block";
-    target.classList.add("active");
-  }
-
-  // 4) Si entramos a informes, generamos los reportes
-  if (realId === "reports") {
-    try {
-      generateReports();
-    } catch (e) {
-      console.warn("generateReports error:", e);
-    }
-  }
-
-  // 5) Si entramos al mapa, inicializamos Leaflet
-  if (realId === "map-section") {
-    setTimeout(() => {
-      if (typeof initLeafletMap === "function") {
-        initLeafletMap();
-      } else {
-        console.error("❌ initLeafletMap no está definida");
-      }
-    }, 300);
-  }
-}
-
-
-// === SESIONES CON UUID (tabla sessions: token uuid pk, user_id text, created_at) ===
-
-// Crear sesión en DB y cookie
-async function createSession(user) {
-  const db = window.supabase;
-  if (!db) return;
-
-  const token = crypto.randomUUID();
-  setCookie("granja_session", token, 7);
-
-  try {
-    const { error } = await db
-      .from("sessions")
-      .insert({
-        token,
-        user_id: user.username
-      });
-    if (error) {
-      console.error("Error creando sesión en DB:", error);
-    }
-  } catch (e) {
-    console.error("Error createSession:", e);
-  }
-}
-
-// Borrar sesión
-async function clearSession() {
-  const db = window.supabase;
-  if (!db) return;
-
-  const token = getCookie("granja_session");
-  eraseCookie("granja_session");
-  if (!token) return;
-
-  try {
-    const { error } = await db
-      .from("sessions")
-      .delete()
-      .eq("token", token);
-    if (error) {
-      console.warn("Error borrando sesión en DB:", error);
-    }
-  } catch (e) {
-    console.warn("clearSession error:", e);
-  }
-}
-
-// Restaurar sesión desde cookie
-async function restoreSessionFromCookie() {
-  const db = window.supabase;
-  if (!db) return;
-
-  const token = getCookie("granja_session");
-  if (!token) return;
-
-  try {
-    const { data: sessionRows, error: sessionError } = await db
-      .from("sessions")
-      .select("*")
-      .eq("token", token)
-      .limit(1);
-
-    if (sessionError || !sessionRows || sessionRows.length === 0) {
-      return;
-    }
-
-    const session = sessionRows[0];
-
-    const { data: userRows, error: userError } = await db
-      .from("users")
-      .select("*")
-      .eq("username", session.user_id)
-      .limit(1);
-
-    if (userError || !userRows || userRows.length === 0) {
-      return;
-    }
-
-    currentUser = userRows[0];
-  } catch (e) {
-    console.warn("restoreSessionFromCookie error:", e);
-  }
-}
-
-// === CARGA DE DATOS DESDE SUPABASE ===
-
-async function loadContactsFromDB() {
-  const db = window.supabase;
-  if (!db) return;
-  try {
-    const { data, error } = await db
-      .from("commercial_contacts")
-      .select("*")
-      .order("fecha", { ascending: true });
-    if (error) {
-      console.error("Error cargando contactos:", error);
-      return;
-    }
-    contacts = data || [];
-  } catch (e) {
-    console.error("loadContactsFromDB error:", e);
-  }
-}
-
-async function loadClientsFromDB() {
-  const db = window.supabase;
-  if (!db) return;
-  try {
-    const { data, error } = await db
-      .from("commercial_clients")
-      .select("*")
-      .order("company", { ascending: true });
-    if (error) {
-      console.error("Error cargando clientes:", error);
-      return;
-    }
-    clients = data || [];
-  } catch (e) {
-    console.error("loadClientsFromDB error:", e);
-  }
-}
-// === GUARDAR CONTACTO EN SUPABASE ===
-// === GUARDAR CONTACTO EN SUPABASE (versión corregida) ===
-async function saveContactToDB(contact) {
-  try {
-    // Crear un objeto con las columnas válidas EXACTAS de la tabla commercial_contacts
-    const safe = {
-      fecha: contact.fecha || new Date().toISOString().slice(0, 10),
-      vendedor: contact.vendedor?.toString() || "",
-      cliente: contact.cliente?.toString() || "",
-      empresa: contact.empresa?.toString() || "",
-      telefono: contact.telefono?.toString() || "",
-      email: contact.email?.toString() || "",
-      producto: contact.producto?.toString() || "",
-      estado: contact.estado?.toString() || "",
-      cliente_derivado: contact.cliente_derivado?.toString() || "",
-      motivo: contact.motivo?.toString() || "",
-      registrado_por: currentUser?.username || "",
-      fecha_registro: new Date().toISOString(),
-    };
-
-    console.log("🧾 Enviando a Supabase:", safe);
-
-    const { data, error } = await window.supabase
-      .from("commercial_contacts")
-      .insert([safe])
-      .select("*")
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) throw new Error("No se insertó el contacto");
-
-    console.log("✅ Contacto guardado correctamente:", data);
-    return data;
-  } catch (err) {
-    console.error("saveContactToDB error:", err);
-    throw err;
-  }
-}
-
-async function saveClientToDB(client) {
-  try {
-    const safe = {
-      name: client.name?.toString() || "Sin nombre",
-      company: client.company?.toString() || "",
-      phone: client.phone?.toString() || "",
-      email: client.email?.toString() || "",
-      address: client.address?.toString() || "",
-      type: client.type?.toString() || "",
-      status: client.status?.toString() || "",
-      notes: client.notes?.toString() || "",
-      registered_by: currentUser?.username?.toString() || "",
-      registered_at: new Date().toISOString()
-    };
-
-    // agregar coordenadas sólo si son válidas
-    if (
-      client.coordinates &&
-      typeof client.coordinates === "object" &&
-      client.coordinates.lat &&
-      client.coordinates.lng
-    ) {
-      safe.coordinates = client.coordinates;
-    }
-
-    const { data, error } = await window.supabase
-      .from("commercial_clients")
-      .update(safe)
-      .eq("id", client.id)
-      .select("*")
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) throw new Error("No se actualizó ningún registro");
-
-    console.log("Cliente actualizado correctamente:", data);
-    return data;
-  } catch (e) {
-    console.error("saveClientToDB error:", e);
-    throw e;
-  }
-}
-
-
-
-
-
-
-
-async function deleteClientFromDB(id) {
-  const db = window.supabase;
-  if (!db) return;
-  try {
-    const { error } = await db
-      .from("commercial_clients")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
-  } catch (e) {
-    console.error("deleteClientFromDB error:", e);
-    throw e;
-  }
-}
-
-// === INIT PRINCIPAL ===
-
-async function initApp() {
-  console.log("Init started");
-
-  // Siempre comenzamos mostrando sólo el login
-  showSection("login-screen");
-
-  // Fecha por defecto en el formulario de contacto
-  const fechaInput = document.getElementById("fecha");
-  if (fechaInput) fechaInput.valueAsDate = new Date();
-
-  // Cargar datos desde DB
-  await loadContactsFromDB();
-  await loadClientsFromDB();
-
-  // Restaurar sesión
-  await restoreSessionFromCookie();
-
-  // Setear nombre de usuario actual si hay
-  const currentUserSpan = document.getElementById("current-user");
-  if (currentUser && currentUserSpan) {
-    currentUserSpan.textContent = currentUser.name || currentUser.username;
-  }
-
-  // Si hay usuario logueado → mostrar app
-  if (currentUser) {
-    showSection("dashboard");
-    showSection("app-screen");
-    updateDashboard();
-    renderContactsList();
-    renderClientsList();
-  } else {
-    showSection("login-screen");
-  }
-
-  // Listeners (login, formularios...)
-  setupEventListeners();
-
-  console.log("Init complete");
-}
 /*****************************************************
  *  BLOQUE 2 - LOGIN, PASSWORD, CONTACTOS
  *****************************************************/
 
-// === LOGIN ===
-
-async function handleLogin(e) {
-  e.preventDefault();
-  const db = window.supabase;
-  if (!db) {
-    alert("Supabase no está disponible");
-    return;
-  }
-
-  const usernameInput = document.getElementById("username");
-  const passwordInput = document.getElementById("password");
-  const errorBox = document.getElementById("login-error");
-
-  const username = usernameInput ? usernameInput.value.trim() : "";
-  const password = passwordInput ? passwordInput.value.trim() : "";
-
-  if (!username || !password) {
-    if (errorBox) {
-      errorBox.textContent = "Completa usuario y contraseña";
-      errorBox.style.display = "block";
-    } else {
-      alert("Completa usuario y contraseña");
-    }
-    return;
-  }
-
-  try {
-    const { data: userRows, error } = await db
-      .from("users")
-      .select("*")
-      .eq("username", username)
-      .eq("password", password)
-      .limit(1);
-
-    if (error || !userRows || userRows.length === 0) {
-      if (errorBox) {
-        errorBox.textContent = "Usuario o contraseña incorrectos";
-        errorBox.style.display = "block";
-      } else {
-        alert("Usuario o contraseña incorrectos");
-      }
-      return;
-    }
-
-    currentUser = userRows[0];
-
-    // Crear sesión
-    await createSession(currentUser);
-
-    // Mostrar nombre
-    const currentUserSpan = document.getElementById("current-user");
-    if (currentUserSpan) {
-      currentUserSpan.textContent = currentUser.name || currentUser.username;
-    }
-
-    // ¿primer login?
-    if (currentUser.first_login) {
-      showSection("password-change-screen");
-    } else {
-      showSection("dashboard");
-      showSection("app-screen");
-      updateDashboard();
-      renderContactsList();
-      renderClientsList();
-    }
-  } catch (e) {
-    console.error("Error en login:", e);
-    if (errorBox) {
-      errorBox.textContent = "Error al conectar con la base de datos";
-      errorBox.style.display = "block";
-    } else {
-      alert("Error al conectar con la base de datos");
-    }
-  }
-}
-
-// === CAMBIO DE CONTRASEÑA ===
-
-async function handlePasswordChange(e) {
-  e.preventDefault();
-  const db = window.supabase;
-  if (!db || !currentUser) return;
-
-  const newPwdInput = document.getElementById("new-password");
-  const confirmInput = document.getElementById("confirm-password");
-  const errorBox = document.getElementById("password-error");
-
-  const newPwd = newPwdInput ? newPwdInput.value.trim() : "";
-  const confirmPwd = confirmInput ? confirmInput.value.trim() : "";
-
-  if (!newPwd || newPwd.length < 6 || newPwd !== confirmPwd) {
-    if (errorBox) {
-      errorBox.textContent = "Las contraseñas no coinciden o son muy cortas (mínimo 6 caracteres)";
-      errorBox.style.display = "block";
-    } else {
-      alert("Las contraseñas no coinciden o son muy cortas");
-    }
-    return;
-  }
-
-  try {
-    const { error } = await db
-      .from("users")
-      .update({
-        password: newPwd,
-        first_login: false
-      })
-      .eq("username", currentUser.username);
-
-    if (error) throw error;
-
-    // Forzar que en memoria ya no tenga first_login
-    currentUser.first_login = false;
-
-    // Ir al dashboard
-    showSection("app-screen");
-    showSection("dashboard");
-    updateDashboard();
-    renderContactsList();
-    renderClientsList();
-  } catch (e) {
-    console.error("Error cambiando contraseña:", e);
-    if (errorBox) {
-      errorBox.textContent = "Error al cambiar la contraseña";
-      errorBox.style.display = "block";
-    } else {
-      alert("Error al cambiar la contraseña");
-    }
-  }
-}
-
-// === LOGOUT ===
-
-async function logout() {
-  await clearSession();
-  currentUser = null;
-  showSection("login-screen");
-}
-
-// === EVENT LISTENERS GENERALES ===
-
-function setupEventListeners() {
-  // Login
-  const loginForm = document.getElementById("login-form");
-  if (loginForm) {
-    loginForm.addEventListener("submit", handleLogin);
-  }
-
-  // Cambio de contraseña
-  const pwdForm = document.getElementById("password-change-form");
-  if (pwdForm) {
-    pwdForm.addEventListener("submit", handlePasswordChange);
-  }
-
-  // Formulario de contacto
-  const contactForm = document.getElementById("contact-form");
-  if (contactForm) {
-    contactForm.addEventListener("submit", handleContactSubmit);
-  }
-
-  // Formulario de cliente
-  const clientForm = document.getElementById("client-form");
-  if (clientForm) {
-    clientForm.addEventListener("submit", handleClientSubmit);
-  }
-
-  // Formularios de edición
-  const editContactForm = document.getElementById("edit-contact-form");
-  if (editContactForm) {
-    editContactForm.addEventListener("submit", handleEditContactSubmit);
-  }
-
-  const editClientForm = document.getElementById("edit-client-form");
-  if (editClientForm) {
-    editClientForm.addEventListener("submit", handleEditClientSubmit);
-  }
-}
-
-// === CONTACTOS: ALTA ===
-
-async function handleContactSubmit(e) {
-  e.preventDefault();
-  if (!currentUser) {
-    alert("Sesión expirada, vuelve a iniciar sesión");
-    return;
-  }
-
-  const form = e.target;
-  const formData = new FormData(form);
-
-  const contact = {
-    fecha: formData.get("fecha") || null,
-    vendedor: formData.get("vendedor") || "",
-    cliente: formData.get("cliente") || "",
-    empresa: formData.get("empresa") || "",
-    telefono: formData.get("telefono") || "",
-    email: formData.get("email") || "",
-    producto: formData.get("Producto") || "",
-    estado: formData.get("estado") || "",
-    cliente_derivado: formData.get("cliente-derivado") || "",
-    motivo: formData.get("motivo") || "",
-    registrado_por: currentUser.username,
-    fecha_registro: new Date().toISOString()
-  };
-
-  try {
-    const saved = await saveContactToDB(contact);
-    contacts.push(saved);
-    showMessage("contact-success-message");
-    form.reset();
-    const derivGroup = document.getElementById("derivacion-group");
-    if (derivGroup) derivGroup.style.display = "none";
-    updateDashboard();
-    renderContactsList();
-    updateClientSelectFromContacts();
-  } catch (e) {
-    console.error("Error guardando contacto:", e);
-    alert("Error guardando contacto");
-  }
-}
-
-// === CONTACTOS: LISTA Y FILTROS ===
-
-function formatDate(dateString) {
-  if (!dateString) return "-";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString;
-  return date.toLocaleDateString("es-ES");
-}
-
-function renderContactsList(filtered = null) {
-  const tbody = document.getElementById("contacts-tbody");
-  if (!tbody) return;
-
-  const data = filtered || contacts;
-  tbody.innerHTML = "";
-
-  // Mostramos más recientes arriba
-  [...data].sort((a, b) => (a.fecha || "").localeCompare(b.fecha || "")).reverse().forEach(c => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${formatDate(c.fecha)}</td>
-      <td>${c.vendedor || ""}</td>
-      <td>${c.cliente || ""}</td>
-      <td>${c.empresa || ""}</td>
-      <td>${c.producto || ""}</td>
-      <td><span class="status-badge status-${(c.estado || "").toLowerCase().replace(/\s+/g, "-")}">${c.estado || "-"}</span></td>
-      <td>${c.cliente_derivado || "-"}</td>
-      <td>${c.motivo || "-"}</td>
-      <td class="actions-column">
-        <button class="btn-edit" onclick="editContact('${c.id}')">✏️</button>
-        <button class="btn-delete" onclick="deleteContact('${c.id}')">🗑️</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function filterContacts() {
-  const vendedorSel = document.getElementById("filter-vendedor");
-  const estadoSel = document.getElementById("filter-estado");
-  const desdeInput = document.getElementById("filter-fecha-desde");
-  const hastaInput = document.getElementById("filter-fecha-hasta");
-
-  const vendedor = vendedorSel ? vendedorSel.value : "";
-  const estado = estadoSel ? estadoSel.value : "";
-  const desde = desdeInput ? desdeInput.value : "";
-  const hasta = hastaInput ? hastaInput.value : "";
-
-  let filtered = [...contacts];
-
-  if (vendedor) {
-    filtered = filtered.filter(c => c.vendedor === vendedor);
-  }
-  if (estado) {
-    filtered = filtered.filter(c => c.estado === estado);
-  }
-  if (desde) {
-    filtered = filtered.filter(c => (c.fecha || "") >= desde);
-  }
-  if (hasta) {
-    filtered = filtered.filter(c => (c.fecha || "") <= hasta);
-  }
-
-  renderContactsList(filtered);
-}
+// (Login, logout y demás funciones permanecen igual hasta handleContactSubmit)
 
 // === CONTACTOS: EDICIÓN / BORRADO ===
 
 function editContact(id) {
-  // 🔹 Aseguramos comparar números
-  const contactId = Number(id);
-  const c = contacts.find(x => Number(x.id) === contactId);
-  if (!c) return;
+  const c = contacts.find(x => x.id === id);
+  if (!c) {
+    console.warn("No se encontró el contacto con id:", id);
+    return;
+  }
 
   showElement("edit-contact-modal");
 
@@ -740,44 +93,6 @@ function editContact(id) {
 
   toggleEditDerivacion();
 }
-// === DERIVACIÓN: Mostrar / Ocultar y Cargar Clientes ===
-
-// Mostrar u ocultar el campo de derivación en el formulario de nuevo contacto
-function toggleDerivacion() {
-  const estado = document.getElementById("estado")?.value || "";
-  const derivGroup = document.getElementById("derivacion-group");
-  if (!derivGroup) return;
-
-  if (estado === "Derivado") {
-    derivGroup.style.display = "block";
-    updateClientSelectFromClients(); // llenar lista con clientes disponibles
-  } else {
-    derivGroup.style.display = "none";
-  }
-}
-
-// Mostrar u ocultar el campo de derivación en el formulario de edición de contacto
-function toggleEditDerivacion() {
-  const estado = document.getElementById("edit-estado")?.value || "";
-  const derivGroup = document.getElementById("edit-derivacion-group");
-  if (!derivGroup) return;
-
-  if (estado === "Derivado") {
-    derivGroup.style.display = "block";
-    updateClientSelectFromClients(); // también carga las empresas
-  } else {
-    derivGroup.style.display = "none";
-  }
-}
-
-// Registrar globalmente (por si se usan desde el HTML)
-window.toggleDerivacion = toggleDerivacion;
-window.toggleEditDerivacion = toggleEditDerivacion;
-
-
-function closeEditContactModal() {
-  hideElement("edit-contact-modal");
-}
 
 async function handleEditContactSubmit(e) {
   e.preventDefault();
@@ -788,13 +103,13 @@ async function handleEditContactSubmit(e) {
 
   const form = e.target;
   const formData = new FormData(form);
-  const rawId =
-    formData.get("edit-contact-id") ||
-    document.getElementById("edit-contact-id").value;
-  const contactId = Number(rawId);
+  const id = formData.get("edit-contact-id") || document.getElementById("edit-contact-id").value;
 
-  const old = contacts.find(c => Number(c.id) === contactId);
-  if (!old) return;
+  const old = contacts.find(c => c.id === id);
+  if (!old) {
+    alert("No se encontró el contacto a editar.");
+    return;
+  }
 
   const updated = {
     ...old,
@@ -804,10 +119,7 @@ async function handleEditContactSubmit(e) {
     empresa: formData.get("empresa"),
     telefono: formData.get("telefono"),
     email: formData.get("email"),
-    producto:
-      formData.get("producto") ||
-      formData.get("Producto") ||
-      old.producto,
+    producto: formData.get("producto") || formData.get("Producto") || old.producto,
     estado: formData.get("estado"),
     cliente_derivado: formData.get("cliente-derivado") || "",
     motivo: formData.get("motivo") || "",
@@ -816,53 +128,35 @@ async function handleEditContactSubmit(e) {
   };
 
   try {
-    // UPDATE en Supabase usando id numérico
-    const safe = {
-      fecha: updated.fecha,
-      vendedor: updated.vendedor,
-      cliente: updated.cliente,
-      empresa: updated.empresa,
-      telefono: updated.telefono,
-      email: updated.email,
-      producto: updated.producto,
-      estado: updated.estado,
-      cliente_derivado: updated.cliente_derivado,
-      motivo: updated.motivo,
-      editado_por: updated.editado_por,
-      fecha_edicion: updated.fecha_edicion
-    };
-
     const { data, error } = await window.supabase
       .from("commercial_contacts")
-      .update(safe)
-      .eq("id", contactId)
+      .update(updated)
+      .eq("id", id)
       .select("*")
       .maybeSingle();
 
     if (error) throw error;
+    if (!data) throw new Error("No se devolvieron datos desde Supabase");
 
-    const idx = contacts.findIndex(c => Number(c.id) === contactId);
-    if (idx !== -1 && data) contacts[idx] = data;
+    const idx = contacts.findIndex(c => c.id === id);
+    if (idx !== -1) contacts[idx] = data;
 
     closeEditContactModal();
     updateDashboard();
     renderContactsList();
     alert("✅ Contacto actualizado correctamente");
-  } catch (e) {
-    console.error("Error editando contacto:", e);
-    alert("Error guardando cambios");
+  } catch (err) {
+    console.error("Error al editar contacto:", err);
+    alert("Error al guardar los cambios");
   }
 }
 
 async function deleteContact(id) {
   if (!confirm("¿Estás seguro de eliminar este contacto?")) return;
 
-  const contactId = Number(id);
-
   try {
-    await deleteContactFromDB(contactId);
-    // 🔹 Filtramos comparando como número
-    contacts = contacts.filter(c => Number(c.id) !== contactId);
+    await window.supabase.from("commercial_contacts").delete().eq("id", id);
+    contacts = contacts.filter(c => c.id !== id);
     updateDashboard();
     renderContactsList();
   } catch (e) {
@@ -870,6 +164,10 @@ async function deleteContact(id) {
     alert("Error borrando contacto");
   }
 }
+
+
+
+
 
 
 /*****************************************************
