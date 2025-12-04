@@ -69,7 +69,7 @@ function showError(id, msg) {
 }
 
 // === showSection: maneja login, cambio de password y secciones internas ===
-function showSection(sectionId) {
+function showMapSection(sectionId) {
   const screens = ["login-screen", "password-change-screen", "app-screen"];
 
   // 1) Ocultar SIEMPRE las pantallas principales
@@ -384,7 +384,7 @@ async function initApp() {
   console.log("Init started");
 
   // Siempre comenzamos mostrando sólo el login
-  showSection("login-screen");
+  showMapSection("login-screen");
 
   // Fecha por defecto en el formulario de contacto
   const fechaInput = document.getElementById("fecha");
@@ -405,13 +405,13 @@ async function initApp() {
 
   // Si hay usuario logueado → mostrar app
   if (currentUser) {
-    showSection("dashboard");
-    showSection("app-screen");
+    showMapSection("dashboard");
+    showMapSection("app-screen");
     updateDashboard();
     renderContactsList();
     renderClientsList();
   } else {
-    showSection("login-screen");
+    showMapSection("login-screen");
   }
 
   // Listeners (login, formularios...)
@@ -481,10 +481,10 @@ async function handleLogin(e) {
 
     // ¿primer login?
     if (currentUser.first_login) {
-      showSection("password-change-screen");
+      showMapSection("password-change-screen");
     } else {
-      showSection("dashboard");
-      showSection("app-screen");
+      showMapSection("dashboard");
+      showMapSection("app-screen");
       updateDashboard();
       renderContactsList();
       renderClientsList();
@@ -539,8 +539,8 @@ async function handlePasswordChange(e) {
     currentUser.first_login = false;
 
     // Ir al dashboard
-    showSection("app-screen");
-    showSection("dashboard");
+    showMapSection("app-screen");
+    showMapSection("dashboard");
     updateDashboard();
     renderContactsList();
     renderClientsList();
@@ -560,7 +560,7 @@ async function handlePasswordChange(e) {
 async function logout() {
   await clearSession();
   currentUser = null;
-  showSection("login-screen");
+  showMapSection("login-screen");
 }
 
 // === EVENT LISTENERS GENERALES ===
@@ -1645,7 +1645,7 @@ function resetMapView() {
 // Botón "Ver en mapa"
 function showClientsOnMap() {
   // Mostramos directamente la sección del mapa
-  showSection("map-section");
+  showMapSection("map-section");
 }
 
 
