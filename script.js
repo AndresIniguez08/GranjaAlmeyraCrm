@@ -165,6 +165,11 @@ async function deleteContact(id) {
   }
 }
 
+// Exponer funciones globalmente para que los botones HTML puedan usarlas
+window.editContact = editContact;
+window.handleEditContactSubmit = handleEditContactSubmit;
+window.deleteContact = deleteContact;
+window.closeEditContactModal = closeEditContactModal;
 
 
 
