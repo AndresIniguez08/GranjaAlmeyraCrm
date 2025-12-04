@@ -1463,21 +1463,26 @@ function showByType(type) {
     });
   if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
 }
+resetMapView();
+showClientsOnMap();
 
 function showClientsOnMap() {
-  if (!window.map) {
-    window.map = L.map('map').setView([-34.6, -58.4], 6);
+  // usar otro nombre (mapView) para no pisar el div #map
+  if (!window.mapView) {
+    window.mapView = L.map('map').setView([-34.6, -58.4], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
-    }).addTo(window.map);
+    }).addTo(window.mapView);
   }
 
-  window.map.eachLayer(layer => {
+  // limpiar marcadores existentes
+  window.mapView.eachLayer(layer => {
     if (layer instanceof L.Marker) {
-      window.map.removeLayer(layer);
+      window.mapView.removeLayer(layer);
     }
   });
 
+  // colocar nuevos marcadores desde Supabase
   clients.forEach(c => {
     let lat = null;
     let lng = null;
@@ -1488,11 +1493,20 @@ function showClientsOnMap() {
     }
 
     if (lat && lng) {
-      const marker = L.marker([lat, lng]).addTo(window.map);
+      const marker = L.marker([lat, lng]).addTo(window.mapView);
       marker.bindPopup(`<b>${c.name}</b><br>${c.company || ""}<br>${c.address || ""}`);
     }
   });
 }
+function resetMapView() {
+  if (window.mapView) {
+    window.mapView.setView([-34.6, -58.4], 6);
+    window.mapView.eachLayer(layer => {
+      if (layer instanceof L.Marker) window.mapView.removeLayer(layer);
+    });
+  }
+}
+
 
 
 // === GEOLOCALIZACIÓN REAL (OpenStreetMap / Nominatim) ===
