@@ -1727,3 +1727,16 @@ window.filterContactsByProduct = filterContactsByProduct;
 document.addEventListener("DOMContentLoaded", () => {
   init();
 });
+// ======================
+// EXPONER FUNCIONES AL SCOPE GLOBAL
+// ======================
+
+window.showSection = showSection;
+window.logout = logout;
+window.handleLogin = handleLogin;
+window.handleContactSubmit = handleContactSubmit;
+window.handleClientSubmit = handleClientSubmit;
+window.handlePasswordChange = handlePasswordChange;
+window.updateDashboard = updateDashboard;
+window.loadContacts = loadContacts;
+window.loadClients = loadClients;
