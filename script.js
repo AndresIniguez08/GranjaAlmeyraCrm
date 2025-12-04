@@ -164,6 +164,9 @@ async function deleteContact(id) {
     alert("Error borrando contacto");
   }
 }
+function closeEditContactModal() {
+  hideElement("edit-contact-modal");
+}
 
 // Exponer funciones globalmente para que los botones HTML puedan usarlas
 window.editContact = editContact;
