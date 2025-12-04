@@ -1465,9 +1465,35 @@ function showByType(type) {
 }
 
 function showClientsOnMap() {
-  showSection("map-section");
-  initMap();
+  if (!window.map) {
+    window.map = L.map('map').setView([-34.6, -58.4], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(window.map);
+  }
+
+  window.map.eachLayer(layer => {
+    if (layer instanceof L.Marker) {
+      window.map.removeLayer(layer);
+    }
+  });
+
+  clients.forEach(c => {
+    let lat = null;
+    let lng = null;
+
+    if (c.coordinates && typeof c.coordinates === "object") {
+      lat = c.coordinates.lat;
+      lng = c.coordinates.lng;
+    }
+
+    if (lat && lng) {
+      const marker = L.marker([lat, lng]).addTo(window.map);
+      marker.bindPopup(`<b>${c.name}</b><br>${c.company || ""}<br>${c.address || ""}`);
+    }
+  });
 }
+
 
 // === GEOLOCALIZACIÓN REAL (OpenStreetMap / Nominatim) ===
 
