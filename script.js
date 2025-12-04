@@ -714,7 +714,9 @@ function filterContacts() {
 // === CONTACTOS: EDICIÓN / BORRADO ===
 
 function editContact(id) {
-  const c = contacts.find(x => x.id === id);
+  // 🔹 Aseguramos comparar números
+  const contactId = Number(id);
+  const c = contacts.find(x => Number(x.id) === contactId);
   if (!c) return;
 
   showElement("edit-contact-modal");
@@ -736,7 +738,6 @@ function editContact(id) {
   setVal("edit-cliente-derivado", c.cliente_derivado);
   setVal("edit-motivo", c.motivo);
 
-  // mantiene la lógica que ya tenías
   toggleEditDerivacion();
 }
 
@@ -753,14 +754,14 @@ async function handleEditContactSubmit(e) {
 
   const form = e.target;
   const formData = new FormData(form);
-  const id =
+  const rawId =
     formData.get("edit-contact-id") ||
     document.getElementById("edit-contact-id").value;
+  const contactId = Number(rawId);
 
-  const old = contacts.find(c => c.id === id);
+  const old = contacts.find(c => Number(c.id) === contactId);
   if (!old) return;
 
-  // Tomo los datos del form (los name del formulario siguen siendo los tuyos)
   const updated = {
     ...old,
     fecha: formData.get("fecha"),
@@ -781,7 +782,7 @@ async function handleEditContactSubmit(e) {
   };
 
   try {
-    // 🔹 AHORA sí hacemos UPDATE en Supabase, no INSERT
+    // UPDATE en Supabase usando id numérico
     const safe = {
       fecha: updated.fecha,
       vendedor: updated.vendedor,
@@ -800,14 +801,13 @@ async function handleEditContactSubmit(e) {
     const { data, error } = await window.supabase
       .from("commercial_contacts")
       .update(safe)
-      .eq("id", id)
+      .eq("id", contactId)
       .select("*")
       .maybeSingle();
 
     if (error) throw error;
 
-    // Actualizo el array en memoria
-    const idx = contacts.findIndex(c => c.id === id);
+    const idx = contacts.findIndex(c => Number(c.id) === contactId);
     if (idx !== -1 && data) contacts[idx] = data;
 
     closeEditContactModal();
@@ -823,9 +823,12 @@ async function handleEditContactSubmit(e) {
 async function deleteContact(id) {
   if (!confirm("¿Estás seguro de eliminar este contacto?")) return;
 
+  const contactId = Number(id);
+
   try {
-    await deleteContactFromDB(id);
-    contacts = contacts.filter(c => c.id !== id);
+    await deleteContactFromDB(contactId);
+    // 🔹 Filtramos comparando como número
+    contacts = contacts.filter(c => Number(c.id) !== contactId);
     updateDashboard();
     renderContactsList();
   } catch (e) {
@@ -833,12 +836,6 @@ async function deleteContact(id) {
     alert("Error borrando contacto");
   }
 }
-
-/* 🔹 MUY IMPORTANTE: exponer funciones al window para que los onclick del HTML funcionen */
-window.editContact = editContact;
-window.closeEditContactModal = closeEditContactModal;
-window.handleEditContactSubmit = handleEditContactSubmit;
-window.deleteContact = deleteContact;
 
 
 /*****************************************************
