@@ -340,34 +340,24 @@ async function logout() {
 // === EVENT LISTENERS GENERALES ===
 function setupEventListeners() {
   const loginForm = document.getElementById("login-form");
-  if (loginForm) {
-    loginForm.addEventListener("submit", handleLogin);
-  }
+  if (loginForm) loginForm.addEventListener("submit", handleLogin);
 
   const pwdForm = document.getElementById("password-change-form");
-  if (pwdForm) {
-    pwdForm.addEventListener("submit", handlePasswordChange);
-  }
+  if (pwdForm) pwdForm.addEventListener("submit", handlePasswordChange);
 
   const contactForm = document.getElementById("contact-form");
-  if (contactForm) {
-    contactForm.addEventListener("submit", handleContactSubmit);
-  }
+  if (contactForm) contactForm.addEventListener("submit", handleContactSubmit);
 
   const clientForm = document.getElementById("client-form");
-  if (clientForm) {
-    clientForm.addEventListener("submit", handleClientSubmit);
-  }
+  if (clientForm) clientForm.addEventListener("submit", handleClientSubmit);
 
   const editContactForm = document.getElementById("edit-contact-form");
-  if (editContactForm) {
+  if (editContactForm)
     editContactForm.addEventListener("submit", handleEditContactSubmit);
-  }
 
   const editClientForm = document.getElementById("edit-client-form");
-  if (editClientForm) {
+  if (editClientForm)
     editClientForm.addEventListener("submit", handleEditClientSubmit);
-  }
 }
 
 // === CONTACTOS: ALTA ===
@@ -412,17 +402,13 @@ async function handleContactSubmit(e) {
   }
 }
 
-// Función auxiliar para mostrar mensajes de éxito
 function showMessage(id) {
   const msg = document.getElementById(id);
   if (!msg) return;
   msg.style.display = "block";
-  setTimeout(() => {
-    msg.style.display = "none";
-  }, 2000);
+  setTimeout(() => (msg.style.display = "none"), 2000);
 }
 
-// Guardar contacto en DB
 async function saveContactToDB(contact) {
   try {
     const { data, error } = await window.supabase
@@ -445,8 +431,7 @@ async function saveContactToDB(contact) {
 function formatDate(dateString) {
   if (!dateString) return "-";
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString;
-  return date.toLocaleDateString("es-ES");
+  return isNaN(date.getTime()) ? dateString : date.toLocaleDateString("es-ES");
 }
 
 function renderContactsList(filtered = null) {
@@ -462,50 +447,36 @@ function renderContactsList(filtered = null) {
     .forEach((c) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-      <td>${formatDate(c.fecha)}</td>
-      <td>${c.vendedor || ""}</td>
-      <td>${c.cliente || ""}</td>
-      <td>${c.empresa || ""}</td>
-      <td>${c.producto || ""}</td>
-      <td><span class="status-badge status-${(c.estado || "")
-        .toLowerCase()
-        .replace(/\s+/g, "-")}">${c.estado || "-"}</span></td>
-      <td>${c.cliente_derivado || "-"}</td>
-      <td>${c.motivo || "-"}</td>
-      <td class="actions-column">
-        <button class="btn-edit" onclick="editContact('${c.id}')">✏️</button>
-        <button class="btn-delete" onclick="deleteContact('${c.id}')">🗑️</button>
-      </td>
-    `;
+        <td>${formatDate(c.fecha)}</td>
+        <td>${c.vendedor || ""}</td>
+        <td>${c.cliente || ""}</td>
+        <td>${c.empresa || ""}</td>
+        <td>${c.producto || ""}</td>
+        <td><span class="status-badge status-${(c.estado || "")
+          .toLowerCase()
+          .replace(/\s+/g, "-")}">${c.estado || "-"}</span></td>
+        <td>${c.cliente_derivado || "-"}</td>
+        <td>${c.motivo || "-"}</td>
+        <td class="actions-column">
+          <button class="btn-edit" onclick="editContact('${c.id}')">✏️</button>
+          <button class="btn-delete" onclick="deleteContact('${c.id}')">🗑️</button>
+        </td>
+      `;
       tbody.appendChild(tr);
     });
 }
 
 function filterContacts() {
-  const vendedorSel = document.getElementById("filter-vendedor");
-  const estadoSel = document.getElementById("filter-estado");
-  const desdeInput = document.getElementById("filter-fecha-desde");
-  const hastaInput = document.getElementById("filter-fecha-hasta");
-
-  const vendedor = vendedorSel ? vendedorSel.value : "";
-  const estado = estadoSel ? estadoSel.value : "";
-  const desde = desdeInput ? desdeInput.value : "";
-  const hasta = hastaInput ? hastaInput.value : "";
+  const vendedor = document.getElementById("filter-vendedor")?.value || "";
+  const estado = document.getElementById("filter-estado")?.value || "";
+  const desde = document.getElementById("filter-fecha-desde")?.value || "";
+  const hasta = document.getElementById("filter-fecha-hasta")?.value || "";
 
   let filtered = [...contacts];
-
-  if (vendedor) {
-    filtered = filtered.filter((c) => c.vendedor === vendedor);
-  }
-  if (estado) {
-    filtered = filtered.filter((c) => c.estado === estado);
-  }
-  if (desde) {
-    filtered = filtered.filter((c) => (c.fecha || "") >= desde);
-  }
-  if (hasta) {
-    filtered = filtered.filter((c) => (c.fecha || "") <= hasta);
-  }
+  if (vendedor) filtered = filtered.filter((c) => c.vendedor === vendedor);
+  if (estado) filtered = filtered.filter((c) => c.estado === estado);
+  if (desde) filtered = filtered.filter((c) => (c.fecha || "") >= desde);
+  if (hasta) filtered = filtered.filter((c) => (c.fecha || "") <= hasta);
 
   renderContactsList(filtered);
 }
@@ -540,37 +511,27 @@ function editContact(id) {
   toggleEditDerivacion();
 }
 
-// Mostrar / ocultar campo de derivación (alta)
+// === Derivación (alta / edición) ===
 function toggleDerivacion() {
   const estado = document.getElementById("estado")?.value || "";
   const derivGroup = document.getElementById("derivacion-group");
   if (!derivGroup) return;
-
-  if (estado === "Derivado") {
-    derivGroup.style.display = "block";
-    updateClientSelectFromClients();
-  } else {
-    derivGroup.style.display = "none";
-  }
+  derivGroup.style.display = estado === "Derivado" ? "block" : "none";
+  if (estado === "Derivado") updateClientSelectFromClients();
 }
 
-// Mostrar / ocultar campo de derivación (edición)
 function toggleEditDerivacion() {
   const estado = document.getElementById("edit-estado")?.value || "";
   const derivGroup = document.getElementById("edit-derivacion-group");
   if (!derivGroup) return;
-
-  if (estado === "Derivado") {
-    derivGroup.style.display = "block";
-    updateClientSelectFromClients();
-  } else {
-    derivGroup.style.display = "none";
-  }
+  derivGroup.style.display = estado === "Derivado" ? "block" : "none";
+  if (estado === "Derivado") updateClientSelectFromClients();
 }
 
 window.toggleDerivacion = toggleDerivacion;
 window.toggleEditDerivacion = toggleEditDerivacion;
 
+// === EDICIÓN FINAL SIN 406 ===
 async function handleEditContactSubmit(e) {
   e.preventDefault();
 
@@ -579,44 +540,37 @@ async function handleEditContactSubmit(e) {
     return;
   }
 
-  const form = e.target;
-  const formData = new FormData(form);
-  const id = formData.get("edit-contact-id") || document.getElementById("edit-contact-id").value;
-
-  const old = contacts.find(c => c.id === id);
+  const id = document.getElementById("edit-contact-id").value;
+  const old = contacts.find((c) => c.id === id);
   if (!old) {
     alert("No se encontró el contacto a editar.");
     return;
   }
 
   const updated = {
-    fecha: formData.get("fecha"),
-    vendedor: formData.get("vendedor"),
-    cliente: formData.get("cliente"),
-    empresa: formData.get("empresa"),
-    telefono: formData.get("telefono"),
-    email: formData.get("email"),
-    producto: formData.get("producto") || old.producto,
-    estado: formData.get("estado"),
-    cliente_derivado: formData.get("cliente-derivado") || "",
-    motivo: formData.get("motivo") || "",
+    fecha: document.getElementById("edit-fecha").value,
+    vendedor: document.getElementById("edit-vendedor").value,
+    cliente: document.getElementById("edit-cliente").value,
+    empresa: document.getElementById("edit-empresa").value,
+    telefono: document.getElementById("edit-telefono").value,
+    email: document.getElementById("edit-email").value,
+    producto: document.getElementById("edit-producto").value,
+    estado: document.getElementById("edit-estado").value,
+    cliente_derivado: document.getElementById("edit-cliente-derivado").value || "",
+    motivo: document.getElementById("edit-motivo").value || "",
     editado_por: currentUser.username,
     fecha_edicion: new Date().toISOString(),
   };
 
   try {
-    const { error, status } = await window.supabase
+    const { error } = await window.supabase
       .from("commercial_contacts")
       .update(updated)
-      .eq("id", id);
+      .eq("id", id); // 👈 sin .select("*")
 
     if (error) throw error;
-    if (status === 204) {
-      console.log("✅ Actualización realizada correctamente (sin retorno de datos)");
-    }
 
-    // Actualizar localmente
-    const idx = contacts.findIndex(c => c.id === id);
+    const idx = contacts.findIndex((c) => c.id === id);
     if (idx !== -1) contacts[idx] = { ...contacts[idx], ...updated };
 
     closeEditContactModal();
@@ -629,8 +583,6 @@ async function handleEditContactSubmit(e) {
     alert("Error al guardar los cambios");
   }
 }
-
-
 
 async function deleteContact(id) {
   if (!confirm("¿Estás seguro de eliminar este contacto?")) return;
@@ -646,9 +598,7 @@ async function deleteContact(id) {
   }
 }
 
-window.closeEditContactModal = function () {
-  hideElement("edit-contact-modal");
-};
+window.closeEditContactModal = () => hideElement("edit-contact-modal");
 
 // Exponer funciones globalmente
 window.editContact = editContact;
@@ -657,6 +607,7 @@ window.deleteContact = deleteContact;
 window.logout = logout;
 window.handleLogin = handleLogin;
 window.handlePasswordChange = handlePasswordChange;
+
 
 /*****************************************************
  *  BLOQUE 3 - CLIENTES, DASHBOARD, REPORTES, EXPORT
