@@ -736,14 +736,8 @@ function editContact(id) {
   setVal("edit-cliente-derivado", c.cliente_derivado);
   setVal("edit-motivo", c.motivo);
 
-  // 🔹 Actualiza opciones de derivación si el estado es Derivado
+  // mantiene la lógica que ya tenías
   toggleEditDerivacion();
-
-  // 🔹 Vincula el evento submit al formulario solo una vez
-  const form = document.getElementById("edit-contact-form");
-  if (form) {
-    form.onsubmit = handleEditContactSubmit;
-  }
 }
 
 function closeEditContactModal() {
@@ -759,38 +753,60 @@ async function handleEditContactSubmit(e) {
 
   const form = e.target;
   const formData = new FormData(form);
-  const id = formData.get("edit-contact-id") || document.getElementById("edit-contact-id").value;
+  const id =
+    formData.get("edit-contact-id") ||
+    document.getElementById("edit-contact-id").value;
 
   const old = contacts.find(c => c.id === id);
   if (!old) return;
 
+  // Tomo los datos del form (los name del formulario siguen siendo los tuyos)
   const updated = {
     ...old,
-    fecha: formData.get("edit-fecha"),
-    vendedor: formData.get("edit-vendedor"),
-    cliente: formData.get("edit-cliente"),
-    empresa: formData.get("edit-empresa"),
-    telefono: formData.get("edit-telefono"),
-    email: formData.get("edit-email"),
-    producto: formData.get("edit-producto") || old.producto,
-    estado: formData.get("edit-estado"),
-    cliente_derivado: formData.get("edit-cliente-derivado") || "",
-    motivo: formData.get("edit-motivo") || "",
+    fecha: formData.get("fecha"),
+    vendedor: formData.get("vendedor"),
+    cliente: formData.get("cliente"),
+    empresa: formData.get("empresa"),
+    telefono: formData.get("telefono"),
+    email: formData.get("email"),
+    producto:
+      formData.get("producto") ||
+      formData.get("Producto") ||
+      old.producto,
+    estado: formData.get("estado"),
+    cliente_derivado: formData.get("cliente-derivado") || "",
+    motivo: formData.get("motivo") || "",
     editado_por: currentUser.username,
     fecha_edicion: new Date().toISOString()
   };
 
   try {
-    // 🔹 Actualiza directamente en Supabase
+    // 🔹 AHORA sí hacemos UPDATE en Supabase, no INSERT
+    const safe = {
+      fecha: updated.fecha,
+      vendedor: updated.vendedor,
+      cliente: updated.cliente,
+      empresa: updated.empresa,
+      telefono: updated.telefono,
+      email: updated.email,
+      producto: updated.producto,
+      estado: updated.estado,
+      cliente_derivado: updated.cliente_derivado,
+      motivo: updated.motivo,
+      editado_por: updated.editado_por,
+      fecha_edicion: updated.fecha_edicion
+    };
+
     const { data, error } = await window.supabase
       .from("commercial_contacts")
-      .update(updated)
+      .update(safe)
       .eq("id", id)
       .select("*")
       .maybeSingle();
 
     if (error) throw error;
 
+    // Actualizo el array en memoria
     const idx = contacts.findIndex(c => c.id === id);
     if (idx !== -1 && data) contacts[idx] = data;
 
@@ -818,38 +834,11 @@ async function deleteContact(id) {
   }
 }
 
-// 🔹 Muestra el campo 'Cliente derivado' solo si el estado es 'Derivado'
-function toggleEditDerivacion() {
-  const estadoSel = document.getElementById("edit-estado");
-  const derivGroup = document.getElementById("edit-derivacion-group");
-  const selectDeriv = document.getElementById("edit-cliente-derivado");
-  if (!estadoSel || !derivGroup || !selectDeriv) return;
-
-  if (estadoSel.value === "Derivado") {
-    derivGroup.style.display = "block";
-
-    // Cargar lista de clientes si no está cargada
-    if (!clients || clients.length === 0) {
-      loadClientsFromDB().then(() => fillDerivClientList(selectDeriv));
-    } else {
-      fillDerivClientList(selectDeriv);
-    }
-  } else {
-    derivGroup.style.display = "none";
-  }
-}
-
-function fillDerivClientList(selectEl) {
-  selectEl.innerHTML = `<option value="">Seleccionar cliente</option>`;
-  clients.forEach(c => {
-    if (c.company) {
-      const opt = document.createElement("option");
-      opt.value = c.company;
-      opt.textContent = c.company;
-      selectEl.appendChild(opt);
-    }
-  });
-}
+/* 🔹 MUY IMPORTANTE: exponer funciones al window para que los onclick del HTML funcionen */
+window.editContact = editContact;
+window.closeEditContactModal = closeEditContactModal;
+window.handleEditContactSubmit = handleEditContactSubmit;
+window.deleteContact = deleteContact;
 
 
 /*****************************************************
