@@ -1,161 +1,95 @@
-// script.js - Versión final para index.html (Granja Almeyra)
-// Requisitos: index.html debe incluir supabase UMD y crear window.supabase antes de cargar este archivo.
-// También debe incluir Leaflet después de este script (o el script se encarga de inicializar mapa cuando Leaflet esté disponible).
+/*****************************************************
+ *  BLOQUE 1 - SUPABASE, UTILIDADES, SESIÓN, INIT
+ *****************************************************/
 
-/* =========================================================================
-   UTILS, INITIAL SETUP Y DB HELPERS
-   ========================================================================= */
+// === CONFIGURACIÓN SUPABASE ===
+const SUPABASE_URL = "https://gntwqahvwwvkwhkdowwh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdudHdxYWh2d3d2a3doa2Rvd3doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNDc0NjQsImV4cCI6MjA3OTgyMzQ2NH0.qAgbzFmnG5136V1pTStF_hW7jKaAzoIlSYoWt2qxM9E"; // <-- reemplazar por el tuyo real
 
-(function ensureSupabasePresent() {
-  if (!window.supabase) {
-    console.warn("Warning: window.supabase no está definido. Asegurate de cargar el UMD y crear el cliente en index.html antes de script.js.");
-  } else {
-    console.log("Using existing window.supabase client.");
+// Cliente global
+(function initSupabaseClient() {
+  try {
+    if (window.supabase && typeof window.supabase.from === "function") {
+      console.log("Using existing window.supabase client.");
+      return;
+    }
+    if (typeof supabase !== "undefined" && supabase && typeof supabase.createClient === "function") {
+      window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      console.log("Supabase UMD inicializado correctamente");
+    } else {
+      console.error("Supabase UMD no encontrado. Asegúrate de incluir el script de supabase en el HTML.");
+    }
+  } catch (err) {
+    console.error("Error inicializando Supabase:", err);
   }
 })();
 
+// === COOKIES ===
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
 }
 function getCookie(name) {
-  return document.cookie.split("; ").reduce((r, v) => {
-    const parts = v.split("=");
-    return parts[0] === name ? decodeURIComponent(parts[1]) : r;
+  return document.cookie.split("; ").reduce((acc, item) => {
+    const [k, v] = item.split("=");
+    return k === name ? decodeURIComponent(v) : acc;
   }, "");
 }
 function eraseCookie(name) {
   setCookie(name, "", -1);
 }
 
-// In-memory data structures (populated from DB if possible)
-let contacts = [];
-let clients = [];
-let tempCoordinates = null;
-let editTempCoordinates = null;
-let map = null;
-let markersLayer = null;
+// === ESTADO GLOBAL EN MEMORIA ===
 let currentUser = null;
+let contacts = []; // commercial_contacts
+let clients = [];  // commercial_clients
 
-// Expose currentUser reference on window for older code compatibility
-window.currentUser = currentUser;
-
-/* --------------------------
-   DB helpers (Supabase)
-   -------------------------- */
-
-async function dbLoadAllData() {
-  const db = window.supabase;
-  if (!db) {
-    console.warn("Supabase no está inicializado — trabajando en memoria.");
-    return;
-  }
-  try {
-    const { data: contactsData, error: contactsError } = await db.from("commercial_contacts").select("*");
-    if (contactsError) throw contactsError;
-    contacts = contactsData || [];
-  } catch (err) {
-    console.error("Error cargando commercial_contacts:", err);
-    contacts = [];
-  }
-
-  try {
-    const { data: clientsData, error: clientsError } = await db.from("commercial_clients").select("*");
-    if (clientsError) throw clientsError;
-    clients = clientsData || [];
-  } catch (err) {
-    console.error("Error cargando commercial_clients:", err);
-    clients = [];
-  }
-
-  // Users table used for login (if exists)
-  try {
-    const { data: usersData, error: usersError } = await db.from("users").select("*");
-    if (!usersError && usersData) {
-      // no guardamos en variable global sensible más que lo necesario
-      window.allUsers = usersData;
-    } else {
-      window.allUsers = [];
-    }
-  } catch (err) {
-    console.warn("No se pudo cargar tabla users (puede no existir):", err);
-    window.allUsers = [];
-  }
+// === UTILIDADES DE UI ===
+function showElement(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = "";
+}
+function hideElement(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = "none";
+}
+function showMessage(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = "block";
+  setTimeout(() => {
+    el.style.display = "none";
+  }, 3000);
+}
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (msg) el.textContent = msg;
+  el.style.display = "block";
 }
 
-async function dbSaveAllData() {
-  const db = window.supabase;
-  if (!db) {
-    console.warn("Supabase no está inicializado — cambios quedarán en memoria.");
-    return;
-  }
-  try {
-    if (contacts && contacts.length > 0) {
-      await db.from("commercial_contacts").upsert(contacts, { onConflict: "id" });
-    }
-  } catch (err) {
-    console.error("Error upserting contacts:", err);
-  }
-
-  try {
-    if (clients && clients.length > 0) {
-      await db.from("commercial_clients").upsert(clients, { onConflict: "id" });
-    }
-  } catch (err) {
-    console.error("Error upserting clients:", err);
-  }
-}
-
-async function dbDeleteContact(id) {
-  const db = window.supabase;
-  if (!db) return;
-  try {
-    await db.from("commercial_contacts").delete().eq("id", id);
-  } catch (err) {
-    console.error("Error eliminando contacto en DB:", err);
-  }
-}
-async function dbDeleteClient(id) {
-  const db = window.supabase;
-  if (!db) return;
-  try {
-    await db.from("commercial_clients").delete().eq("id", id);
-  } catch (err) {
-    console.error("Error eliminando cliente en DB:", err);
-  }
-}
-
-/* =========================================================================
-   UI: showSection / navigation helpers
-   ========================================================================= */
-
+// === showSection: maneja login, cambio de password y secciones internas ===
 function showSection(sectionId) {
-  // Screens: login-screen, password-change-screen, app-screen
-  const mainScreens = ["login-screen", "password-change-screen", "app-screen"];
-  mainScreens.forEach(s => {
-    const el = document.getElementById(s);
+  // Pantallas principales
+  const screens = ["login-screen", "password-change-screen", "app-screen"];
+  screens.forEach(id => {
+    const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
 
-  // If sectionId is one of main screens -> show it directly
-  if (mainScreens.includes(sectionId)) {
+  // Si piden una pantalla principal
+  if (screens.includes(sectionId)) {
     const el = document.getElementById(sectionId);
-    if (el) {
-      // login/password screens are centered, use flex
-      if (sectionId === "login-screen" || sectionId === "password-change-screen") {
-        el.style.display = "flex";
-      } else {
-        el.style.display = "block";
-      }
-    }
+    if (el) el.style.display = sectionId === "app-screen" ? "block" : "flex";
     return;
   }
 
-  // Otherwise show app-screen and hide internal sections
+  // Si piden una sección interna del app-screen
   const appScreen = document.getElementById("app-screen");
-  if (appScreen) appScreen.style.display = "block";
+  if (!appScreen) return;
+  appScreen.style.display = "block";
 
-  const internalSections = [
+  const sections = [
     "dashboard",
     "form-contact",
     "list-contacts",
@@ -164,893 +98,1370 @@ function showSection(sectionId) {
     "map-section",
     "reports"
   ];
-  internalSections.forEach(s => {
-    const el = document.getElementById(s);
+
+  sections.forEach(id => {
+    const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
 
-  // Accept compatibility with both 'map' and 'map-section'
-  const target = document.getElementById(sectionId) || document.getElementById(sectionId === "map" ? "map-section" : sectionId);
-  if (target) {
-    target.style.display = "block";
-    // If showing map section, initialize map after short delay
-    if (sectionId === "map" || sectionId === "map-section") {
-      setTimeout(() => {
-        if (!map) initMap();
-      }, 100);
+  // Botones del menú: manejar caso especial 'map'
+  let realId = sectionId;
+  if (sectionId === "map") realId = "map-section";
+
+  const target = document.getElementById(realId);
+  if (target) target.style.display = "block";
+
+  // Si entramos a informes, generamos los reportes
+  if (realId === "reports") {
+    try {
+      generateReports();
+    } catch (e) {
+      console.warn("generateReports error:", e);
     }
-  } else {
-    console.warn("showSection: sección no encontrada ->", sectionId);
+  }
+
+  // Si entramos al mapa, inicializamos
+  if (realId === "map-section") {
+    try {
+      initMap();
+    } catch (e) {
+      console.warn("initMap error:", e);
+    }
   }
 }
 
-/* =========================================================================
-   LOGIN / AUTH HANDLERS
-   ========================================================================= */
+// === SESIONES CON UUID (tabla sessions: token uuid pk, user_id text, created_at) ===
 
+// Crear sesión en DB y cookie
+async function createSession(user) {
+  const db = window.supabase;
+  if (!db) return;
+
+  const token = crypto.randomUUID();
+  setCookie("granja_session", token, 7);
+
+  try {
+    const { error } = await db
+      .from("sessions")
+      .insert({
+        token,
+        user_id: user.username
+      });
+    if (error) {
+      console.error("Error creando sesión en DB:", error);
+    }
+  } catch (e) {
+    console.error("Error createSession:", e);
+  }
+}
+
+// Borrar sesión
+async function clearSession() {
+  const db = window.supabase;
+  if (!db) return;
+
+  const token = getCookie("granja_session");
+  eraseCookie("granja_session");
+  if (!token) return;
+
+  try {
+    const { error } = await db
+      .from("sessions")
+      .delete()
+      .eq("token", token);
+    if (error) {
+      console.warn("Error borrando sesión en DB:", error);
+    }
+  } catch (e) {
+    console.warn("clearSession error:", e);
+  }
+}
+
+// Restaurar sesión desde cookie
 async function restoreSessionFromCookie() {
   const db = window.supabase;
   if (!db) return;
-  try {
-    const token = crypto.randomUUID();
 
-    if (!token) return;
-    const { data: sessionRow, error: sessionError } = await db.from("sessions").select("*").eq("token", token).limit(1).single();
-    if (sessionError || !sessionRow) return;
-    const { data: userRow, error: userError } = await db.from("users").select("*").eq("username", sessionRow.username).limit(1).single();
-    if (!userError && userRow) {
-      currentUser = { username: userRow.username, name: userRow.name, role: userRow.role };
-      window.currentUser = currentUser;
-      // reflect in UI
-      const cu = document.getElementById("current-user");
-      if (cu) cu.textContent = currentUser.name || currentUser.username;
+  const token = getCookie("granja_session");
+  if (!token) return;
+
+  try {
+    const { data: sessionRows, error: sessionError } = await db
+      .from("sessions")
+      .select("*")
+      .eq("token", token)
+      .limit(1);
+
+    if (sessionError || !sessionRows || sessionRows.length === 0) {
+      return;
     }
-  } catch (err) {
-    console.warn("Error restaurando sesión desde cookie:", err);
+
+    const session = sessionRows[0];
+
+    const { data: userRows, error: userError } = await db
+      .from("users")
+      .select("*")
+      .eq("username", session.user_id)
+      .limit(1);
+
+    if (userError || !userRows || userRows.length === 0) {
+      return;
+    }
+
+    currentUser = userRows[0];
+  } catch (e) {
+    console.warn("restoreSessionFromCookie error:", e);
   }
 }
+
+// === CARGA DE DATOS DESDE SUPABASE ===
+
+async function loadContactsFromDB() {
+  const db = window.supabase;
+  if (!db) return;
+  try {
+    const { data, error } = await db
+      .from("commercial_contacts")
+      .select("*")
+      .order("fecha", { ascending: true });
+    if (error) {
+      console.error("Error cargando contactos:", error);
+      return;
+    }
+    contacts = data || [];
+  } catch (e) {
+    console.error("loadContactsFromDB error:", e);
+  }
+}
+
+async function loadClientsFromDB() {
+  const db = window.supabase;
+  if (!db) return;
+  try {
+    const { data, error } = await db
+      .from("commercial_clients")
+      .select("*")
+      .order("company", { ascending: true });
+    if (error) {
+      console.error("Error cargando clientes:", error);
+      return;
+    }
+    clients = data || [];
+  } catch (e) {
+    console.error("loadClientsFromDB error:", e);
+  }
+}
+
+// Guardar un contacto (insert o update según tenga id)
+async function saveContactToDB(contact) {
+  const db = window.supabase;
+  if (!db) return;
+
+  try {
+    if (!contact.id) {
+      // nuevo
+      const { data, error } = await db
+        .from("commercial_contacts")
+        .insert(contact)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      const { data, error } = await db
+        .from("commercial_contacts")
+        .update(contact)
+        .eq("id", contact.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+  } catch (e) {
+    console.error("saveContactToDB error:", e);
+    throw e;
+  }
+}
+
+async function deleteContactFromDB(id) {
+  const db = window.supabase;
+  if (!db) return;
+  try {
+    const { error } = await db
+      .from("commercial_contacts")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    console.error("deleteContactFromDB error:", e);
+    throw e;
+  }
+}
+
+// Guardar cliente en DB
+async function saveClientToDB(client) {
+  const db = window.supabase;
+  if (!db) return;
+
+  try {
+    if (!client.id) {
+      const { data, error } = await db
+        .from("commercial_clients")
+        .insert(client)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    } else {
+      const { data, error } = await db
+        .from("commercial_clients")
+        .update(client)
+        .eq("id", client.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    }
+  } catch (e) {
+    console.error("saveClientToDB error:", e);
+    throw e;
+  }
+}
+
+async function deleteClientFromDB(id) {
+  const db = window.supabase;
+  if (!db) return;
+  try {
+    const { error } = await db
+      .from("commercial_clients")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    console.error("deleteClientFromDB error:", e);
+    throw e;
+  }
+}
+
+// === INIT PRINCIPAL ===
+
+async function initApp() {
+  console.log("Init started");
+
+  // Siempre comenzamos mostrando sólo el login
+  showSection("login-screen");
+
+  // Fecha por defecto en el formulario de contacto
+  const fechaInput = document.getElementById("fecha");
+  if (fechaInput) fechaInput.valueAsDate = new Date();
+
+  // Cargar datos desde DB
+  await loadContactsFromDB();
+  await loadClientsFromDB();
+
+  // Restaurar sesión
+  await restoreSessionFromCookie();
+
+  // Setear nombre de usuario actual si hay
+  const currentUserSpan = document.getElementById("current-user");
+  if (currentUser && currentUserSpan) {
+    currentUserSpan.textContent = currentUser.name || currentUser.username;
+  }
+
+  // Si hay usuario logueado → mostrar app
+  if (currentUser) {
+    showSection("dashboard");
+    showSection("app-screen");
+    updateDashboard();
+    renderContactsList();
+    renderClientsList();
+  } else {
+    showSection("login-screen");
+  }
+
+  // Listeners (login, formularios...)
+  setupEventListeners();
+
+  console.log("Init complete");
+}
+/*****************************************************
+ *  BLOQUE 2 - LOGIN, PASSWORD, CONTACTOS
+ *****************************************************/
+
+// === LOGIN ===
 
 async function handleLogin(e) {
-  if (e && e.preventDefault) e.preventDefault();
-
-  const username = (document.getElementById("username")?.value || "").trim();
-  const password = (document.getElementById("password")?.value || "").trim();
-
-  if (!username || !password) {
-    showErrorMessage("login-error", "Completa usuario y contraseña.");
-    return;
-  }
-
+  e.preventDefault();
   const db = window.supabase;
   if (!db) {
-    alert("Servicio de autenticación no disponible.");
+    alert("Supabase no está disponible");
+    return;
+  }
+
+  const usernameInput = document.getElementById("username");
+  const passwordInput = document.getElementById("password");
+  const errorBox = document.getElementById("login-error");
+
+  const username = usernameInput ? usernameInput.value.trim() : "";
+  const password = passwordInput ? passwordInput.value.trim() : "";
+
+  if (!username || !password) {
+    if (errorBox) {
+      errorBox.textContent = "Completa usuario y contraseña";
+      errorBox.style.display = "block";
+    } else {
+      alert("Completa usuario y contraseña");
+    }
     return;
   }
 
   try {
-    // Query users table for username
-    const { data: userRow, error } = await db.from("users").select("*").eq("username", username).limit(1).single();
-    if (error || !userRow) {
-      showErrorMessage("login-error", "Credenciales incorrectas.");
+    const { data: userRows, error } = await db
+      .from("users")
+      .select("*")
+      .eq("username", username)
+      .eq("password", password)
+      .limit(1);
+
+    if (error || !userRows || userRows.length === 0) {
+      if (errorBox) {
+        errorBox.textContent = "Usuario o contraseña incorrectos";
+        errorBox.style.display = "block";
+      } else {
+        alert("Usuario o contraseña incorrectos");
+      }
       return;
     }
 
-    if (userRow.password !== password) {
-      showErrorMessage("login-error", "Credenciales incorrectas.");
-      return;
+    currentUser = userRows[0];
+
+    // Crear sesión
+    await createSession(currentUser);
+
+    // Mostrar nombre
+    const currentUserSpan = document.getElementById("current-user");
+    if (currentUserSpan) {
+      currentUserSpan.textContent = currentUser.name || currentUser.username;
     }
 
-    currentUser = { username: userRow.username, name: userRow.name || userRow.username, role: userRow.role || "vendedor" };
-    window.currentUser = currentUser;
-    // reflect in UI
-    const cu = document.getElementById("current-user");
-    if (cu) cu.textContent = currentUser.name || currentUser.username;
-
-    // create session token
-    const token = (crypto && crypto.randomUUID) ? crypto.randomUUID() : ("sess_" + Date.now() + "_" + Math.random().toString(36).slice(2,8));
-    setCookie("granja_session", token, 7);
-    try {
-      await db.from("sessions").upsert({ username: currentUser.username, token, created_at: new Date().toISOString() }, { onConflict: "token" });
-    } catch (err) {
-      console.warn("No se pudo crear session row en DB:", err);
-    }
-
-    // If first login flag set, show password change screen
-    if (userRow.firstLogin === true) {
+    // ¿primer login?
+    if (currentUser.first_login) {
       showSection("password-change-screen");
-      return;
+    } else {
+      showSection("dashboard");
+      showSection("app-screen");
+      updateDashboard();
+      renderContactsList();
+      renderClientsList();
     }
-
-    // Show app
-    showApp();
-    // Load data and render
-    await dbLoadAllData();
-    renderClientsList();
-    renderContactsList();
-    updateDashboard();
-    updateClientSelect();
-  } catch (err) {
-    console.error("handleLogin error:", err);
-    showErrorMessage("login-error", "Error al conectar con la base de datos.");
+  } catch (e) {
+    console.error("Error en login:", e);
+    if (errorBox) {
+      errorBox.textContent = "Error al conectar con la base de datos";
+      errorBox.style.display = "block";
+    } else {
+      alert("Error al conectar con la base de datos");
+    }
   }
 }
+
+// === CAMBIO DE CONTRASEÑA ===
 
 async function handlePasswordChange(e) {
-  if (e && e.preventDefault) e.preventDefault();
-  const newPwd = (document.getElementById("new-password")?.value || "").trim();
-  const newPwd2 = (document.getElementById("confirm-password")?.value || "").trim();
+  e.preventDefault();
+  const db = window.supabase;
+  if (!db || !currentUser) return;
 
-  if (!newPwd || newPwd.length < 6 || newPwd !== newPwd2) {
-    showErrorMessage("password-error", "Contraseñas no coinciden o son muy cortas.");
-    return;
-  }
+  const newPwdInput = document.getElementById("new-password");
+  const confirmInput = document.getElementById("confirm-password");
+  const errorBox = document.getElementById("password-error");
 
-  if (!currentUser || !currentUser.username) {
-    showErrorMessage("password-error", "No hay usuario activo.");
+  const newPwd = newPwdInput ? newPwdInput.value.trim() : "";
+  const confirmPwd = confirmInput ? confirmInput.value.trim() : "";
+
+  if (!newPwd || newPwd.length < 6 || newPwd !== confirmPwd) {
+    if (errorBox) {
+      errorBox.textContent = "Las contraseñas no coinciden o son muy cortas (mínimo 6 caracteres)";
+      errorBox.style.display = "block";
+    } else {
+      alert("Las contraseñas no coinciden o son muy cortas");
+    }
     return;
   }
 
   try {
-    if (window.supabase) {
-      await window.supabase.from("users").update({ password: newPwd, firstLogin: false }).eq("username", currentUser.username);
-    }
+    const { error } = await db
+      .from("users")
+      .update({
+        password: newPwd,
+        first_login: false
+      })
+      .eq("username", currentUser.username);
+
+    if (error) throw error;
+
+    // Forzar que en memoria ya no tenga first_login
+    currentUser.first_login = false;
+
+    // Ir al dashboard
+    showSection("app-screen");
     showSection("dashboard");
-    showSuccessMessage("password-success", 2000);
-  } catch (err) {
-    console.error("handlePasswordChange error:", err);
-    showErrorMessage("password-error", "Error actualizando contraseña.");
+    updateDashboard();
+    renderContactsList();
+    renderClientsList();
+  } catch (e) {
+    console.error("Error cambiando contraseña:", e);
+    if (errorBox) {
+      errorBox.textContent = "Error al cambiar la contraseña";
+      errorBox.style.display = "block";
+    } else {
+      alert("Error al cambiar la contraseña");
+    }
   }
 }
 
-async function logout() {
-const token = crypto.randomUUID();
+// === LOGOUT ===
 
-  eraseCookie("granja_session");
-  if (token && window.supabase) {
-    try {
-      await window.supabase.from("sessions").delete().eq("token", token);
-    } catch (err) {
-      console.warn("No se pudo borrar session en DB:", err);
-    }
-  }
+async function logout() {
+  await clearSession();
   currentUser = null;
-  window.currentUser = null;
-  const cu = document.getElementById("current-user");
-  if (cu) cu.textContent = "";
   showSection("login-screen");
 }
 
-/* =========================================================================
-   FORM HANDLING (contacts & clients)
-   ========================================================================= */
+// === EVENT LISTENERS GENERALES ===
 
-function setupContactFormValidation() {
+function setupEventListeners() {
+  // Login
+  const loginForm = document.getElementById("login-form");
+  if (loginForm) {
+    loginForm.addEventListener("submit", handleLogin);
+  }
+
+  // Cambio de contraseña
+  const pwdForm = document.getElementById("password-change-form");
+  if (pwdForm) {
+    pwdForm.addEventListener("submit", handlePasswordChange);
+  }
+
+  // Formulario de contacto
   const contactForm = document.getElementById("contact-form");
-  if (!contactForm) return;
+  if (contactForm) {
+    contactForm.addEventListener("submit", handleContactSubmit);
+  }
 
-  // Remove previous listeners safe
-  try { contactForm.removeEventListener("submit", window._contactFormHandler); } catch (e){}
+  // Formulario de cliente
+  const clientForm = document.getElementById("client-form");
+  if (clientForm) {
+    clientForm.addEventListener("submit", handleClientSubmit);
+  }
 
-  const handler = function(e) {
-    e.preventDefault();
-    // Validate product
-    const producto = (document.getElementById("Producto")?.value || "").trim();
-    if (!producto) {
-      showProductAlert();
-      return;
-    }
-    const formData = new FormData(contactForm);
-    const contact = {
-      id: Date.now(),
-      fecha: formData.get("fecha"),
-      vendedor: formData.get("vendedor"),
-      cliente: formData.get("cliente"),
-      empresa: formData.get("empresa"),
-      telefono: formData.get("telefono"),
-      email: formData.get("email"),
-      Producto: formData.get("Producto"),
-      estado: formData.get("estado"),
-      clienteDerivado: formData.get("cliente-derivado") || "",
-      motivo: formData.get("motivo"),
-      registradoPor: currentUser ? currentUser.username : null,
-      fechaRegistro: new Date().toISOString()
-    };
-    contacts.push(contact);
-    // Persist to DB
-    dbSaveAllData().catch(() => {});
-    showSuccessMessage("contact-success-message");
-    contactForm.reset();
-    const deriv = document.getElementById("derivacion-group");
-    if (deriv) deriv.style.display = "none";
-    updateDashboard();
-    renderContactsList();
-    updateProductSelect();
-  };
+  // Formularios de edición
+  const editContactForm = document.getElementById("edit-contact-form");
+  if (editContactForm) {
+    editContactForm.addEventListener("submit", handleEditContactSubmit);
+  }
 
-  contactForm.addEventListener("submit", handler);
-  // keep reference if we want to remove later
-  window._contactFormHandler = handler;
+  const editClientForm = document.getElementById("edit-client-form");
+  if (editClientForm) {
+    editClientForm.addEventListener("submit", handleEditClientSubmit);
+  }
 }
 
-function setupClientForm() {
-  const clientForm = document.getElementById("client-form");
-  if (!clientForm) return;
+// === CONTACTOS: ALTA ===
 
-  try { clientForm.removeEventListener("submit", window._clientFormHandler); } catch (e) {}
+async function handleContactSubmit(e) {
+  e.preventDefault();
+  if (!currentUser) {
+    alert("Sesión expirada, vuelve a iniciar sesión");
+    return;
+  }
 
-  const handler = function(e) {
-    e.preventDefault();
-    const fd = new FormData(clientForm);
-    const client = {
-      id: Date.now(),
-      name: fd.get("client-name"),
-      company: fd.get("client-company"),
-      phone: fd.get("client-phone"),
-      email: fd.get("client-email"),
-      address: fd.get("client-address"),
-      type: fd.get("client-type"),
-      status: fd.get("client-status"),
-      notes: fd.get("client-notes"),
-      coordinates: tempCoordinates || null,
-      registradoPor: currentUser ? currentUser.username : null,
-      fechaRegistro: new Date().toISOString()
-    };
-    clients.push(client);
-    dbSaveAllData().catch(() => {});
-    showSuccessMessage("client-success-message");
-    clientForm.reset();
-    tempCoordinates = null;
+  const form = e.target;
+  const formData = new FormData(form);
+
+  const contact = {
+    fecha: formData.get("fecha") || null,
+    vendedor: formData.get("vendedor") || "",
+    cliente: formData.get("cliente") || "",
+    empresa: formData.get("empresa") || "",
+    telefono: formData.get("telefono") || "",
+    email: formData.get("email") || "",
+    producto: formData.get("Producto") || "",
+    estado: formData.get("estado") || "",
+    cliente_derivado: formData.get("cliente-derivado") || "",
+    motivo: formData.get("motivo") || "",
+    registrado_por: currentUser.username,
+    fecha_registro: new Date().toISOString()
+  };
+
+  try {
+    const saved = await saveContactToDB(contact);
+    contacts.push(saved);
+    showMessage("contact-success-message");
+    form.reset();
+    const derivGroup = document.getElementById("derivacion-group");
+    if (derivGroup) derivGroup.style.display = "none";
+    updateDashboard();
+    renderContactsList();
+    updateClientSelectFromContacts();
+  } catch (e) {
+    console.error("Error guardando contacto:", e);
+    alert("Error guardando contacto");
+  }
+}
+
+// === CONTACTOS: LISTA Y FILTROS ===
+
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString("es-ES");
+}
+
+function renderContactsList(filtered = null) {
+  const tbody = document.getElementById("contacts-tbody");
+  if (!tbody) return;
+
+  const data = filtered || contacts;
+  tbody.innerHTML = "";
+
+  // Mostramos más recientes arriba
+  [...data].sort((a, b) => (a.fecha || "").localeCompare(b.fecha || "")).reverse().forEach(c => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${formatDate(c.fecha)}</td>
+      <td>${c.vendedor || ""}</td>
+      <td>${c.cliente || ""}</td>
+      <td>${c.empresa || ""}</td>
+      <td>${c.producto || ""}</td>
+      <td><span class="status-badge status-${(c.estado || "").toLowerCase().replace(/\s+/g, "-")}">${c.estado || "-"}</span></td>
+      <td>${c.cliente_derivado || "-"}</td>
+      <td>${c.motivo || "-"}</td>
+      <td class="actions-column">
+        <button class="btn-edit" onclick="editContact('${c.id}')">✏️</button>
+        <button class="btn-delete" onclick="deleteContact('${c.id}')">🗑️</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function filterContacts() {
+  const vendedorSel = document.getElementById("filter-vendedor");
+  const estadoSel = document.getElementById("filter-estado");
+  const desdeInput = document.getElementById("filter-fecha-desde");
+  const hastaInput = document.getElementById("filter-fecha-hasta");
+
+  const vendedor = vendedorSel ? vendedorSel.value : "";
+  const estado = estadoSel ? estadoSel.value : "";
+  const desde = desdeInput ? desdeInput.value : "";
+  const hasta = hastaInput ? hastaInput.value : "";
+
+  let filtered = [...contacts];
+
+  if (vendedor) {
+    filtered = filtered.filter(c => c.vendedor === vendedor);
+  }
+  if (estado) {
+    filtered = filtered.filter(c => c.estado === estado);
+  }
+  if (desde) {
+    filtered = filtered.filter(c => (c.fecha || "") >= desde);
+  }
+  if (hasta) {
+    filtered = filtered.filter(c => (c.fecha || "") <= hasta);
+  }
+
+  renderContactsList(filtered);
+}
+
+// === CONTACTOS: EDICIÓN / BORRADO ===
+
+function toggleDerivacion() {
+  const estadoSel = document.getElementById("estado");
+  const derivGroup = document.getElementById("derivacion-group");
+  if (!estadoSel || !derivGroup) return;
+
+  if (estadoSel.value === "Derivado") {
+    derivGroup.style.display = "block";
+  } else {
+    derivGroup.style.display = "none";
+  }
+}
+
+function toggleEditDerivacion() {
+  const estadoSel = document.getElementById("edit-estado");
+  const derivGroup = document.getElementById("edit-derivacion-group");
+  if (!estadoSel || !derivGroup) return;
+
+  if (estadoSel.value === "Derivado") {
+    derivGroup.style.display = "block";
+  } else {
+    derivGroup.style.display = "none";
+  }
+}
+
+function editContact(id) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+
+  showElement("edit-contact-modal");
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || "";
+  };
+
+  setVal("edit-contact-id", c.id);
+  setVal("edit-fecha", c.fecha);
+  setVal("edit-vendedor", c.vendedor);
+  setVal("edit-cliente", c.cliente);
+  setVal("edit-empresa", c.empresa);
+  setVal("edit-telefono", c.telefono);
+  setVal("edit-email", c.email);
+  setVal("edit-producto", c.producto);
+  setVal("edit-estado", c.estado);
+  setVal("edit-cliente-derivado", c.cliente_derivado);
+  setVal("edit-motivo", c.motivo);
+
+  toggleEditDerivacion();
+}
+
+function closeEditContactModal() {
+  hideElement("edit-contact-modal");
+}
+
+async function handleEditContactSubmit(e) {
+  e.preventDefault();
+  if (!currentUser) {
+    alert("Sesión expirada");
+    return;
+  }
+
+  const form = e.target;
+  const formData = new FormData(form);
+  const id = formData.get("edit-contact-id") || document.getElementById("edit-contact-id").value;
+
+  const old = contacts.find(c => c.id === id);
+  if (!old) return;
+
+  const updated = {
+    ...old,
+    fecha: formData.get("fecha"),
+    vendedor: formData.get("vendedor"),
+    cliente: formData.get("cliente"),
+    empresa: formData.get("empresa"),
+    telefono: formData.get("telefono"),
+    email: formData.get("email"),
+    producto: formData.get("producto") || formData.get("Producto") || old.producto,
+    estado: formData.get("estado"),
+    cliente_derivado: formData.get("cliente-derivado") || "",
+    motivo: formData.get("motivo") || "",
+    editado_por: currentUser.username,
+    fecha_edicion: new Date().toISOString()
+  };
+
+  try {
+    const saved = await saveContactToDB(updated);
+    const idx = contacts.findIndex(c => c.id === id);
+    if (idx !== -1) contacts[idx] = saved;
+    closeEditContactModal();
+    updateDashboard();
+    renderContactsList();
+  } catch (e) {
+    console.error("Error editando contacto:", e);
+    alert("Error guardando cambios");
+  }
+}
+
+async function deleteContact(id) {
+  if (!confirm("¿Estás seguro de eliminar este contacto?")) return;
+
+  try {
+    await deleteContactFromDB(id);
+    contacts = contacts.filter(c => c.id !== id);
+    updateDashboard();
+    renderContactsList();
+  } catch (e) {
+    console.error("Error borrando contacto:", e);
+    alert("Error borrando contacto");
+  }
+}
+/*****************************************************
+ *  BLOQUE 3 - CLIENTES, DASHBOARD, REPORTES, EXPORT
+ *****************************************************/
+
+// === CLIENTES: ALTA ===
+
+async function handleClientSubmit(e) {
+  e.preventDefault();
+  if (!currentUser) {
+    alert("Sesión expirada, vuelve a iniciar sesión");
+    return;
+  }
+
+  const form = e.target;
+  const formData = new FormData(form);
+
+  const client = {
+    name: formData.get("client-name") || "",
+    company: formData.get("client-company") || "",
+    phone: formData.get("client-phone") || "",
+    email: formData.get("client-email") || "",
+    address: formData.get("client-address") || "",
+    type: formData.get("client-type") || "",
+    status: formData.get("client-status") || "",
+    notes: formData.get("client-notes") || "",
+    registered_by: currentUser.username,
+    registered_at: new Date().toISOString(),
+    coordinates: null
+  };
+
+  try {
+    const saved = await saveClientToDB(client);
+    clients.push(saved);
+    showMessage("client-success-message");
+    form.reset();
     const coordDisp = document.getElementById("coordinates-display");
     if (coordDisp) coordDisp.textContent = "";
     updateDashboard();
     renderClientsList();
-    updateClientSelect();
-  };
-
-  clientForm.addEventListener("submit", handler);
-  window._clientFormHandler = handler;
+    updateClientSelectFromClients();
+  } catch (e) {
+    console.error("Error guardando cliente:", e);
+    alert("Error guardando cliente");
+  }
 }
 
-function setupEditContactFormValidation() {
-  const editContactForm = document.getElementById("edit-contact-form");
-  if (!editContactForm) return;
-  try { editContactForm.removeEventListener("submit", window._editContactHandler); } catch (e) {}
+// === CLIENTES: LISTA Y FILTROS ===
 
-  const handler = function(e) {
-    e.preventDefault();
-    const contactId = document.getElementById("edit-contact-id")?.value;
-    const idx = contacts.findIndex(c => c.id == contactId);
-    if (idx === -1) {
-      showErrorMessage("edit-contact-error", "Contacto no encontrado.");
-      return;
-    }
-    const fd = new FormData(editContactForm);
-    contacts[idx] = {
-      ...contacts[idx],
-      fecha: fd.get("fecha"),
-      vendedor: fd.get("vendedor"),
-      cliente: fd.get("cliente"),
-      empresa: fd.get("empresa"),
-      telefono: fd.get("telefono"),
-      email: fd.get("email"),
-      Producto: fd.get("Producto"),
-      estado: fd.get("estado"),
-      clienteDerivado: fd.get("cliente-derivado") || "",
-      motivo: fd.get("motivo"),
-      editadoPor: currentUser ? currentUser.username : null,
-      fechaEdicion: new Date().toISOString()
-    };
-    dbSaveAllData().catch(()=>{});
-    closeEditContactModal();
-    renderContactsList();
-    updateDashboard();
-    showSuccessMessage("contact-success-message");
-  };
-
-  editContactForm.addEventListener("submit", handler);
-  window._editContactHandler = handler;
-}
-
-function setupEditClientFormValidation() {
-  const editClientForm = document.getElementById("edit-client-form");
-  if (!editClientForm) return;
-  try { editClientForm.removeEventListener("submit", window._editClientHandler); } catch (e) {}
-
-  const handler = function(e) {
-    e.preventDefault();
-    const clientId = document.getElementById("edit-client-id")?.value;
-    const idx = clients.findIndex(c => c.id == clientId);
-    if (idx === -1) {
-      showErrorMessage("edit-client-error", "Cliente no encontrado.");
-      return;
-    }
-    const fd = new FormData(editClientForm);
-    clients[idx] = {
-      ...clients[idx],
-      name: fd.get("client-name"),
-      company: fd.get("client-company"),
-      phone: fd.get("client-phone"),
-      email: fd.get("client-email"),
-      address: fd.get("client-address"),
-      type: fd.get("client-type"),
-      status: fd.get("client-status"),
-      notes: fd.get("client-notes"),
-      coordinates: editTempCoordinates || clients[idx].coordinates || null,
-      editadoPor: currentUser ? currentUser.username : null,
-      fechaEdicion: new Date().toISOString()
-    };
-    dbSaveAllData().catch(()=>{});
-    closeEditClientModal();
-    renderClientsList();
-    updateDashboard();
-    showSuccessMessage("client-success-message");
-  };
-
-  editClientForm.addEventListener("submit", handler);
-  window._editClientHandler = handler;
-}
-
-/* =========================================================================
-   EDIT / DELETE / RENDER functions
-   ========================================================================= */
-
-function editContact(contactId) {
-  const contact = contacts.find(c => c.id == contactId);
-  if (!contact) return;
-  document.getElementById("edit-contact-id").value = contact.id;
-  document.getElementById("edit-fecha").value = contact.fecha || "";
-  document.getElementById("edit-vendedor").value = contact.vendedor || "";
-  document.getElementById("edit-cliente").value = contact.cliente || "";
-  document.getElementById("edit-empresa").value = contact.empresa || "";
-  document.getElementById("edit-telefono").value = contact.telefono || "";
-  document.getElementById("edit-email").value = contact.email || "";
-  // set product select if exists
-  const ep = document.getElementById("edit-Producto") || document.getElementById("edit-producto");
-  if (ep) ep.value = contact.Producto || "";
-  const est = document.getElementById("edit-estado");
-  if (est) est.value = contact.estado || "";
-  const der = document.getElementById("edit-cliente-derivado");
-  if (der) der.value = contact.clienteDerivado || "";
-  toggleEditDerivacion();
-  const modal = document.getElementById("edit-contact-modal");
-  if (modal) modal.style.display = "block";
-}
-
-function closeEditContactModal() {
-  const modal = document.getElementById("edit-contact-modal");
-  if (modal) modal.style.display = "none";
-}
-
-function deleteContact(contactId) {
-  if (!confirm("¿Seguro que querés eliminar este contacto?")) return;
-  contacts = contacts.filter(c => c.id != contactId);
-  dbDeleteContact(contactId).catch(()=>{});
-  dbSaveAllData().catch(()=>{});
-  renderContactsList();
-  updateDashboard();
-  showSuccessMessage("contact-success-message");
-}
-
-function editClient(clientId) {
-  const client = clients.find(c => c.id == clientId);
-  if (!client) return;
-  document.getElementById("edit-client-id").value = client.id;
-  document.getElementById("edit-client-name").value = client.name || "";
-  document.getElementById("edit-client-company").value = client.company || "";
-  document.getElementById("edit-client-phone").value = client.phone || "";
-  document.getElementById("edit-client-email").value = client.email || "";
-  document.getElementById("edit-client-address").value = client.address || "";
-  document.getElementById("edit-client-type").value = client.type || "";
-  document.getElementById("edit-client-status").value = client.status || "";
-  document.getElementById("edit-client-notes").value = client.notes || "";
-  editTempCoordinates = client.coordinates || null;
-  const ed = document.getElementById("edit-coordinates-display");
-  if (ed) ed.textContent = editTempCoordinates ? `Coordenadas: ${editTempCoordinates.lat}, ${editTempCoordinates.lng}` : "";
-  const modal = document.getElementById("edit-client-modal");
-  if (modal) modal.style.display = "block";
-}
-
-function closeEditClientModal() {
-  const modal = document.getElementById("edit-client-modal");
-  if (modal) modal.style.display = "none";
-  editTempCoordinates = null;
-  const ed = document.getElementById("edit-coordinates-display");
-  if (ed) ed.textContent = "";
-}
-
-function deleteClient(clientId) {
-  if (!confirm("¿Seguro que querés eliminar este cliente?")) return;
-  clients = clients.filter(c => c.id != clientId);
-  dbDeleteClient(clientId).catch(()=>{});
-  dbSaveAllData().catch(()=>{});
-  renderClientsList();
-  updateDashboard();
-  showSuccessMessage("client-success-message");
-}
-
-/* Renderers */
-function renderContactsList(filteredContacts = null) {
-  const tbody = document.getElementById("contacts-tbody");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-  const list = (filteredContacts || contacts).slice().reverse();
-  list.forEach(contact => {
-    const tr = document.createElement("tr");
-    const productoDisplay = contact.Producto || "Sin Producto";
-    tr.innerHTML = `
-      <td>${formatDate(contact.fecha)}</td>
-      <td>${contact.vendedor || ""}</td>
-      <td>${contact.cliente || ""}</td>
-      <td>${contact.empresa || "-"}</td>
-      <td><strong>${productoDisplay}</strong></td>
-      <td><span class="status-badge">${contact.estado || "-"}</span></td>
-      <td>${contact.clienteDerivado || "-"}</td>
-      <td>${contact.motivo || "-"}</td>
-      <td class="actions-column">
-        <button class="btn-edit" onclick="editContact(${contact.id})">✏️</button>
-        <button class="btn-delete" onclick="deleteContact(${contact.id})">🗑️</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function renderClientsList(filteredClients = null) {
+function renderClientsList(filtered = null) {
   const tbody = document.getElementById("clients-tbody");
   if (!tbody) return;
+
+  const data = filtered || clients;
   tbody.innerHTML = "";
-  const list = filteredClients || clients;
-  list.forEach(client => {
-    const referralsCount = contacts.filter(c => c.clienteDerivado === client.company).length;
+
+  data.forEach(c => {
+    // Conteo de derivaciones que llegan a este cliente
+    const derivCount = contacts.filter(x => x.cliente_derivado === c.company).length;
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${client.name}</td>
-      <td>${client.company}</td>
-      <td>${client.phone || "-"}</td>
-      <td>${client.email || "-"}</td>
-      <td>${client.address || "-"}</td>
-      <td>${client.type || "-"}</td>
-      <td>${client.status || "-"}</td>
-      <td><strong>${referralsCount}</strong></td>
+      <td>${c.name || ""}</td>
+      <td>${c.company || ""}</td>
+      <td>${c.phone || "-"}</td>
+      <td>${c.email || "-"}</td>
+      <td>${c.address || "-"}</td>
+      <td>${c.type || "-"}</td>
+      <td><span class="status-badge status-${(c.status || "").toLowerCase()}">${c.status || "-"}</span></td>
+      <td><strong>${derivCount}</strong></td>
       <td class="actions-column">
-        <button class="btn-edit" onclick="editClient(${client.id})">✏️</button>
-        <button class="btn-delete" onclick="deleteClient(${client.id})">🗑️</button>
+        <button class="btn-edit" onclick="editClient('${c.id}')">✏️</button>
+        <button class="btn-delete" onclick="deleteClient('${c.id}')">🗑️</button>
       </td>
     `;
     tbody.appendChild(tr);
   });
-}
-
-/* =========================================================================
-   FILTERS, DASHBOARD, REPORTS, PRODUCTS
-   ========================================================================= */
-
-function filterContacts() {
-  const vendedor = document.getElementById("filter-vendedor")?.value || "";
-  const estado = document.getElementById("filter-estado")?.value || "";
-  const desde = document.getElementById("filter-fecha-desde")?.value || "";
-  const hasta = document.getElementById("filter-fecha-hasta")?.value || "";
-  let filtered = contacts.slice();
-  if (vendedor) filtered = filtered.filter(c => c.vendedor === vendedor);
-  if (estado) filtered = filtered.filter(c => c.estado === estado);
-  if (desde) filtered = filtered.filter(c => (c.fecha || "") >= desde);
-  if (hasta) filtered = filtered.filter(c => (c.fecha || "") <= hasta);
-  renderContactsList(filtered);
 }
 
 function filterClients() {
-  const type = document.getElementById("filter-client-type")?.value || "";
-  const status = document.getElementById("filter-client-status")?.value || "";
-  let filtered = clients.slice();
+  const typeSel = document.getElementById("filter-client-type");
+  const statusSel = document.getElementById("filter-client-status");
+
+  const type = typeSel ? typeSel.value : "";
+  const status = statusSel ? statusSel.value : "";
+
+  let filtered = [...clients];
+
   if (type) filtered = filtered.filter(c => c.type === type);
   if (status) filtered = filtered.filter(c => c.status === status);
+
   renderClientsList(filtered);
 }
+
+// === CLIENTES: EDICIÓN / BORRADO ===
+
+function editClient(id) {
+  const c = clients.find(x => x.id === id);
+  if (!c) return;
+
+  showElement("edit-client-modal");
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || "";
+  };
+
+  setVal("edit-client-id", c.id);
+  setVal("edit-client-name", c.name);
+  setVal("edit-client-company", c.company);
+  setVal("edit-client-phone", c.phone);
+  setVal("edit-client-email", c.email);
+  setVal("edit-client-address", c.address);
+  setVal("edit-client-type", c.type);
+  setVal("edit-client-status", c.status);
+  setVal("edit-client-notes", c.notes);
+}
+
+function closeEditClientModal() {
+  hideElement("edit-client-modal");
+}
+
+async function handleEditClientSubmit(e) {
+  e.preventDefault();
+  if (!currentUser) {
+    alert("Sesión expirada");
+    return;
+  }
+
+  const form = e.target;
+  const formData = new FormData(form);
+  const id = formData.get("edit-client-id") || document.getElementById("edit-client-id").value;
+
+  const old = clients.find(c => c.id === id);
+  if (!old) return;
+
+  const updated = {
+    ...old,
+    name: formData.get("client-name") || old.name,
+    company: formData.get("client-company") || old.company,
+    phone: formData.get("client-phone") || old.phone,
+    email: formData.get("client-email") || old.email,
+    address: formData.get("client-address") || old.address,
+    type: formData.get("client-type") || old.type,
+    status: formData.get("client-status") || old.status,
+    notes: formData.get("client-notes") || old.notes
+  };
+
+  try {
+    const saved = await saveClientToDB(updated);
+    const idx = clients.findIndex(c => c.id === id);
+    if (idx !== -1) clients[idx] = saved;
+    closeEditClientModal();
+    updateDashboard();
+    renderClientsList();
+  } catch (e) {
+    console.error("Error editando cliente:", e);
+    alert("Error guardando cambios");
+  }
+}
+
+async function deleteClient(id) {
+  if (!confirm("¿Estás seguro de eliminar este cliente?")) return;
+
+  try {
+    await deleteClientFromDB(id);
+    clients = clients.filter(c => c.id !== id);
+    updateDashboard();
+    renderClientsList();
+  } catch (e) {
+    console.error("Error borrando cliente:", e);
+    alert("Error borrando cliente");
+  }
+}
+
+// === DASHBOARD ===
 
 function updateDashboard() {
   try {
     const totalContacts = contacts.length;
     const totalSales = contacts.filter(c => c.estado === "Vendido").length;
     const totalReferrals = contacts.filter(c => c.estado === "Derivado").length;
-    const conversionRate = totalContacts > 0 ? Math.round((totalSales / totalContacts) * 100) : 0;
+    const conversionRate = totalContacts ? Math.round((totalSales / totalContacts) * 100) : 0;
     const totalClients = clients.length;
     const activeClients = clients.filter(c => c.status === "Activo").length;
 
-    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
     setText("total-contacts", totalContacts);
     setText("total-sales", totalSales);
     setText("total-referrals", totalReferrals);
-    setText("conversion-rate", conversionRate + "%");
+    setText("conversion-rate", `${conversionRate}%`);
     setText("total-clients", totalClients);
     setText("active-clients", activeClients);
-    updateProductStats();
   } catch (e) {
     console.warn("updateDashboard error:", e);
   }
 }
 
-/* Reports & CSV exports */
-function downloadCSV(content, filename) {
-  const blob = new Blob(["\ufeff" + content], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-}
-function exportContacts() {
-  const rows = [["Fecha","Vendedor","Cliente","Empresa","Teléfono","Email","Producto","Estado","Derivado a","Motivo"]];
-  contacts.forEach(c => {
-    rows.push([c.fecha || "", c.vendedor || "", c.cliente || "", c.empresa || "", c.telefono || "", c.email || "", c.Producto || "", c.estado || "", c.clienteDerivado || "", c.motivo || ""]);
-  });
-  downloadCSV(rows.map(r => r.map(f => `"${(f||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n"), "contactos.csv");
-}
-function exportClients() {
-  const rows = [["Nombre","Empresa","Teléfono","Email","Dirección","Tipo","Estado","Notas"]];
-  clients.forEach(c => rows.push([c.name || "", c.company || "", c.phone || "", c.email || "", c.address || "", c.type || "", c.status || "", c.notes || ""]));
-  downloadCSV(rows.map(r => r.map(f => `"${(f||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n"), "clientes.csv");
-}
-function exportFullReport() {
-  const today = new Date().toISOString().split("T")[0];
-  let report = `INFORME COMERCIAL - ${today}\n\nTotal contactos: ${contacts.length}\nVentas: ${contacts.filter(c=>c.estado==="Vendido").length}\nDerivaciones: ${contacts.filter(c=>c.estado==="Derivado").length}\nClientes: ${clients.length}\n`;
-  const blob = new Blob([report], { type: "text/plain" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `informe-${today}.txt`;
-  link.click();
-}
+// === SELECT DE CLIENTES PARA DERIVACIÓN ===
 
-/* =========================================================================
-   PRODUCTS helpers (build select, stats)
-   ========================================================================= */
-
-const PRODUCTOS_DISPONIBLES = [
-  { id: "B1", name: "B1", category: "Sin Marca" },
-  { id: "B2", name: "B2", category: "Sin Marca" },
-  { id: "B3", name: "B3", category: "Sin Marca" },
-  { id: "Caja 180 B1", name: "Caja 180 B1", category: "Caja Grande" },
-  { id: "Caja 180 B2", name: "Caja 180 B2", category: "Caja Grande" },
-  { id: "Caja 180 B3", name: "Caja 180 B3", category: "Caja Grande" },
-  { id: "Caja 18 Docenas (x6)", name: "Caja 18 Docenas (x6)", category: "Caja Docenas" },
-  { id: "Caja 18 Docenas (x12)", name: "Caja 18 Docenas (x12)", category: "Caja Docenas" },
-  { id: "Estuche B2 x6 (Licitacion)", name: "Estuche B2 x6 (Licitacion)", category: "Licitación" },
-  { id: "Estuche B2 x12 (Licitacion)", name: "Estuche B2 x12 (Licitacion)", category: "Licitación" },
-  { id: "Pack 6 Maples B1", name: "Pack 6 Maples B1", category: "Pack Maples" },
-  { id: "Pack 6 Maples B2", name: "Pack 6 Maples B2", category: "Pack Maples" },
-  { id: "Pack 6 Maples B3", name: "Pack 6 Maples B3", category: "Pack Maples" }
-];
-
-function updateProductSelect() {
-  const productSelect = document.getElementById("Producto");
-  const editProductSelect = document.getElementById("edit-Producto") || document.getElementById("edit-producto");
-  if (productSelect) {
-    productSelect.innerHTML = '<option value="">Seleccionar Producto</option>';
-    const grouped = {};
-    PRODUCTOS_DISPONIBLES.forEach(p => { grouped[p.category] = grouped[p.category] || []; grouped[p.category].push(p); });
-    Object.keys(grouped).forEach(cat => {
-      const optg = document.createElement("optgroup");
-      optg.label = cat;
-      grouped[cat].forEach(p => {
-        const o = document.createElement("option");
-        o.value = p.name; o.textContent = p.name; optg.appendChild(o);
-      });
-      productSelect.appendChild(optg);
-    });
-  }
-  if (editProductSelect) {
-    editProductSelect.innerHTML = '<option value="">Seleccionar Producto</option>';
-    const grouped = {};
-    PRODUCTOS_DISPONIBLES.forEach(p => { grouped[p.category] = grouped[p.category] || []; grouped[p.category].push(p); });
-    Object.keys(grouped).forEach(cat => {
-      const optg = document.createElement("optgroup");
-      optg.label = cat;
-      grouped[cat].forEach(p => {
-        const o = document.createElement("option");
-        o.value = p.name; o.textContent = p.name; optg.appendChild(o);
-      });
-      editProductSelect.appendChild(optg);
-    });
-  }
-}
-
-function getProductStats() {
-  const total = contacts.filter(c=>c.Producto && c.Producto!=="").length;
-  const unique = [...new Set(contacts.map(c=>c.Producto).filter(Boolean))].length;
-  const counts = {};
-  contacts.forEach(c => { if (c.Producto) counts[c.Producto] = (counts[c.Producto]||0)+1; });
-  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0] || ["N/A",0];
-  return { total, unique, topProduct: { name: top[0], count: top[1] } };
-}
-function updateProductStats() {
-  const st = getProductStats();
-  const totalEl = document.getElementById("total-products-requested");
-  if (totalEl) totalEl.textContent = st.total;
-}
-
-/* =========================================================================
-   MAP & GEO helpers (defensive - won't break if Leaflet or geocoding missing)
-   ========================================================================= */
-
-async function initLeafletMap() {
-  try {
-    if (typeof L === "undefined") {
-      console.warn("Leaflet no está cargado todavía.");
-      return;
-    }
-    if (map) {
-      map.remove();
-      map = null;
-    }
-    map = L.map("map").setView([-34.6037, -58.3816], 10);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-    markersLayer = L.layerGroup().addTo(map);
-    await showAllClients();
-  } catch (err) {
-    console.error("initLeafletMap error:", err);
-  }
-}
-function initMap() { initLeafletMap().catch(()=>{}); }
-
-async function geocodeWithNominatim(address) {
-  // Minimal geocode: try fetch to nominatim. If blocked by CORS/local environment, return null.
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-    const res = await fetch(url, { headers: { "Accept": "application/json" }});
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data && data[0]) {
-      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-    }
-  } catch (e) {
-    // Could be CORS or network; ignore
-  }
-  return null;
-}
-
-async function showAllClients() {
-  if (!markersLayer) return;
-  markersLayer.clearLayers();
-  if (!clients || clients.length === 0) return;
-  let bounds = [];
-  let dataUpdated = false;
-  for (const c of clients) {
-    if (!c.coordinates && c.address) {
-      try {
-        const coords = await geocodeWithNominatim(c.address);
-        if (coords) { c.coordinates = coords; dataUpdated = true; }
-        await new Promise(r => setTimeout(r, 500));
-      } catch (e) {}
-    }
-    if (c.coordinates) {
-      const refCount = contacts.filter(ct => ct.clienteDerivado === c.company).length;
-      const color = c.status === "Inactivo" ? "#ff3333" : (c.status === "Prospecto" ? "#ffaa00" : "#3388ff");
-      const mk = L.circleMarker([c.coordinates.lat, c.coordinates.lng], { color, fillColor: color, fillOpacity: 0.8, radius: Math.max(6, 8 + refCount*2) });
-      mk.bindPopup(`<strong>${c.company}</strong><br>${c.name || ""}<br>${c.address || ""}`);
-      mk.addTo(markersLayer);
-      bounds.push([c.coordinates.lat, c.coordinates.lng]);
-    }
-  }
-  if (dataUpdated) dbSaveAllData().catch(()=>{});
-  if (bounds.length && map) {
-    try { map.fitBounds(bounds, { padding: [50,50] }); } catch(e){}
-  }
-}
-function showActiveClients() { if (!markersLayer) return; markersLayer.clearLayers(); clients.filter(c=>c.status==="Activo").forEach(c=>{ if (c.coordinates && markersLayer) { const mk = L.circleMarker([c.coordinates.lat, c.coordinates.lng]); mk.addTo(markersLayer); }}); }
-function showByType(type) { if (!markersLayer) return; markersLayer.clearLayers(); clients.filter(c=>c.type===type).forEach(c=>{ if (c.coordinates) { const mk = L.circleMarker([c.coordinates.lat, c.coordinates.lng]); mk.addTo(markersLayer); } }); }
-function showClientsOnMap() { showSection("map-section"); setTimeout(()=>{ if (!map) initMap(); }, 150); }
-
-/* =========================================================================
-   Misc helpers: toggles, messages, validation
-   ========================================================================= */
-
-function toggleDerivacion() {
-  const estado = document.getElementById("estado")?.value || "";
-  const group = document.getElementById("derivacion-group");
-  if (group) group.style.display = (estado === "Derivado" ? "block" : "none");
-}
-function toggleEditDerivacion() {
-  const estado = document.getElementById("edit-estado")?.value || "";
-  const group = document.getElementById("edit-derivacion-group");
-  if (group) group.style.display = (estado === "Derivado" ? "block" : "none");
-}
-
-function showSuccessMessage(id, timeout = 2500) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display = "block";
-  setTimeout(()=> { el.style.display = "none"; }, timeout);
-}
-function showErrorMessage(id, text, timeout = 4000) {
-  const el = document.getElementById(id);
-  if (!el) {
-    // fallback: alerta
-    console.warn("Error:", text);
-    return;
-  }
-  el.textContent = text;
-  el.style.display = "block";
-  setTimeout(()=> { el.style.display = "none"; }, timeout);
-}
-
-function formatDate(d) {
-  if (!d) return "-";
-  try { const dt = new Date(d); return dt.toLocaleDateString("es-ES"); } catch(e) { return d; }
-}
-
-/* =========================================================================
-   Product alert modal (simple)
-   ========================================================================= */
-
-function showProductAlert() {
-  let modal = document.getElementById("product-alert-modal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "product-alert-modal";
-    modal.style = "position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:9999";
-    modal.innerHTML = `<div style="background:#fff;padding:20px;border-radius:10px;max-width:400px;text-align:center">
-      <h3>Producto requerido</h3><p>Debe seleccionar un producto antes de continuar.</p>
-      <button id="product-alert-ok">Aceptar</button>
-    </div>`;
-    document.body.appendChild(modal);
-    document.getElementById("product-alert-ok").addEventListener("click", ()=>{ modal.style.display = "none"; });
-  }
-  modal.style.display = "flex";
-}
-
-/* =========================================================================
-   Helper to update cliente-derivado selects
-   ========================================================================= */
-
-function updateClientSelect() {
+function updateClientSelectFromClients() {
   const sel = document.getElementById("cliente-derivado");
   const editSel = document.getElementById("edit-cliente-derivado");
+  if (!sel && !editSel) return;
+
   const companies = [...new Set(clients.map(c => c.company).filter(Boolean))].sort();
-  if (sel) {
-    sel.innerHTML = `<option value="">Seleccionar cliente</option>`;
-    companies.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; sel.appendChild(o); });
+  const fill = (select) => {
+    if (!select) return;
+    select.innerHTML = `<option value="">Seleccionar cliente</option>`;
+    companies.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
+  };
+
+  fill(sel);
+  fill(editSel);
+}
+
+function updateClientSelectFromContacts() {
+  // Podría usarse para alimentar algo si hace falta; ahora mismo no estrictamente necesario.
+}
+
+// === REPORTES (VERSIÓN RESUMIDA) ===
+
+function generateReports() {
+  generateSalesReport();
+  generateStatusReport();
+  generateTopReferralsReport();
+  generateTimelineReport();
+  generateReferralsReport();
+}
+
+// Ventas por vendedor
+function generateSalesReport() {
+  const container = document.getElementById("sales-report");
+  if (!container) return;
+
+  const vendedores = [
+    "Juan Larrondo",
+    "Andrés Iñiguez",
+    "Eduardo Schiavi",
+    "Gabriel Caffarello",
+    "Natalia Montero"
+  ];
+
+  const salesData = vendedores.map(v => ({
+    name: v,
+    count: contacts.filter(c => c.vendedor === v && c.estado === "Vendido").length
+  }));
+
+  const max = Math.max(...salesData.map(d => d.count), 1);
+
+  container.innerHTML = salesData.map(item => `
+    <div class="chart-bar">
+      <div class="chart-label">${item.name}</div>
+      <div class="chart-value" style="width: ${Math.max((item.count / max) * 100, 5)}%">
+        ${item.count} ventas
+      </div>
+    </div>
+  `).join("");
+}
+
+// Resumen de estados
+function generateStatusReport() {
+  const container = document.getElementById("status-report");
+  if (!container) return;
+
+  const vendidos = contacts.filter(c => c.estado === "Vendido").length;
+  const noVendidos = contacts.filter(c => c.estado === "No Vendido").length;
+  const derivados = contacts.filter(c => c.estado === "Derivado").length;
+
+  container.innerHTML = `
+    <div class="status-item status-vendido">
+      <span class="status-number">${vendidos}</span>
+      <span>Vendidos</span>
+    </div>
+    <div class="status-item status-no-vendido">
+      <span class="status-number">${noVendidos}</span>
+      <span>No Vendidos</span>
+    </div>
+    <div class="status-item status-derivado">
+      <span class="status-number">${derivados}</span>
+      <span>Derivados</span>
+    </div>
+  `;
+}
+
+// Top derivaciones
+function generateTopReferralsReport() {
+  const container = document.getElementById("referrals-report");
+  if (!container) return;
+
+  const counts = {};
+  contacts
+    .filter(c => c.estado === "Derivado" && c.cliente_derivado)
+    .forEach(c => {
+      counts[c.cliente_derivado] = (counts[c.cliente_derivado] || 0) + 1;
+    });
+
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  if (!sorted.length) {
+    container.innerHTML = `<p style="text-align:center;color:#666;">No hay derivaciones registradas</p>`;
+    return;
   }
-  if (editSel) {
-    editSel.innerHTML = `<option value="">Seleccionar cliente</option>`;
-    companies.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; editSel.appendChild(o); });
+
+  container.innerHTML = sorted.map(([name, count], idx) => `
+    <div class="ranking-item">
+      <span class="ranking-position">#${idx + 1}</span>
+      <span class="ranking-name">${name}</span>
+      <span class="ranking-value">${count}</span>
+    </div>
+  `).join("");
+}
+
+// Evolución mensual simple
+function generateTimelineReport() {
+  const container = document.getElementById("timeline-report");
+  if (!container) return;
+
+  const monthly = {};
+  contacts.forEach(c => {
+    if (!c.fecha) return;
+    const month = c.fecha.substring(0, 7);
+    if (!monthly[month]) monthly[month] = { total: 0, vendidos: 0, derivados: 0 };
+    monthly[month].total++;
+    if (c.estado === "Vendido") monthly[month].vendidos++;
+    if (c.estado === "Derivado") monthly[month].derivados++;
+  });
+
+  const months = Object.keys(monthly).sort().slice(-6);
+  if (!months.length) {
+    container.innerHTML = `<p style="text-align:center;color:#666;">No hay datos temporales</p>`;
+    return;
+  }
+
+  container.innerHTML = months.map(m => {
+    const d = monthly[m];
+    const label = new Date(m + "-01").toLocaleDateString("es-ES", { month: "short", year: "numeric" });
+    return `
+      <div class="timeline-item">
+        <span class="timeline-month">${label}</span>
+        <div class="timeline-stats">
+          <span class="timeline-stat stat-total">${d.total} total</span>
+          <span class="timeline-stat stat-ventas">${d.vendidos} ventas</span>
+          <span class="timeline-stat stat-derivaciones">${d.derivados} deriv.</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// Informe detallado de derivaciones
+function generateReferralsReport() {
+  const tbody = document.getElementById("referrals-tbody");
+  if (!tbody) return;
+
+  const stats = {};
+  const todayMonth = new Date().toISOString().slice(0, 7);
+
+  contacts
+    .filter(c => c.estado === "Derivado" && c.cliente_derivado)
+    .forEach(c => {
+      const name = c.cliente_derivado;
+      if (!stats[name]) {
+        stats[name] = {
+          total: 0,
+          thisMonth: 0,
+          lastContact: null,
+          sellers: {}
+        };
+      }
+      stats[name].total++;
+      if ((c.fecha || "").slice(0, 7) === todayMonth) stats[name].thisMonth++;
+      if (!stats[name].lastContact || (c.fecha || "") > stats[name].lastContact) {
+        stats[name].lastContact = c.fecha;
+      }
+      if (!stats[name].sellers[c.vendedor]) stats[name].sellers[c.vendedor] = 0;
+      stats[name].sellers[c.vendedor]++;
+    });
+
+  const rows = Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
+
+  tbody.innerHTML = "";
+  rows.forEach(([clientName, data]) => {
+    const bestSeller =
+      Object.entries(data.sellers).sort((a, b) => b[1] - a[1])[0] || null;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${clientName}</strong></td>
+      <td>${data.total}</td>
+      <td>${data.thisMonth}</td>
+      <td>${formatDate(data.lastContact)}</td>
+      <td>${bestSeller ? `${bestSeller[0]} (${bestSeller[1]})` : "-"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// === EXPORTACIONES ===
+
+function downloadTextFile(content, filename, mime = "text/plain") {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportContacts() {
+  const header = [
+    "Fecha",
+    "Vendedor",
+    "Cliente",
+    "Empresa",
+    "Teléfono",
+    "Email",
+    "Producto",
+    "Estado",
+    "Derivado a",
+    "Motivo"
+  ];
+
+  const rows = contacts.map(c => [
+    c.fecha || "",
+    c.vendedor || "",
+    c.cliente || "",
+    c.empresa || "",
+    c.telefono || "",
+    c.email || "",
+    c.producto || "",
+    c.estado || "",
+    c.cliente_derivado || "",
+    c.motivo || ""
+  ]);
+
+  const csvLines = [header, ...rows].map(cols =>
+    cols
+      .map(v => `"${(v || "").toString().replace(/"/g, '""')}"`)
+      .join(",")
+  );
+
+  const csv = "\uFEFF" + csvLines.join("\n");
+  downloadTextFile(csv, "contactos.csv", "text/csv;charset=utf-8");
+}
+
+function exportClients() {
+  const header = [
+    "Nombre",
+    "Empresa",
+    "Teléfono",
+    "Email",
+    "Dirección",
+    "Tipo",
+    "Estado",
+    "Derivaciones Recibidas",
+    "Notas"
+  ];
+
+  const rows = clients.map(c => {
+    const derivs = contacts.filter(x => x.cliente_derivado === c.company).length;
+    return [
+      c.name || "",
+      c.company || "",
+      c.phone || "",
+      c.email || "",
+      c.address || "",
+      c.type || "",
+      c.status || "",
+      derivs,
+      c.notes || ""
+    ];
+  });
+
+  const csvLines = [header, ...rows].map(cols =>
+    cols
+      .map(v => `"${(v || "").toString().replace(/"/g, '""')}"`)
+      .join(",")
+  );
+
+  const csv = "\uFEFF" + csvLines.join("\n");
+  downloadTextFile(csv, "clientes.csv", "text/csv;charset=utf-8");
+}
+
+function exportFullReport() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  let report = "";
+  report += `INFORME COMERCIAL COMPLETO - ${today}\n\n`;
+  report += `ESTADÍSTICAS GENERALES:\n`;
+  report += `Total de contactos: ${contacts.length}\n`;
+  report += `Ventas realizadas: ${contacts.filter(c => c.estado === "Vendido").length}\n`;
+  report += `Derivaciones: ${contacts.filter(c => c.estado === "Derivado").length}\n`;
+  report += `Clientes registrados: ${clients.length}\n\n`;
+
+  const counts = {};
+  contacts
+    .filter(c => c.estado === "Derivado" && c.cliente_derivado)
+    .forEach(c => {
+      counts[c.cliente_derivado] = (counts[c.cliente_derivado] || 0) + 1;
+    });
+
+  report += `TOP CLIENTES POR DERIVACIONES:\n`;
+  Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .forEach(([name, count], idx) => {
+      report += `${idx + 1}. ${name}: ${count} derivaciones\n`;
+    });
+
+  downloadTextFile(report, "informe-completo.txt", "text/plain;charset=utf-8");
+}
+/*****************************************************
+ *  BLOQUE 4 - MAPA, STUBS, GLOBAL, DOM READY
+ *****************************************************/
+
+// === MAPA (STUBS SIMPLES) ===
+// Si tenés Leaflet cargado, podés implementarlo completo.
+// Por ahora dejo stubs para que no rompa nada.
+
+let map = null;
+let markersLayer = null;
+
+function initMap() {
+  // Si no hay Leaflet, no hacemos nada
+  if (typeof L === "undefined") {
+    console.warn("Leaflet no está cargado. El mapa no se renderizará.");
+    return;
+  }
+
+  const mapDiv = document.getElementById("map");
+  if (!mapDiv) return;
+
+  if (map) {
+    map.remove();
+    map = null;
+  }
+
+  map = L.map("map").setView([-34.6037, -58.3816], 10);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution:
+      '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+
+  markersLayer = L.layerGroup().addTo(map);
+  showAllClients();
+}
+
+function showAllClients() {
+  if (!map || !markersLayer) return;
+  markersLayer.clearLayers();
+
+  const bounds = [];
+
+  clients.forEach(c => {
+    if (!c.coordinates || !c.coordinates.lat || !c.coordinates.lng) return;
+    const lat = c.coordinates.lat;
+    const lng = c.coordinates.lng;
+
+    const marker = L.circleMarker([lat, lng]).addTo(markersLayer);
+    marker.bindPopup(`
+      <div>
+        <strong>${c.company || ""}</strong><br />
+        ${c.name || ""}<br />
+        ${c.address || ""}<br />
+        ${c.type || ""} - ${c.status || ""}
+      </div>
+    `);
+    bounds.push([lat, lng]);
+  });
+
+  if (bounds.length) {
+    map.fitBounds(bounds, { padding: [40, 40] });
   }
 }
 
-/* =========================================================================
-   Lightweight geolocation helpers for forms
-   ========================================================================= */
+function showActiveClients() {
+  if (!map || !markersLayer) return;
+  markersLayer.clearLayers();
+  const bounds = [];
+  clients
+    .filter(c => c.status === "Activo")
+    .forEach(c => {
+      if (!c.coordinates || !c.coordinates.lat || !c.coordinates.lng) return;
+      const marker = L.circleMarker([c.coordinates.lat, c.coordinates.lng]).addTo(markersLayer);
+      marker.bindPopup(`<strong>${c.company || ""}</strong>`);
+      bounds.push([c.coordinates.lat, c.coordinates.lng]);
+    });
+  if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+}
+
+function showByType(type) {
+  if (!map || !markersLayer) return;
+  markersLayer.clearLayers();
+  const bounds = [];
+  clients
+    .filter(c => c.type === type)
+    .forEach(c => {
+      if (!c.coordinates || !c.coordinates.lat || !c.coordinates.lng) return;
+      const marker = L.circleMarker([c.coordinates.lat, c.coordinates.lng]).addTo(markersLayer);
+      marker.bindPopup(`<strong>${c.company || ""}</strong>`);
+      bounds.push([c.coordinates.lat, c.coordinates.lng]);
+    });
+  if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+}
+
+function showClientsOnMap() {
+  showSection("map-section");
+  initMap();
+}
+
+// === GEOLOCALIZACIÓN STUBS ===
 
 function geocodeCurrentAddress() {
-  const addr = document.getElementById("client-address")?.value || "";
-  if (!addr) { alert("Ingresa una dirección"); return; }
-  geocodeWithNominatim(addr).then(coords => {
-    if (!coords) { alert("No se pudieron obtener coordenadas (posible CORS o límite)."); return; }
-    tempCoordinates = coords;
-    const disp = document.getElementById("coordinates-display");
-    if (disp) disp.textContent = `Coordenadas: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
-  });
+  alert("Geocodificación no implementada en esta versión. (stub geocodeCurrentAddress)");
 }
+
 function geocodeCurrentAddressEdit() {
-  const addr = document.getElementById("edit-client-address")?.value || "";
-  if (!addr) { alert("Ingresa una dirección"); return; }
-  geocodeWithNominatim(addr).then(coords => {
-    if (!coords) { alert("No se pudieron obtener coordenadas (posible CORS o límite)."); return; }
-    editTempCoordinates = coords;
-    const disp = document.getElementById("edit-coordinates-display");
-    if (disp) disp.textContent = `Coordenadas: ${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
-  });
+  alert("Geocodificación no implementada en esta versión. (stub geocodeCurrentAddressEdit)");
 }
+
 function getCurrentLocationEdit() {
-  if (!navigator.geolocation) { alert("Geolocalización no soportada"); return; }
-  navigator.geolocation.getCurrentPosition(pos => {
-    editTempCoordinates = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    const disp = document.getElementById("edit-coordinates-display");
-    if (disp) disp.textContent = `Coordenadas: ${editTempCoordinates.lat.toFixed(6)}, ${editTempCoordinates.lng.toFixed(6)}`;
-  }, err => { alert("No se pudo obtener ubicación: " + err.message); });
+  alert("Geolocalización no implementada en esta versión. (stub getCurrentLocationEdit)");
 }
 
-/* =========================================================================
-   INIT / Event Listeners / Expose Globals
-   ========================================================================= */
-
-function loadContacts() { renderContactsList(); }
-function loadClients() { renderClientsList(); }
-
-async function init() {
-  if (window.__initialized_app) return;
-  window.__initialized_app = true;
-  // hide app until loaded
-  const app = document.getElementById("app-screen");
-  if (app) app.style.display = "none";
-
-  // setup listeners for nav forms and buttons that we can attach to
-  // Login form
-  const loginForm = document.getElementById("login-form");
-  if (loginForm) loginForm.addEventListener("submit", handleLogin);
-  // Password change form
-  const pwdForm = document.getElementById("password-change-form");
-  if (pwdForm) pwdForm.addEventListener("submit", handlePasswordChange);
-  // Logout button (if present)
-  try { document.querySelectorAll(".logout-btn").forEach(b => b.addEventListener("click", logout)); } catch(e){}
-
-  // Attach inline toggles
-  const estadoEl = document.getElementById("estado");
-  if (estadoEl) estadoEl.addEventListener("change", toggleDerivacion);
-  const editEstadoEl = document.getElementById("edit-estado");
-  if (editEstadoEl) editEstadoEl.addEventListener("change", toggleEditDerivacion);
-
-  // Setup form handlers
-  setupContactFormValidation();
-  setupClientForm();
-  setupEditContactFormValidation();
-  setupEditClientFormValidation();
-
-  // Load DB data
-  await dbLoadAllData().catch(()=>{});
-  // Restore session
-  await restoreSessionFromCookie().catch(()=>{});
-
-  // Reflect restored user in UI
-  if (currentUser) {
-    const cu = document.getElementById("current-user");
-    if (cu) cu.textContent = currentUser.name || currentUser.username;
-    showSection("dashboard");
-  } else {
-    showSection("login-screen");
-  }
-
-  // Initial render
-  renderContactsList();
-  renderClientsList();
-  updateDashboard();
-  updateClientSelect();
-  updateProductSelect();
-  console.log("Init complete");
-}
-
-// Attach to DOMContentLoaded
-document.addEventListener("DOMContentLoaded", () => {
-  init().catch(err => console.error("init error:", err));
-});
-
-/* =========================================================================
-   Expose functions globally for inline usage in HTML (onclicks)
-   ========================================================================= */
+// === EXPOSICIÓN GLOBAL (window) ===
 
 window.showSection = showSection;
-window.showApp = function() { showSection("dashboard"); updateDashboard(); };
-window.showLogin = function() { showSection("login-screen"); };
 window.logout = logout;
+
 window.handleLogin = handleLogin;
 window.handlePasswordChange = handlePasswordChange;
-window.loadContacts = loadContacts;
-window.loadClients = loadClients;
+window.handleContactSubmit = handleContactSubmit;
+window.handleClientSubmit = handleClientSubmit;
+window.handleEditContactSubmit = handleEditContactSubmit;
+window.handleEditClientSubmit = handleEditClientSubmit;
+
+window.filterContacts = filterContacts;
+window.filterClients = filterClients;
+
 window.editContact = editContact;
 window.deleteContact = deleteContact;
+window.closeEditContactModal = closeEditContactModal;
+
 window.editClient = editClient;
 window.deleteClient = deleteClient;
-window.closeEditContactModal = closeEditContactModal;
 window.closeEditClientModal = closeEditClientModal;
+
+window.exportContacts = exportContacts;
+window.exportClients = exportClients;
+window.exportFullReport = exportFullReport;
+
 window.showClientsOnMap = showClientsOnMap;
 window.showAllClients = showAllClients;
 window.showActiveClients = showActiveClients;
 window.showByType = showByType;
-window.exportContacts = exportContacts;
-window.exportClients = exportClients;
-window.exportFullReport = exportFullReport;
-window.filterContacts = filterContacts;
-window.filterClients = filterClients;
-window.filterContactsByProduct = function() {
-  const sel = document.getElementById("filter-product");
-  if (!sel) return;
-  const val = sel.value;
-  if (!val) { renderContactsList(); return; }
-  renderContactsList(contacts.filter(c => c.Producto === val));
-};
-// Keep aliases expected in older versions
-window.handleContactSubmit = function() { document.getElementById("contact-form")?.dispatchEvent(new Event("submit", { cancelable: true })); };
-window.handleClientSubmit = function() { document.getElementById("client-form")?.dispatchEvent(new Event("submit", { cancelable: true })); };
 
-/* =========================================================================
-   End of script.js
-   ========================================================================= */
+window.toggleDerivacion = toggleDerivacion;
+window.toggleEditDerivacion = toggleEditDerivacion;
+
+window.geocodeCurrentAddress = geocodeCurrentAddress;
+window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
+window.getCurrentLocationEdit = getCurrentLocationEdit;
+
+// === DOM READY ===
+
+document.addEventListener("DOMContentLoaded", () => {
+  initApp().catch(err => console.error("initApp error:", err));
+});
