@@ -326,10 +326,10 @@ async function saveClientToDB(client) {
         fechaRegistro: new Date().toISOString()
       })
       .eq("id", client.id)
-      .select(); // usa select() sin pasar "*" explícitamente
+      .select("*"); // 👈 notación sin coerción
 
     if (error) throw error;
-    if (!data || !data.length) throw new Error("No se actualizó ningún registro");
+    if (!data?.length) throw new Error("No se actualizó ningún registro.");
 
     console.log("Cliente actualizado:", data[0]);
     return data[0];
@@ -338,6 +338,7 @@ async function saveClientToDB(client) {
     throw e;
   }
 }
+
 
 
 async function deleteClientFromDB(id) {
