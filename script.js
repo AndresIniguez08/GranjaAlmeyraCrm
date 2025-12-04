@@ -302,7 +302,8 @@ async function handlePasswordChange(e) {
 }
 
 async function logout() {
-  const token = getCookie("granja_session");
+const token = crypto.randomUUID();
+
   eraseCookie("granja_session");
   if (token && window.supabase) {
     try {
