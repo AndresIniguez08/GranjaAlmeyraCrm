@@ -10,14 +10,14 @@ const SUPABASE_ANON_KEY =
 // === CLIENTE SUPABASE GLOBAL ===
 (function initSupabaseClient() {
   try {
-    // Si ya lo creaste en el HTML, no lo pisa.
+    // Si ya existe window.supabase (creado en el HTML) lo respetamos
     if (window.supabase && typeof window.supabase.from === "function") {
-      console.log("✅ Supabase ya inicializado desde el HTML");
+      console.log("✅ Supabase ya estaba inicializado desde el HTML");
       return;
     }
     if (typeof supabase !== "undefined" && supabase.createClient) {
       window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log("✅ Supabase inicializado correctamente (script.js)");
+      console.log("✅ Supabase inicializado correctamente (desde script.js)");
     } else {
       console.error("❌ No se encontró el script de Supabase en el HTML");
     }
@@ -51,23 +51,12 @@ let clients = [];
 // === UTILIDADES DE UI ===
 function showElement(id) {
   const el = document.getElementById(id);
-  if (el) el.style.display = "";
+  // 🔴 IMPORTANTE: usar "block" para que se vean aunque .section tenga display:none en CSS
+  if (el) el.style.display = "block";
 }
 function hideElement(id) {
   const el = document.getElementById(id);
   if (el) el.style.display = "none";
-}
-
-// Mensajes de éxito (contacto/cliente)
-function showMessage(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display = "block";
-  el.classList.add("visible");
-  setTimeout(() => {
-    el.style.display = "none";
-    el.classList.remove("visible");
-  }, 2500);
 }
 
 // === CONTROL DE PANTALLAS ===
@@ -75,9 +64,17 @@ function showSection(sectionId) {
   const screens = ["login-screen", "password-change-screen", "app-screen"];
   screens.forEach((id) => hideElement(id));
 
+  // Si es una de las pantallas principales
   if (screens.includes(sectionId)) {
     const el = document.getElementById(sectionId);
-    if (el) el.style.display = sectionId === "app-screen" ? "block" : "flex";
+    if (el) {
+      if (sectionId === "app-screen") {
+        el.style.display = "block";
+      } else {
+        // login y cambio de contraseña usan flex
+        el.style.display = "flex";
+      }
+    }
     return;
   }
 
@@ -101,10 +98,8 @@ function showSection(sectionId) {
 
   if (realId === "reports" && typeof generateReports === "function")
     generateReports();
-
-  if (realId === "map-section" && typeof initLeafletMap === "function") {
+  if (realId === "map-section" && typeof initLeafletMap === "function")
     setTimeout(initLeafletMap, 300);
-  }
 }
 
 // === SESIONES ===
@@ -119,19 +114,12 @@ async function createSession(user) {
     console.error("createSession error:", e);
   }
 }
-
 async function clearSession() {
   const token = getCookie("granja_session");
   eraseCookie("granja_session");
-  if (token) {
-    try {
-      await window.supabase.from("sessions").delete().eq("token", token);
-    } catch (e) {
-      console.error("clearSession error:", e);
-    }
-  }
+  if (token)
+    await window.supabase.from("sessions").delete().eq("token", token);
 }
-
 async function restoreSessionFromCookie() {
   const token = getCookie("granja_session");
   if (!token) return;
@@ -198,14 +186,14 @@ async function initApp() {
   if (currentUser) {
     showSection("dashboard");
     showSection("app-screen");
-    updateDashboard();
-    renderContactsList();
-    renderClientsList();
+    if (typeof updateDashboard === "function") updateDashboard();
+    if (typeof renderContactsList === "function") renderContactsList();
+    if (typeof renderClientsList === "function") renderClientsList();
   } else {
     showSection("login-screen");
   }
 
-  setupEventListeners();
+  if (typeof setupEventListeners === "function") setupEventListeners();
   console.log("✅ Init complete");
 }
 
@@ -214,7 +202,6 @@ async function initApp() {
  *****************************************************/
 
 // === LOGIN ===
-
 async function handleLogin(e) {
   e.preventDefault();
   const db = window.supabase;
@@ -260,18 +247,21 @@ async function handleLogin(e) {
 
     currentUser = userRows[0];
 
+    // Crear sesión
     await createSession(currentUser);
 
+    // Mostrar nombre
     const currentUserSpan = document.getElementById("current-user");
     if (currentUserSpan) {
       currentUserSpan.textContent = currentUser.name || currentUser.username;
     }
 
+    // ¿primer login?
     if (currentUser.first_login) {
       showSection("password-change-screen");
     } else {
-      showSection("dashboard");
       showSection("app-screen");
+      showSection("dashboard");
       updateDashboard();
       renderContactsList();
       renderClientsList();
@@ -288,7 +278,6 @@ async function handleLogin(e) {
 }
 
 // === CAMBIO DE CONTRASEÑA ===
-
 async function handlePasswordChange(e) {
   e.preventDefault();
   const db = window.supabase;
@@ -342,7 +331,6 @@ async function handlePasswordChange(e) {
 }
 
 // === LOGOUT ===
-
 async function logout() {
   await clearSession();
   currentUser = null;
@@ -350,7 +338,6 @@ async function logout() {
 }
 
 // === EVENT LISTENERS GENERALES ===
-
 function setupEventListeners() {
   const loginForm = document.getElementById("login-form");
   if (loginForm) {
@@ -384,39 +371,6 @@ function setupEventListeners() {
 }
 
 // === CONTACTOS: ALTA ===
-
-async function saveContactToDB(contact) {
-  try {
-    const safe = {
-      fecha: contact.fecha || null,
-      vendedor: contact.vendedor || "",
-      cliente: contact.cliente || "",
-      empresa: contact.empresa || "",
-      telefono: contact.telefono || "",
-      email: contact.email || "",
-      producto: contact.producto || "",
-      estado: contact.estado || "",
-      cliente_derivado: contact.cliente_derivado || "",
-      motivo: contact.motivo || "",
-      registrado_por: contact.registrado_por || "",
-      fecha_registro: contact.fecha_registro || new Date().toISOString(),
-    };
-
-    const { data, error } = await window.supabase
-      .from("commercial_contacts")
-      .insert(safe)
-      .select("*")
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) throw new Error("No se devolvieron datos al guardar contacto");
-    return data;
-  } catch (e) {
-    console.error("saveContactToDB error:", e);
-    throw e;
-  }
-}
-
 async function handleContactSubmit(e) {
   e.preventDefault();
   if (!currentUser) {
@@ -458,8 +412,36 @@ async function handleContactSubmit(e) {
   }
 }
 
-// === CONTACTOS: LISTA Y FILTROS ===
+// Función auxiliar para mostrar mensajes de éxito
+function showMessage(id) {
+  const msg = document.getElementById(id);
+  if (!msg) return;
+  msg.style.display = "block";
+  setTimeout(() => {
+    msg.style.display = "none";
+  }, 2000);
+}
 
+// Guardar contacto en DB
+async function saveContactToDB(contact) {
+  try {
+    const { data, error } = await window.supabase
+      .from("commercial_contacts")
+      .insert(contact)
+      .select("*")
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error("No se devolvieron datos al guardar contacto");
+
+    return data;
+  } catch (e) {
+    console.error("saveContactToDB error:", e);
+    throw e;
+  }
+}
+
+// === CONTACTOS: LISTA Y FILTROS ===
 function formatDate(dateString) {
   if (!dateString) return "-";
   const date = new Date(dateString);
@@ -529,7 +511,6 @@ function filterContacts() {
 }
 
 // === CONTACTOS: EDICIÓN / BORRADO ===
-
 function editContact(id) {
   const c = contacts.find((x) => x.id === id);
   if (!c) {
@@ -539,8 +520,8 @@ function editContact(id) {
 
   showElement("edit-contact-modal");
 
-  const setVal = (idEl, val) => {
-    const el = document.getElementById(idEl);
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
     if (el) el.value = val || "";
   };
 
@@ -669,11 +650,7 @@ async function deleteContact(id) {
   if (!confirm("¿Estás seguro de eliminar este contacto?")) return;
 
   try {
-    const { error } = await window.supabase
-      .from("commercial_contacts")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
+    await window.supabase.from("commercial_contacts").delete().eq("id", id);
     contacts = contacts.filter((c) => c.id !== id);
     updateDashboard();
     renderContactsList();
@@ -683,12 +660,11 @@ async function deleteContact(id) {
   }
 }
 
-// función usada por el botón "Cancelar" del modal
 window.closeEditContactModal = function () {
   hideElement("edit-contact-modal");
 };
 
-// Exponer funciones globalmente extra (por las dudas)
+// Exponer funciones globalmente
 window.editContact = editContact;
 window.handleEditContactSubmit = handleEditContactSubmit;
 window.deleteContact = deleteContact;
@@ -700,72 +676,7 @@ window.handlePasswordChange = handlePasswordChange;
  *  BLOQUE 3 - CLIENTES, DASHBOARD, REPORTES, EXPORT
  *****************************************************/
 
-// === CLIENTES: ALTA / UPDATE DB ===
-
-async function saveClientToDB(client) {
-  try {
-    const safe = {
-      name: client.name?.toString() || "Sin nombre",
-      company: client.company?.toString() || "",
-      phone: client.phone?.toString() || "",
-      email: client.email?.toString() || "",
-      address: client.address?.toString() || "",
-      type: client.type?.toString() || "",
-      status: client.status?.toString() || "",
-      notes: client.notes?.toString() || "",
-      registered_by: client.registered_by
-        ? client.registered_by.toString()
-        : currentUser?.username?.toString() || "",
-      registered_at: client.registered_at || new Date().toISOString(),
-    };
-
-    if (
-      client.coordinates &&
-      typeof client.coordinates === "object" &&
-      client.coordinates.lat &&
-      client.coordinates.lng
-    ) {
-      safe.coordinates = client.coordinates;
-    }
-
-    let data, error;
-
-    if (client.id) {
-      // UPDATE
-      ({ data, error } = await window.supabase
-        .from("commercial_clients")
-        .update(safe)
-        .eq("id", client.id.toString().trim())
-        .select("*")
-        .maybeSingle());
-    } else {
-      // INSERT
-      ({ data, error } = await window.supabase
-        .from("commercial_clients")
-        .insert(safe)
-        .select("*")
-        .maybeSingle());
-    }
-
-    if (error) throw error;
-    if (!data) throw new Error("No se devolvió ningún registro de cliente");
-
-    console.log("Cliente guardado/actualizado:", data);
-    return data;
-  } catch (e) {
-    console.error("saveClientToDB error:", e);
-    throw e;
-  }
-}
-
-async function deleteClientFromDB(id) {
-  const { error } = await window.supabase
-    .from("commercial_clients")
-    .delete()
-    .eq("id", id);
-  if (error) throw error;
-}
-
+// === CLIENTES: ALTA ===
 async function handleClientSubmit(e) {
   e.preventDefault();
   if (!currentUser) {
@@ -775,6 +686,21 @@ async function handleClientSubmit(e) {
 
   const form = e.target;
   const formData = new FormData(form);
+
+  const coordinates = (() => {
+    const coordDisplay = document.getElementById("coordinates-display");
+    if (
+      coordDisplay &&
+      coordDisplay.dataset.lat &&
+      coordDisplay.dataset.lng
+    ) {
+      return {
+        lat: parseFloat(coordDisplay.dataset.lat),
+        lng: parseFloat(coordDisplay.dataset.lng),
+      };
+    }
+    return null;
+  })();
 
   const client = {
     name: formData.get("client-name") || "",
@@ -787,22 +713,15 @@ async function handleClientSubmit(e) {
     notes: formData.get("client-notes") || "",
     registered_by: currentUser.username,
     registered_at: new Date().toISOString(),
-    coordinates: null,
+    coordinates,
   };
 
-  const coordDisp = document.getElementById("coordinates-display");
-  if (coordDisp && coordDisp.dataset.lat && coordDisp.dataset.lng) {
-    client.coordinates = {
-      lat: parseFloat(coordDisp.dataset.lat),
-      lng: parseFloat(coordDisp.dataset.lng),
-    };
-  }
-
   try {
-    const saved = await saveClientToDB(client);
+    const saved = await insertClientToDB(client);
     clients.push(saved);
     showMessage("client-success-message");
     form.reset();
+    const coordDisp = document.getElementById("coordinates-display");
     if (coordDisp) {
       coordDisp.textContent = "";
       delete coordDisp.dataset.lat;
@@ -817,8 +736,39 @@ async function handleClientSubmit(e) {
   }
 }
 
-// === CLIENTES: LISTA Y FILTROS ===
+// Insertar nuevo cliente
+async function insertClientToDB(client) {
+  try {
+    const safe = {
+      name: client.name?.toString() || "Sin nombre",
+      company: client.company?.toString() || "",
+      phone: client.phone?.toString() || "",
+      email: client.email?.toString() || "",
+      address: client.address?.toString() || "",
+      type: client.type?.toString() || "",
+      status: client.status?.toString() || "",
+      notes: client.notes?.toString() || "",
+      registered_by: currentUser?.username?.toString() || "",
+      registered_at: new Date().toISOString(),
+      coordinates: client.coordinates || null,
+    };
 
+    const { data, error } = await window.supabase
+      .from("commercial_clients")
+      .insert(safe)
+      .select("*")
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error("No se devolvieron datos al insertar cliente");
+    return data;
+  } catch (e) {
+    console.error("insertClientToDB error:", e);
+    throw e;
+  }
+}
+
+// === CLIENTES: LISTA Y FILTROS ===
 function renderClientsList(filtered = null) {
   const tbody = document.getElementById("clients-tbody");
   if (!tbody) return;
@@ -838,8 +788,9 @@ function renderClientsList(filtered = null) {
       <td>${c.email || "-"}</td>
       <td>${c.address || "-"}</td>
       <td>${c.type || "-"}</td>
-      <td><span class="status-badge status-${(c.status || "")
-        .toLowerCase()}">${c.status || "-"}</span></td>
+      <td><span class="status-badge status-${(c.status || "").toLowerCase()}">${
+      c.status || "-"
+    }</span></td>
       <td><strong>${derivCount}</strong></td>
       <td class="actions-column">
         <button class="btn-edit" onclick="editClient('${c.id}')">✏️</button>
@@ -866,15 +817,14 @@ function filterClients() {
 }
 
 // === CLIENTES: EDICIÓN / BORRADO ===
-
 function editClient(id) {
   const c = clients.find((x) => x.id === id);
   if (!c) return;
 
   showElement("edit-client-modal");
 
-  const setVal = (idEl, val) => {
-    const el = document.getElementById(idEl);
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
     if (el) el.value = val || "";
   };
 
@@ -888,16 +838,16 @@ function editClient(id) {
   setVal("edit-client-status", c.status);
   setVal("edit-client-notes", c.notes);
 
-  const coordDisp = document.getElementById("edit-coordinates-display");
-  if (coordDisp) {
+  const coordDisplay = document.getElementById("edit-coordinates-display");
+  if (coordDisplay) {
     if (c.coordinates && c.coordinates.lat && c.coordinates.lng) {
-      coordDisp.textContent = `Lat: ${c.coordinates.lat}, Lng: ${c.coordinates.lng}`;
-      coordDisp.dataset.lat = c.coordinates.lat;
-      coordDisp.dataset.lng = c.coordinates.lng;
+      coordDisplay.textContent = `Lat: ${c.coordinates.lat}, Lng: ${c.coordinates.lng}`;
+      coordDisplay.dataset.lat = c.coordinates.lat;
+      coordDisplay.dataset.lng = c.coordinates.lng;
     } else {
-      coordDisp.textContent = "";
-      delete coordDisp.dataset.lat;
-      delete coordDisp.dataset.lng;
+      coordDisplay.textContent = "";
+      delete coordDisplay.dataset.lat;
+      delete coordDisplay.dataset.lng;
     }
   }
 }
@@ -906,6 +856,56 @@ function closeEditClientModal() {
   hideElement("edit-client-modal");
 }
 
+// Actualizar cliente en DB
+async function saveClientToDB(client) {
+  try {
+    const safe = {
+      name: client.name?.toString() || "Sin nombre",
+      company: client.company?.toString() || "",
+      phone: client.phone?.toString() || "",
+      email: client.email?.toString() || "",
+      address: client.address?.toString() || "",
+      type: client.type?.toString() || "",
+      status: client.status?.toString() || "",
+      notes: client.notes?.toString() || "",
+      registered_by: currentUser?.username?.toString() || "",
+      registered_at: client.registered_at || new Date().toISOString(),
+    };
+
+    if (
+      client.coordinates &&
+      typeof client.coordinates === "object" &&
+      client.coordinates.lat &&
+      client.coordinates.lng
+    ) {
+      safe.coordinates = client.coordinates;
+    }
+
+    const { error } = await window.supabase
+      .from("commercial_clients")
+      .update(safe)
+      .eq("id", client.id.toString().trim());
+
+    if (error) throw error;
+
+    const { data: verify, error: verifyErr } = await window.supabase
+      .from("commercial_clients")
+      .select("*")
+      .eq("id", client.id.toString().trim())
+      .limit(1);
+
+    if (verifyErr) throw verifyErr;
+    if (!verify || verify.length === 0)
+      throw new Error("No se actualizó ningún registro");
+
+    return verify[0];
+  } catch (e) {
+    console.error("saveClientToDB error:", e);
+    throw e;
+  }
+}
+
+// Envío formulario edición cliente
 async function handleEditClientSubmit(e) {
   e.preventDefault();
 
@@ -953,6 +953,20 @@ async function handleEditClientSubmit(e) {
   }
 }
 
+// Borrar cliente
+async function deleteClientFromDB(id) {
+  try {
+    const { error } = await window.supabase
+      .from("commercial_clients")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+  } catch (e) {
+    console.error("deleteClientFromDB error:", e);
+    throw e;
+  }
+}
+
 async function deleteClient(id) {
   if (!confirm("¿Estás seguro de eliminar este cliente?")) return;
 
@@ -973,7 +987,6 @@ window.editClient = editClient;
 window.closeEditClientModal = closeEditClientModal;
 
 // === DASHBOARD ===
-
 function updateDashboard() {
   try {
     const totalContacts = contacts.length;
@@ -1004,22 +1017,21 @@ function updateDashboard() {
     setText("conversion-rate", `${conversionRate}%`);
     setText("total-clients", totalClients);
     setText("active-clients", activeClients);
-
-    const productsBox = document.getElementById("total-products");
-    if (productsBox) productsBox.textContent = totalProducts;
+    setText("total-products", totalProducts);
   } catch (e) {
     console.warn("updateDashboard error:", e);
   }
 }
 
 // === SELECT DE CLIENTES PARA DERIVACIÓN ===
-
 function updateClientSelectFromClients() {
   const sel = document.getElementById("cliente-derivado");
   const editSel = document.getElementById("edit-cliente-derivado");
   if (!sel && !editSel) return;
 
-  const companies = [...new Set(clients.map((c) => c.company).filter(Boolean))].sort();
+  const companies = [
+    ...new Set(clients.map((c) => c.company).filter(Boolean)),
+  ].sort();
   const fill = (select) => {
     if (!select) return;
     select.innerHTML = `<option value="">Seleccionar cliente</option>`;
@@ -1036,11 +1048,10 @@ function updateClientSelectFromClients() {
 }
 
 function updateClientSelectFromContacts() {
-  // Reservado para futuros usos si hace falta.
+  // reservado por si lo necesitás luego
 }
 
-// === REPORTES (VERSIÓN RESUMIDA) ===
-
+// === REPORTES ===
 function generateReports() {
   generateSalesReport();
   generateStatusReport();
@@ -1091,7 +1102,7 @@ function generateSalesReport() {
     .join("");
 }
 
-// 🥚 Productos más solicitados
+// Productos más solicitados
 function generateTopProductsReport() {
   const container = document.getElementById("top-products-report");
   if (!container) return;
@@ -1124,7 +1135,7 @@ function generateTopProductsReport() {
     .join("");
 }
 
-// 👩‍💼 Productos por vendedor
+// Productos por vendedor
 function generateProductsBySellerReport() {
   const container = document.getElementById("products-by-seller-report");
   if (!container) return;
@@ -1157,22 +1168,17 @@ function generateProductsBySellerReport() {
     `<p style="text-align:center;color:#666;">Sin registros de productos por vendedor</p>`;
 }
 
-// 📦 Solicitudes por categoría (según tipo del cliente derivado)
+// Solicitudes por categoría (si usás type en contactos)
 function generateRequestsByCategoryReport() {
   const container = document.getElementById("requests-by-category-report");
   if (!container) return;
 
   const counts = {};
-
-  contacts
-    .filter((c) => c.cliente_derivado)
-    .forEach((c) => {
-      const cli = clients.find((cl) => cl.company === c.cliente_derivado);
-      const type = cli?.type;
-      if (type && type.trim() !== "") {
-        counts[type] = (counts[type] || 0) + 1;
-      }
-    });
+  contacts.forEach((c) => {
+    if (c.type && c.type.trim() !== "") {
+      counts[c.type] = (counts[c.type] || 0) + 1;
+    }
+  });
 
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   if (sorted.length === 0) {
@@ -1251,7 +1257,7 @@ function generateTopReferralsReport() {
     .join("");
 }
 
-// Evolución mensual simple
+// Evolución mensual
 function generateTimelineReport() {
   const container = document.getElementById("timeline-report");
   if (!container) return;
@@ -1319,8 +1325,7 @@ function generateReferralsReport() {
       if (!stats[name].lastContact || (c.fecha || "") > stats[name].lastContact) {
         stats[name].lastContact = c.fecha;
       }
-      if (!stats[name].sellers[c.vendedor])
-        stats[name].sellers[c.vendedor] = 0;
+      if (!stats[name].sellers[c.vendedor]) stats[name].sellers[c.vendedor] = 0;
       stats[name].sellers[c.vendedor]++;
     });
 
@@ -1344,7 +1349,6 @@ function generateReferralsReport() {
 }
 
 // === EXPORTACIONES ===
-
 function downloadTextFile(content, filename, mime = "text/plain") {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -1451,8 +1455,7 @@ function exportFullReport() {
   contacts
     .filter((c) => c.estado === "Derivado" && c.cliente_derivado)
     .forEach((c) => {
-      counts[c.cliente_derivado] =
-        (counts[c.cliente_derivado] || 0) + 1;
+      counts[c.cliente_derivado] = (counts[c.cliente_derivado] || 0) + 1;
     });
 
   report += `TOP CLIENTES POR DERIVACIONES:\n`;
@@ -1463,11 +1466,7 @@ function exportFullReport() {
       report += `${idx + 1}. ${name}: ${count} derivaciones\n`;
     });
 
-  downloadTextFile(
-    report,
-    "informe-completo.txt",
-    "text/plain;charset=utf-8"
-  );
+  downloadTextFile(report, "informe-completo.txt", "text/plain;charset=utf-8");
 }
 
 /*****************************************************
@@ -1699,41 +1698,14 @@ window.exportFullReport = exportFullReport;
 window.filterContacts = filterContacts;
 window.filterClients = filterClients;
 
-/*****************************************************
- *  BLOQUE FINAL - BOTONES DE NAVEGACIÓN Y ARRANQUE
- *****************************************************/
+console.log(
+  "🌍 Funciones de geolocalización y reportes registradas correctamente en window"
+);
 
-function setupNavigation() {
-  const navMap = {
-    "btn-dashboard": "dashboard",
-    "btn-register-contact": "form-contact",
-    "btn-view-contacts": "list-contacts",
-    "btn-register-client": "form-client",
-    "btn-view-clients": "list-clients",
-    "btn-map": "map-section",
-    "btn-reports": "reports",
-  };
-
-  Object.entries(navMap).forEach(([btnId, section]) => {
-    const btn = document.getElementById(btnId);
-    if (btn) {
-      btn.addEventListener("click", () => showSection(section));
-    }
-  });
-
-  const logoutBtn = document.getElementById("btn-logout");
-  if (logoutBtn) logoutBtn.addEventListener("click", logout);
-}
-
-// === INICIALIZACIÓN FINAL ===
+// === DOM READY (unificado y al final de TODO el script) ===
 document.addEventListener("DOMContentLoaded", () => {
   if (typeof initApp === "function") {
-    initApp()
-      .then(() => {
-        setupNavigation();
-        console.log("✅ Sistema inicializado correctamente con navegación activa");
-      })
-      .catch((err) => console.error("initApp error:", err));
+    initApp().catch((err) => console.error("initApp error:", err));
   } else {
     console.error("⚠️ initApp no está definida o cargó fuera de orden.");
   }
