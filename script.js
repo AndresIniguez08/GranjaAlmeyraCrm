@@ -15,19 +15,43 @@
    - Si ya definiste window.supabase en index.html, no lo sobreescribe.
 */
 function showSection(sectionId) {
-  // Ocultar todas las secciones visibles
-  document.querySelectorAll("div[data-section]").forEach(div => {
-    div.style.display = "none";
+  // === PANTALLAS PRINCIPALES ===
+  const screens = ["login-screen", "password-change-screen", "app-screen"];
+  screens.forEach(s => document.getElementById(s).style.display = "none");
+
+  // Si la sección pedida es una de las pantallas principales:
+  if (screens.includes(sectionId)) {
+    document.getElementById(sectionId).style.display = "flex";
+    return;
+  }
+
+  // === SECCIONES INTERNAS DENTRO DE app-screen ===
+  document.getElementById("app-screen").style.display = "block";
+
+  const sections = [
+    "dashboard",
+    "form-contact",
+    "list-contacts",
+    "form-client",
+    "list-clients",
+    "map-section",
+    "reports"
+  ];
+
+  sections.forEach(s => {
+    const el = document.getElementById(s);
+    if (el) el.style.display = "none";
   });
 
-  // Mostrar la sección seleccionada
+  // Mostrar la sección solicitada
   const target = document.getElementById(sectionId);
   if (target) {
     target.style.display = "block";
   } else {
-    console.warn("showSection: No existe la sección:", sectionId);
+    console.warn("showSection: no existe", sectionId);
   }
 }
+
 
 (function initSupabaseClient() {
   try {
