@@ -10,21 +10,12 @@ const SUPABASE_ANON_KEY =
 // === CLIENTE SUPABASE GLOBAL ===
 (function initSupabaseClient() {
   try {
-    if (window.supabase && typeof window.supabase.from === "function") {
-      console.log("Using existing window.supabase client.");
-      return;
-    }
-    if (
-      typeof supabase !== "undefined" &&
-      supabase &&
-      typeof supabase.createClient === "function"
-    ) {
+    if (window.supabase && typeof window.supabase.from === "function") return;
+    if (typeof supabase !== "undefined" && supabase.createClient) {
       window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log("✅ Supabase UMD inicializado correctamente");
+      console.log("✅ Supabase inicializado correctamente");
     } else {
-      console.error(
-        "❌ Supabase UMD no encontrado. Asegúrate de incluir el script de supabase en el HTML."
-      );
+      console.error("❌ No se encontró el script de Supabase en el HTML");
     }
   } catch (err) {
     console.error("Error inicializando Supabase:", err);
@@ -34,19 +25,15 @@ const SUPABASE_ANON_KEY =
 // === COOKIES ===
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(
-    value
-  )}; expires=${expires}; path=/`;
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
 }
 function getCookie(name) {
-  return document.cookie.split("; ").reduce((acc, item) => {
-    const [k, v] = item.split("=");
-    return k === name ? decodeURIComponent(v) : acc;
+  return document.cookie.split("; ").reduce((a, c) => {
+    const [k, v] = c.split("=");
+    return k === name ? decodeURIComponent(v) : a;
   }, "");
 }
-function eraseCookie(name) {
-  setCookie(name, "", -1);
-}
+function eraseCookie(name) { setCookie(name, "", -1); }
 
 // === ESTADO GLOBAL ===
 let currentUser = null;
@@ -66,24 +53,17 @@ function hideElement(id) {
 // === CONTROL DE PANTALLAS ===
 function showSection(sectionId) {
   const screens = ["login-screen", "password-change-screen", "app-screen"];
+  screens.forEach((id) => hideElement(id));
 
-  // Ocultar pantallas principales
-  screens.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = "none";
-  });
-
-  // Mostrar pantalla principal
   if (screens.includes(sectionId)) {
     const el = document.getElementById(sectionId);
     if (el) el.style.display = sectionId === "app-screen" ? "block" : "flex";
     return;
   }
 
-  // Mostrar secciones internas
-  const appScreen = document.getElementById("app-screen");
-  if (!appScreen) return;
-  appScreen.style.display = "block";
+  const app = document.getElementById("app-screen");
+  if (!app) return;
+  app.style.display = "block";
 
   const sections = [
     "dashboard",
@@ -94,150 +74,86 @@ function showSection(sectionId) {
     "map-section",
     "reports",
   ];
-
-  sections.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = "none";
-  });
+  sections.forEach((id) => hideElement(id));
 
   const realId = sectionId === "map" ? "map-section" : sectionId;
-  const target = document.getElementById(realId);
-  if (target) target.style.display = "block";
+  showElement(realId);
 
-  if (realId === "reports" && typeof generateReports === "function") {
-    generateReports();
-  }
-
-  if (realId === "map-section" && typeof initLeafletMap === "function") {
+  if (realId === "reports" && typeof generateReports === "function") generateReports();
+  if (realId === "map-section" && typeof initLeafletMap === "function")
     setTimeout(initLeafletMap, 300);
-  }
 }
 
 // === SESIONES ===
 async function createSession(user) {
   const token = crypto.randomUUID();
   setCookie("granja_session", token, 7);
-
   try {
-    const { error } = await window.supabase
-      .from("sessions")
-      .insert({ token, user_id: user.username });
-    if (error) console.warn("Error creando sesión:", error);
-  } catch (e) {
-    console.error("createSession error:", e);
-  }
+    await window.supabase.from("sessions").insert({ token, user_id: user.username });
+  } catch (e) { console.error("createSession error:", e); }
 }
-
 async function clearSession() {
   const token = getCookie("granja_session");
   eraseCookie("granja_session");
-  if (!token) return;
-
-  try {
+  if (token)
     await window.supabase.from("sessions").delete().eq("token", token);
-  } catch (e) {
-    console.error("clearSession error:", e);
-  }
 }
-
 async function restoreSessionFromCookie() {
   const token = getCookie("granja_session");
   if (!token) return;
-
   try {
-    const { data: sessionRows } = await window.supabase
-      .from("sessions")
-      .select("*")
-      .eq("token", token)
-      .limit(1);
-
-    if (!sessionRows?.length) return;
-
-    const { data: userRows } = await window.supabase
-      .from("users")
-      .select("*")
-      .eq("username", sessionRows[0].user_id)
-      .limit(1);
-
-    if (userRows?.length) currentUser = userRows[0];
-  } catch (e) {
-    console.error("restoreSessionFromCookie error:", e);
-  }
+    const { data: s } = await window.supabase
+      .from("sessions").select("*").eq("token", token).limit(1);
+    if (!s?.length) return;
+    const { data: u } = await window.supabase
+      .from("users").select("*").eq("username", s[0].user_id).limit(1);
+    if (u?.length) currentUser = u[0];
+  } catch (e) { console.error("restoreSessionFromCookie error:", e); }
 }
 
 // === CARGA DE DATOS ===
 async function loadContactsFromDB() {
   try {
     const { data, error } = await window.supabase
-      .from("commercial_contacts")
-      .select("*")
-      .order("fecha", { ascending: true });
+      .from("commercial_contacts").select("*").order("fecha", { ascending: true });
     if (error) throw error;
     contacts = data || [];
-  } catch (e) {
-    console.error("loadContactsFromDB error:", e);
-  }
+  } catch (e) { console.error("loadContactsFromDB error:", e); }
 }
-
 async function loadClientsFromDB() {
   try {
     const { data, error } = await window.supabase
-      .from("commercial_clients")
-      .select("*")
-      .order("company", { ascending: true });
+      .from("commercial_clients").select("*").order("company", { ascending: true });
     if (error) throw error;
     clients = data || [];
-  } catch (e) {
-    console.error("loadClientsFromDB error:", e);
-  }
+  } catch (e) { console.error("loadClientsFromDB error:", e); }
 }
 
 // === INIT PRINCIPAL ===
 async function initApp() {
   console.log("🚀 Init started");
-
-  // Mostrar login por defecto
   showSection("login-screen");
-
-  // Asignar fecha actual en formularios
   const fechaInput = document.getElementById("fecha");
   if (fechaInput) fechaInput.valueAsDate = new Date();
-
-  // Cargar datos iniciales
   await loadContactsFromDB();
   await loadClientsFromDB();
   await restoreSessionFromCookie();
 
-  // Mostrar usuario actual si hay sesión
-  const currentUserSpan = document.getElementById("current-user");
-  if (currentUser && currentUserSpan) {
-    currentUserSpan.textContent = currentUser.name || currentUser.username;
-  }
+  const userSpan = document.getElementById("current-user");
+  if (currentUser && userSpan)
+    userSpan.textContent = currentUser.name || currentUser.username;
 
-  // Mostrar dashboard o login según sesión
   if (currentUser) {
     showSection("dashboard");
     showSection("app-screen");
-    updateDashboard();
-    renderContactsList();
-    renderClientsList();
-  } else {
-    showSection("login-screen");
-  }
+    updateDashboard?.();
+    renderContactsList?.();
+    renderClientsList?.();
+  } else showSection("login-screen");
 
-  // Inicializar listeners
-  setupEventListeners();
-
+  setupEventListeners?.();
   console.log("✅ Init complete");
 }
-
-// === INICIO DE APP ===
-document.addEventListener("DOMContentLoaded", () => {
-  initApp().catch((err) => console.error("initApp error:", err));
-});
-
-
-
 
 /*****************************************************
  *  BLOQUE 2 - LOGIN, PASSWORD, CONTACTOS
@@ -1627,7 +1543,11 @@ window.resetMapView = resetMapView;
 
 console.log("🌍 Funciones de geolocalización registradas correctamente en window");
 
-// === DOM READY ===
+// === DOM READY (unificado y al final de TODO el script) ===
 document.addEventListener("DOMContentLoaded", () => {
-  initApp().catch(err => console.error("initApp error:", err));
+  if (typeof initApp === "function") {
+    initApp().catch(err => console.error("initApp error:", err));
+  } else {
+    console.error("⚠️ initApp no está definida o cargó fuera de orden.");
+  }
 });
