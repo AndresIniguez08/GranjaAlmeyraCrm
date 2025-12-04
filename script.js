@@ -10,10 +10,14 @@ const SUPABASE_ANON_KEY =
 // === CLIENTE SUPABASE GLOBAL ===
 (function initSupabaseClient() {
   try {
-    if (window.supabase && typeof window.supabase.from === "function") return;
+    // Si ya lo creaste en el HTML, no lo pisa.
+    if (window.supabase && typeof window.supabase.from === "function") {
+      console.log("✅ Supabase ya inicializado desde el HTML");
+      return;
+    }
     if (typeof supabase !== "undefined" && supabase.createClient) {
       window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log("✅ Supabase inicializado correctamente");
+      console.log("✅ Supabase inicializado correctamente (script.js)");
     } else {
       console.error("❌ No se encontró el script de Supabase en el HTML");
     }
@@ -25,7 +29,9 @@ const SUPABASE_ANON_KEY =
 // === COOKIES ===
 function setCookie(name, value, days = 7) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
+  document.cookie = `${name}=${encodeURIComponent(
+    value
+  )}; expires=${expires}; path=/`;
 }
 function getCookie(name) {
   return document.cookie.split("; ").reduce((a, c) => {
@@ -33,7 +39,9 @@ function getCookie(name) {
     return k === name ? decodeURIComponent(v) : a;
   }, "");
 }
-function eraseCookie(name) { setCookie(name, "", -1); }
+function eraseCookie(name) {
+  setCookie(name, "", -1);
+}
 
 // === ESTADO GLOBAL ===
 let currentUser = null;
@@ -48,6 +56,18 @@ function showElement(id) {
 function hideElement(id) {
   const el = document.getElementById(id);
   if (el) el.style.display = "none";
+}
+
+// Mensajes de éxito (contacto/cliente)
+function showMessage(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = "block";
+  el.classList.add("visible");
+  setTimeout(() => {
+    el.style.display = "none";
+    el.classList.remove("visible");
+  }, 2500);
 }
 
 // === CONTROL DE PANTALLAS ===
@@ -79,9 +99,12 @@ function showSection(sectionId) {
   const realId = sectionId === "map" ? "map-section" : sectionId;
   showElement(realId);
 
-  if (realId === "reports" && typeof generateReports === "function") generateReports();
-  if (realId === "map-section" && typeof initLeafletMap === "function")
+  if (realId === "reports" && typeof generateReports === "function")
+    generateReports();
+
+  if (realId === "map-section" && typeof initLeafletMap === "function") {
     setTimeout(initLeafletMap, 300);
+  }
 }
 
 // === SESIONES ===
@@ -89,52 +112,81 @@ async function createSession(user) {
   const token = crypto.randomUUID();
   setCookie("granja_session", token, 7);
   try {
-    await window.supabase.from("sessions").insert({ token, user_id: user.username });
-  } catch (e) { console.error("createSession error:", e); }
+    await window.supabase
+      .from("sessions")
+      .insert({ token, user_id: user.username });
+  } catch (e) {
+    console.error("createSession error:", e);
+  }
 }
+
 async function clearSession() {
   const token = getCookie("granja_session");
   eraseCookie("granja_session");
-  if (token)
-    await window.supabase.from("sessions").delete().eq("token", token);
+  if (token) {
+    try {
+      await window.supabase.from("sessions").delete().eq("token", token);
+    } catch (e) {
+      console.error("clearSession error:", e);
+    }
+  }
 }
+
 async function restoreSessionFromCookie() {
   const token = getCookie("granja_session");
   if (!token) return;
   try {
     const { data: s } = await window.supabase
-      .from("sessions").select("*").eq("token", token).limit(1);
+      .from("sessions")
+      .select("*")
+      .eq("token", token)
+      .limit(1);
     if (!s?.length) return;
     const { data: u } = await window.supabase
-      .from("users").select("*").eq("username", s[0].user_id).limit(1);
+      .from("users")
+      .select("*")
+      .eq("username", s[0].user_id)
+      .limit(1);
     if (u?.length) currentUser = u[0];
-  } catch (e) { console.error("restoreSessionFromCookie error:", e); }
+  } catch (e) {
+    console.error("restoreSessionFromCookie error:", e);
+  }
 }
 
 // === CARGA DE DATOS ===
 async function loadContactsFromDB() {
   try {
     const { data, error } = await window.supabase
-      .from("commercial_contacts").select("*").order("fecha", { ascending: true });
+      .from("commercial_contacts")
+      .select("*")
+      .order("fecha", { ascending: true });
     if (error) throw error;
     contacts = data || [];
-  } catch (e) { console.error("loadContactsFromDB error:", e); }
+  } catch (e) {
+    console.error("loadContactsFromDB error:", e);
+  }
 }
 async function loadClientsFromDB() {
   try {
     const { data, error } = await window.supabase
-      .from("commercial_clients").select("*").order("company", { ascending: true });
+      .from("commercial_clients")
+      .select("*")
+      .order("company", { ascending: true });
     if (error) throw error;
     clients = data || [];
-  } catch (e) { console.error("loadClientsFromDB error:", e); }
+  } catch (e) {
+    console.error("loadClientsFromDB error:", e);
+  }
 }
 
 // === INIT PRINCIPAL ===
 async function initApp() {
   console.log("🚀 Init started");
   showSection("login-screen");
+
   const fechaInput = document.getElementById("fecha");
   if (fechaInput) fechaInput.valueAsDate = new Date();
+
   await loadContactsFromDB();
   await loadClientsFromDB();
   await restoreSessionFromCookie();
@@ -146,12 +198,14 @@ async function initApp() {
   if (currentUser) {
     showSection("dashboard");
     showSection("app-screen");
-    updateDashboard?.();
-    renderContactsList?.();
-    renderClientsList?.();
-  } else showSection("login-screen");
+    updateDashboard();
+    renderContactsList();
+    renderClientsList();
+  } else {
+    showSection("login-screen");
+  }
 
-  setupEventListeners?.();
+  setupEventListeners();
   console.log("✅ Init complete");
 }
 
@@ -206,16 +260,13 @@ async function handleLogin(e) {
 
     currentUser = userRows[0];
 
-    // Crear sesión
     await createSession(currentUser);
 
-    // Mostrar nombre
     const currentUserSpan = document.getElementById("current-user");
     if (currentUserSpan) {
       currentUserSpan.textContent = currentUser.name || currentUser.username;
     }
 
-    // ¿primer login?
     if (currentUser.first_login) {
       showSection("password-change-screen");
     } else {
@@ -333,6 +384,38 @@ function setupEventListeners() {
 }
 
 // === CONTACTOS: ALTA ===
+
+async function saveContactToDB(contact) {
+  try {
+    const safe = {
+      fecha: contact.fecha || null,
+      vendedor: contact.vendedor || "",
+      cliente: contact.cliente || "",
+      empresa: contact.empresa || "",
+      telefono: contact.telefono || "",
+      email: contact.email || "",
+      producto: contact.producto || "",
+      estado: contact.estado || "",
+      cliente_derivado: contact.cliente_derivado || "",
+      motivo: contact.motivo || "",
+      registrado_por: contact.registrado_por || "",
+      fecha_registro: contact.fecha_registro || new Date().toISOString(),
+    };
+
+    const { data, error } = await window.supabase
+      .from("commercial_contacts")
+      .insert(safe)
+      .select("*")
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error("No se devolvieron datos al guardar contacto");
+    return data;
+  } catch (e) {
+    console.error("saveContactToDB error:", e);
+    throw e;
+  }
+}
 
 async function handleContactSubmit(e) {
   e.preventDefault();
@@ -456,8 +539,8 @@ function editContact(id) {
 
   showElement("edit-contact-modal");
 
-  const setVal = (id, val) => {
-    const el = document.getElementById(id);
+  const setVal = (idEl, val) => {
+    const el = document.getElementById(idEl);
     if (el) el.value = val || "";
   };
 
@@ -572,7 +655,6 @@ async function handleEditContactSubmit(e) {
     const idx = contacts.findIndex((c) => c.id === id);
     if (idx !== -1) contacts[idx] = data;
 
-    // cerramos modal directamente sin usar símbolo local
     hideElement("edit-contact-modal");
     updateDashboard();
     renderContactsList();
@@ -587,7 +669,11 @@ async function deleteContact(id) {
   if (!confirm("¿Estás seguro de eliminar este contacto?")) return;
 
   try {
-    await window.supabase.from("commercial_contacts").delete().eq("id", id);
+    const { error } = await window.supabase
+      .from("commercial_contacts")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
     contacts = contacts.filter((c) => c.id !== id);
     updateDashboard();
     renderContactsList();
@@ -602,7 +688,7 @@ window.closeEditContactModal = function () {
   hideElement("edit-contact-modal");
 };
 
-// Exponer funciones globalmente
+// Exponer funciones globalmente extra (por las dudas)
 window.editContact = editContact;
 window.handleEditContactSubmit = handleEditContactSubmit;
 window.deleteContact = deleteContact;
@@ -610,12 +696,75 @@ window.logout = logout;
 window.handleLogin = handleLogin;
 window.handlePasswordChange = handlePasswordChange;
 
-
 /*****************************************************
  *  BLOQUE 3 - CLIENTES, DASHBOARD, REPORTES, EXPORT
  *****************************************************/
 
-// === CLIENTES: ALTA ===
+// === CLIENTES: ALTA / UPDATE DB ===
+
+async function saveClientToDB(client) {
+  try {
+    const safe = {
+      name: client.name?.toString() || "Sin nombre",
+      company: client.company?.toString() || "",
+      phone: client.phone?.toString() || "",
+      email: client.email?.toString() || "",
+      address: client.address?.toString() || "",
+      type: client.type?.toString() || "",
+      status: client.status?.toString() || "",
+      notes: client.notes?.toString() || "",
+      registered_by: client.registered_by
+        ? client.registered_by.toString()
+        : currentUser?.username?.toString() || "",
+      registered_at: client.registered_at || new Date().toISOString(),
+    };
+
+    if (
+      client.coordinates &&
+      typeof client.coordinates === "object" &&
+      client.coordinates.lat &&
+      client.coordinates.lng
+    ) {
+      safe.coordinates = client.coordinates;
+    }
+
+    let data, error;
+
+    if (client.id) {
+      // UPDATE
+      ({ data, error } = await window.supabase
+        .from("commercial_clients")
+        .update(safe)
+        .eq("id", client.id.toString().trim())
+        .select("*")
+        .maybeSingle());
+    } else {
+      // INSERT
+      ({ data, error } = await window.supabase
+        .from("commercial_clients")
+        .insert(safe)
+        .select("*")
+        .maybeSingle());
+    }
+
+    if (error) throw error;
+    if (!data) throw new Error("No se devolvió ningún registro de cliente");
+
+    console.log("Cliente guardado/actualizado:", data);
+    return data;
+  } catch (e) {
+    console.error("saveClientToDB error:", e);
+    throw e;
+  }
+}
+
+async function deleteClientFromDB(id) {
+  const { error } = await window.supabase
+    .from("commercial_clients")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
 
 async function handleClientSubmit(e) {
   e.preventDefault();
@@ -638,16 +787,27 @@ async function handleClientSubmit(e) {
     notes: formData.get("client-notes") || "",
     registered_by: currentUser.username,
     registered_at: new Date().toISOString(),
-    coordinates: null
+    coordinates: null,
   };
+
+  const coordDisp = document.getElementById("coordinates-display");
+  if (coordDisp && coordDisp.dataset.lat && coordDisp.dataset.lng) {
+    client.coordinates = {
+      lat: parseFloat(coordDisp.dataset.lat),
+      lng: parseFloat(coordDisp.dataset.lng),
+    };
+  }
 
   try {
     const saved = await saveClientToDB(client);
     clients.push(saved);
     showMessage("client-success-message");
     form.reset();
-    const coordDisp = document.getElementById("coordinates-display");
-    if (coordDisp) coordDisp.textContent = "";
+    if (coordDisp) {
+      coordDisp.textContent = "";
+      delete coordDisp.dataset.lat;
+      delete coordDisp.dataset.lng;
+    }
     updateDashboard();
     renderClientsList();
     updateClientSelectFromClients();
@@ -666,9 +826,10 @@ function renderClientsList(filtered = null) {
   const data = filtered || clients;
   tbody.innerHTML = "";
 
-  data.forEach(c => {
-    // Conteo de derivaciones que llegan a este cliente
-    const derivCount = contacts.filter(x => x.cliente_derivado === c.company).length;
+  data.forEach((c) => {
+    const derivCount = contacts.filter(
+      (x) => x.cliente_derivado === c.company
+    ).length;
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${c.name || ""}</td>
@@ -677,7 +838,8 @@ function renderClientsList(filtered = null) {
       <td>${c.email || "-"}</td>
       <td>${c.address || "-"}</td>
       <td>${c.type || "-"}</td>
-      <td><span class="status-badge status-${(c.status || "").toLowerCase()}">${c.status || "-"}</span></td>
+      <td><span class="status-badge status-${(c.status || "")
+        .toLowerCase()}">${c.status || "-"}</span></td>
       <td><strong>${derivCount}</strong></td>
       <td class="actions-column">
         <button class="btn-edit" onclick="editClient('${c.id}')">✏️</button>
@@ -697,24 +859,22 @@ function filterClients() {
 
   let filtered = [...clients];
 
-  if (type) filtered = filtered.filter(c => c.type === type);
-  if (status) filtered = filtered.filter(c => c.status === status);
+  if (type) filtered = filtered.filter((c) => c.type === type);
+  if (status) filtered = filtered.filter((c) => c.status === status);
 
   renderClientsList(filtered);
 }
 
 // === CLIENTES: EDICIÓN / BORRADO ===
 
-// === CLIENTES: EDICIÓN / BORRADO ===
-
 function editClient(id) {
-  const c = clients.find(x => x.id === id);
+  const c = clients.find((x) => x.id === id);
   if (!c) return;
 
   showElement("edit-client-modal");
 
-  const setVal = (id, val) => {
-    const el = document.getElementById(id);
+  const setVal = (idEl, val) => {
+    const el = document.getElementById(idEl);
     if (el) el.value = val || "";
   };
 
@@ -727,70 +887,25 @@ function editClient(id) {
   setVal("edit-client-type", c.type);
   setVal("edit-client-status", c.status);
   setVal("edit-client-notes", c.notes);
+
+  const coordDisp = document.getElementById("edit-coordinates-display");
+  if (coordDisp) {
+    if (c.coordinates && c.coordinates.lat && c.coordinates.lng) {
+      coordDisp.textContent = `Lat: ${c.coordinates.lat}, Lng: ${c.coordinates.lng}`;
+      coordDisp.dataset.lat = c.coordinates.lat;
+      coordDisp.dataset.lng = c.coordinates.lng;
+    } else {
+      coordDisp.textContent = "";
+      delete coordDisp.dataset.lat;
+      delete coordDisp.dataset.lng;
+    }
+  }
 }
 
 function closeEditClientModal() {
   hideElement("edit-client-modal");
 }
 
-// === GUARDAR CAMBIOS DEL CLIENTE ===
-// === CLIENTES: GUARDAR CAMBIOS / EDICIÓN / BORRADO ===
-
-async function saveClientToDB(client) {
-  try {
-    const safe = {
-      name: client.name?.toString() || "Sin nombre",
-      company: client.company?.toString() || "",
-      phone: client.phone?.toString() || "",
-      email: client.email?.toString() || "",
-      address: client.address?.toString() || "",
-      type: client.type?.toString() || "",
-      status: client.status?.toString() || "",
-      notes: client.notes?.toString() || "",
-      registered_by: currentUser?.username?.toString() || "",
-      registered_at: new Date().toISOString()
-    };
-
-    // agregar coordenadas solo si son válidas
-    if (
-      client.coordinates &&
-      typeof client.coordinates === "object" &&
-      client.coordinates.lat &&
-      client.coordinates.lng
-    ) {
-      safe.coordinates = client.coordinates;
-    }
-
-    console.log("Actualizando cliente con ID:", client.id);
-
-    // 1️⃣ Realizar UPDATE
-    const { error } = await window.supabase
-      .from("commercial_clients")
-      .update(safe)
-      .eq("id", client.id.toString().trim());
-
-    if (error) throw error;
-
-    // 2️⃣ Verificar que el registro existe y fue actualizado
-    const { data: verify, error: verifyErr } = await window.supabase
-      .from("commercial_clients")
-      .select("*")
-      .eq("id", client.id.toString().trim())
-      .limit(1);
-
-    if (verifyErr) throw verifyErr;
-    if (!verify || verify.length === 0)
-      throw new Error("No se actualizó ningún registro");
-
-    console.log("Cliente actualizado correctamente:", verify[0]);
-    return verify[0];
-  } catch (e) {
-    console.error("saveClientToDB error:", e);
-    throw e;
-  }
-}
-
-// === ENVÍO DEL FORMULARIO DE EDICIÓN ===
 async function handleEditClientSubmit(e) {
   e.preventDefault();
 
@@ -802,7 +917,6 @@ async function handleEditClientSubmit(e) {
   const form = e.target;
   const id = document.getElementById("edit-client-id").value;
 
-  // armar el objeto actualizado
   const updatedClient = {
     id,
     name: form.querySelector("#edit-client-name").value.trim(),
@@ -812,21 +926,20 @@ async function handleEditClientSubmit(e) {
     address: form.querySelector("#edit-client-address").value.trim(),
     type: form.querySelector("#edit-client-type").value,
     status: form.querySelector("#edit-client-status").value,
-    notes: form.querySelector("#edit-client-notes").value.trim()
+    notes: form.querySelector("#edit-client-notes").value.trim(),
   };
 
-  // intentar leer las coordenadas visibles en el formulario
   const coordsDisplay = document.getElementById("edit-coordinates-display");
   if (coordsDisplay && coordsDisplay.dataset.lat && coordsDisplay.dataset.lng) {
     updatedClient.coordinates = {
       lat: parseFloat(coordsDisplay.dataset.lat),
-      lng: parseFloat(coordsDisplay.dataset.lng)
+      lng: parseFloat(coordsDisplay.dataset.lng),
     };
   }
 
   try {
     const saved = await saveClientToDB(updatedClient);
-    const idx = clients.findIndex(c => c.id === id);
+    const idx = clients.findIndex((c) => c.id === id);
     if (idx !== -1) clients[idx] = saved;
 
     closeEditClientModal();
@@ -840,13 +953,12 @@ async function handleEditClientSubmit(e) {
   }
 }
 
-// === BORRADO DE CLIENTE ===
 async function deleteClient(id) {
   if (!confirm("¿Estás seguro de eliminar este cliente?")) return;
 
   try {
     await deleteClientFromDB(id);
-    clients = clients.filter(c => c.id !== id);
+    clients = clients.filter((c) => c.id !== id);
     updateDashboard();
     renderClientsList();
   } catch (e) {
@@ -860,22 +972,27 @@ window.handleEditClientSubmit = handleEditClientSubmit;
 window.editClient = editClient;
 window.closeEditClientModal = closeEditClientModal;
 
-
 // === DASHBOARD ===
 
 function updateDashboard() {
   try {
     const totalContacts = contacts.length;
-    const totalSales = contacts.filter(c => c.estado === "Vendido").length;
-    const totalReferrals = contacts.filter(c => c.estado === "Derivado").length;
-    const conversionRate = totalContacts ? Math.round((totalSales / totalContacts) * 100) : 0;
+    const totalSales = contacts.filter((c) => c.estado === "Vendido").length;
+    const totalReferrals = contacts.filter(
+      (c) => c.estado === "Derivado"
+    ).length;
+    const conversionRate = totalContacts
+      ? Math.round((totalSales / totalContacts) * 100)
+      : 0;
     const totalClients = clients.length;
-    const activeClients = clients.filter(c => c.status === "Activo").length;
+    const activeClients = clients.filter(
+      (c) => c.status === "Activo"
+    ).length;
 
-    // 🔸 Nuevo cálculo: total de productos solicitados
-    const totalProducts = contacts.filter(c => c.producto && c.producto.trim() !== "").length;
+    const totalProducts = contacts.filter(
+      (c) => c.producto && c.producto.trim() !== ""
+    ).length;
 
-    // Asignar valores al DOM
     const setText = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = val;
@@ -888,15 +1005,12 @@ function updateDashboard() {
     setText("total-clients", totalClients);
     setText("active-clients", activeClients);
 
-    // 🔸 Actualizar contador de productos solicitados
     const productsBox = document.getElementById("total-products");
     if (productsBox) productsBox.textContent = totalProducts;
-
   } catch (e) {
     console.warn("updateDashboard error:", e);
   }
 }
-
 
 // === SELECT DE CLIENTES PARA DERIVACIÓN ===
 
@@ -905,11 +1019,11 @@ function updateClientSelectFromClients() {
   const editSel = document.getElementById("edit-cliente-derivado");
   if (!sel && !editSel) return;
 
-  const companies = [...new Set(clients.map(c => c.company).filter(Boolean))].sort();
+  const companies = [...new Set(clients.map((c) => c.company).filter(Boolean))].sort();
   const fill = (select) => {
     if (!select) return;
     select.innerHTML = `<option value="">Seleccionar cliente</option>`;
-    companies.forEach(name => {
+    companies.forEach((name) => {
       const opt = document.createElement("option");
       opt.value = name;
       opt.textContent = name;
@@ -922,7 +1036,7 @@ function updateClientSelectFromClients() {
 }
 
 function updateClientSelectFromContacts() {
-  // Podría usarse para alimentar algo si hace falta; ahora mismo no estrictamente necesario.
+  // Reservado para futuros usos si hace falta.
 }
 
 // === REPORTES (VERSIÓN RESUMIDA) ===
@@ -933,13 +1047,10 @@ function generateReports() {
   generateTopReferralsReport();
   generateTimelineReport();
   generateReferralsReport();
-
-  // 🔸 Nuevos reportes
   generateTopProductsReport();
   generateProductsBySellerReport();
   generateRequestsByCategoryReport();
 }
-
 
 // Ventas por vendedor
 function generateSalesReport() {
@@ -951,26 +1062,34 @@ function generateSalesReport() {
     "Andrés Iñiguez",
     "Eduardo Schiavi",
     "Gabriel Caffarello",
-    "Natalia Montero"
+    "Natalia Montero",
   ];
 
-  const salesData = vendedores.map(v => ({
+  const salesData = vendedores.map((v) => ({
     name: v,
-    count: contacts.filter(c => c.vendedor === v && c.estado === "Vendido").length
+    count: contacts.filter(
+      (c) => c.vendedor === v && c.estado === "Vendido"
+    ).length,
   }));
 
-  const max = Math.max(...salesData.map(d => d.count), 1);
+  const max = Math.max(...salesData.map((d) => d.count), 1);
 
-  container.innerHTML = salesData.map(item => `
+  container.innerHTML = salesData
+    .map(
+      (item) => `
     <div class="chart-bar">
       <div class="chart-label">${item.name}</div>
-      <div class="chart-value" style="width: ${Math.max((item.count / max) * 100, 5)}%">
+      <div class="chart-value" style="width: ${Math.max(
+        (item.count / max) * 100,
+        5
+      )}%">
         ${item.count} ventas
       </div>
     </div>
-  `).join("");
+  `
+    )
+    .join("");
 }
-// === NUEVOS REPORTES DE PRODUCTOS ===
 
 // 🥚 Productos más solicitados
 function generateTopProductsReport() {
@@ -978,7 +1097,7 @@ function generateTopProductsReport() {
   if (!container) return;
 
   const counts = {};
-  contacts.forEach(c => {
+  contacts.forEach((c) => {
     if (c.producto && c.producto.trim() !== "") {
       const name = c.producto.trim();
       counts[name] = (counts[name] || 0) + 1;
@@ -992,13 +1111,17 @@ function generateTopProductsReport() {
     return;
   }
 
-  container.innerHTML = sorted.map(([prod, count], i) => `
+  container.innerHTML = sorted
+    .map(
+      ([prod, count], i) => `
     <div class="ranking-item">
       <span class="ranking-position">#${i + 1}</span>
       <span class="ranking-name">${prod}</span>
       <span class="ranking-value">${count}</span>
     </div>
-  `).join("");
+  `
+    )
+    .join("");
 }
 
 // 👩‍💼 Productos por vendedor
@@ -1007,40 +1130,49 @@ function generateProductsBySellerReport() {
   if (!container) return;
 
   const sellers = {};
-  contacts.forEach(c => {
+  contacts.forEach((c) => {
     if (!c.vendedor || !c.producto) return;
     if (!sellers[c.vendedor]) sellers[c.vendedor] = {};
     const prod = c.producto.trim();
     sellers[c.vendedor][prod] = (sellers[c.vendedor][prod] || 0) + 1;
   });
 
-  const html = Object.entries(sellers).map(([seller, products]) => {
-    const items = Object.entries(products)
-      .sort((a, b) => b[1] - a[1])
-      .map(([prod, count]) => `<li>${prod}: ${count}</li>`)
-      .join("");
-    return `
+  const html = Object.entries(sellers)
+    .map(([seller, products]) => {
+      const items = Object.entries(products)
+        .sort((a, b) => b[1] - a[1])
+        .map(([prod, count]) => `<li>${prod}: ${count}</li>`)
+        .join("");
+      return `
       <div class="seller-block">
         <strong>${seller}</strong>
         <ul>${items}</ul>
       </div>
     `;
-  }).join("");
+    })
+    .join("");
 
-  container.innerHTML = html || `<p style="text-align:center;color:#666;">Sin registros de productos por vendedor</p>`;
+  container.innerHTML =
+    html ||
+    `<p style="text-align:center;color:#666;">Sin registros de productos por vendedor</p>`;
 }
 
-// 📦 Solicitudes por categoría (usa el campo "type" del cliente derivado)
+// 📦 Solicitudes por categoría (según tipo del cliente derivado)
 function generateRequestsByCategoryReport() {
   const container = document.getElementById("requests-by-category-report");
   if (!container) return;
 
   const counts = {};
-  contacts.forEach(c => {
-    if (c.type && c.type.trim() !== "") {
-      counts[c.type] = (counts[c.type] || 0) + 1;
-    }
-  });
+
+  contacts
+    .filter((c) => c.cliente_derivado)
+    .forEach((c) => {
+      const cli = clients.find((cl) => cl.company === c.cliente_derivado);
+      const type = cli?.type;
+      if (type && type.trim() !== "") {
+        counts[type] = (counts[type] || 0) + 1;
+      }
+    });
 
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   if (sorted.length === 0) {
@@ -1048,23 +1180,26 @@ function generateRequestsByCategoryReport() {
     return;
   }
 
-  container.innerHTML = sorted.map(([cat, count]) => `
+  container.innerHTML = sorted
+    .map(
+      ([cat, count]) => `
     <div class="ranking-item">
       <span class="ranking-name">${cat}</span>
       <span class="ranking-value">${count}</span>
     </div>
-  `).join("");
+  `
+    )
+    .join("");
 }
-
 
 // Resumen de estados
 function generateStatusReport() {
   const container = document.getElementById("status-report");
   if (!container) return;
 
-  const vendidos = contacts.filter(c => c.estado === "Vendido").length;
-  const noVendidos = contacts.filter(c => c.estado === "No Vendido").length;
-  const derivados = contacts.filter(c => c.estado === "Derivado").length;
+  const vendidos = contacts.filter((c) => c.estado === "Vendido").length;
+  const noVendidos = contacts.filter((c) => c.estado === "No Vendido").length;
+  const derivados = contacts.filter((c) => c.estado === "Derivado").length;
 
   container.innerHTML = `
     <div class="status-item status-vendido">
@@ -1089,25 +1224,31 @@ function generateTopReferralsReport() {
 
   const counts = {};
   contacts
-    .filter(c => c.estado === "Derivado" && c.cliente_derivado)
-    .forEach(c => {
+    .filter((c) => c.estado === "Derivado" && c.cliente_derivado)
+    .forEach((c) => {
       counts[c.cliente_derivado] = (counts[c.cliente_derivado] || 0) + 1;
     });
 
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const sorted = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   if (!sorted.length) {
     container.innerHTML = `<p style="text-align:center;color:#666;">No hay derivaciones registradas</p>`;
     return;
   }
 
-  container.innerHTML = sorted.map(([name, count], idx) => `
+  container.innerHTML = sorted
+    .map(
+      ([name, count], idx) => `
     <div class="ranking-item">
       <span class="ranking-position">#${idx + 1}</span>
       <span class="ranking-name">${name}</span>
       <span class="ranking-value">${count}</span>
     </div>
-  `).join("");
+  `
+    )
+    .join("");
 }
 
 // Evolución mensual simple
@@ -1116,10 +1257,11 @@ function generateTimelineReport() {
   if (!container) return;
 
   const monthly = {};
-  contacts.forEach(c => {
+  contacts.forEach((c) => {
     if (!c.fecha) return;
     const month = c.fecha.substring(0, 7);
-    if (!monthly[month]) monthly[month] = { total: 0, vendidos: 0, derivados: 0 };
+    if (!monthly[month])
+      monthly[month] = { total: 0, vendidos: 0, derivados: 0 };
     monthly[month].total++;
     if (c.estado === "Vendido") monthly[month].vendidos++;
     if (c.estado === "Derivado") monthly[month].derivados++;
@@ -1131,10 +1273,14 @@ function generateTimelineReport() {
     return;
   }
 
-  container.innerHTML = months.map(m => {
-    const d = monthly[m];
-    const label = new Date(m + "-01").toLocaleDateString("es-ES", { month: "short", year: "numeric" });
-    return `
+  container.innerHTML = months
+    .map((m) => {
+      const d = monthly[m];
+      const label = new Date(m + "-01").toLocaleDateString("es-ES", {
+        month: "short",
+        year: "numeric",
+      });
+      return `
       <div class="timeline-item">
         <span class="timeline-month">${label}</span>
         <div class="timeline-stats">
@@ -1144,7 +1290,8 @@ function generateTimelineReport() {
         </div>
       </div>
     `;
-  }).join("");
+    })
+    .join("");
 }
 
 // Informe detallado de derivaciones
@@ -1156,15 +1303,15 @@ function generateReferralsReport() {
   const todayMonth = new Date().toISOString().slice(0, 7);
 
   contacts
-    .filter(c => c.estado === "Derivado" && c.cliente_derivado)
-    .forEach(c => {
+    .filter((c) => c.estado === "Derivado" && c.cliente_derivado)
+    .forEach((c) => {
       const name = c.cliente_derivado;
       if (!stats[name]) {
         stats[name] = {
           total: 0,
           thisMonth: 0,
           lastContact: null,
-          sellers: {}
+          sellers: {},
         };
       }
       stats[name].total++;
@@ -1172,7 +1319,8 @@ function generateReferralsReport() {
       if (!stats[name].lastContact || (c.fecha || "") > stats[name].lastContact) {
         stats[name].lastContact = c.fecha;
       }
-      if (!stats[name].sellers[c.vendedor]) stats[name].sellers[c.vendedor] = 0;
+      if (!stats[name].sellers[c.vendedor])
+        stats[name].sellers[c.vendedor] = 0;
       stats[name].sellers[c.vendedor]++;
     });
 
@@ -1218,10 +1366,10 @@ function exportContacts() {
     "Producto",
     "Estado",
     "Derivado a",
-    "Motivo"
+    "Motivo",
   ];
 
-  const rows = contacts.map(c => [
+  const rows = contacts.map((c) => [
     c.fecha || "",
     c.vendedor || "",
     c.cliente || "",
@@ -1231,12 +1379,12 @@ function exportContacts() {
     c.producto || "",
     c.estado || "",
     c.cliente_derivado || "",
-    c.motivo || ""
+    c.motivo || "",
   ]);
 
-  const csvLines = [header, ...rows].map(cols =>
+  const csvLines = [header, ...rows].map((cols) =>
     cols
-      .map(v => `"${(v || "").toString().replace(/"/g, '""')}"`)
+      .map((v) => `"${(v || "").toString().replace(/"/g, '""')}"`)
       .join(",")
   );
 
@@ -1254,11 +1402,13 @@ function exportClients() {
     "Tipo",
     "Estado",
     "Derivaciones Recibidas",
-    "Notas"
+    "Notas",
   ];
 
-  const rows = clients.map(c => {
-    const derivs = contacts.filter(x => x.cliente_derivado === c.company).length;
+  const rows = clients.map((c) => {
+    const derivs = contacts.filter(
+      (x) => x.cliente_derivado === c.company
+    ).length;
     return [
       c.name || "",
       c.company || "",
@@ -1268,13 +1418,13 @@ function exportClients() {
       c.type || "",
       c.status || "",
       derivs,
-      c.notes || ""
+      c.notes || "",
     ];
   });
 
-  const csvLines = [header, ...rows].map(cols =>
+  const csvLines = [header, ...rows].map((cols) =>
     cols
-      .map(v => `"${(v || "").toString().replace(/"/g, '""')}"`)
+      .map((v) => `"${(v || "").toString().replace(/"/g, '""')}"`)
       .join(",")
   );
 
@@ -1289,15 +1439,20 @@ function exportFullReport() {
   report += `INFORME COMERCIAL COMPLETO - ${today}\n\n`;
   report += `ESTADÍSTICAS GENERALES:\n`;
   report += `Total de contactos: ${contacts.length}\n`;
-  report += `Ventas realizadas: ${contacts.filter(c => c.estado === "Vendido").length}\n`;
-  report += `Derivaciones: ${contacts.filter(c => c.estado === "Derivado").length}\n`;
+  report += `Ventas realizadas: ${
+    contacts.filter((c) => c.estado === "Vendido").length
+  }\n`;
+  report += `Derivaciones: ${
+    contacts.filter((c) => c.estado === "Derivado").length
+  }\n`;
   report += `Clientes registrados: ${clients.length}\n\n`;
 
   const counts = {};
   contacts
-    .filter(c => c.estado === "Derivado" && c.cliente_derivado)
-    .forEach(c => {
-      counts[c.cliente_derivado] = (counts[c.cliente_derivado] || 0) + 1;
+    .filter((c) => c.estado === "Derivado" && c.cliente_derivado)
+    .forEach((c) => {
+      counts[c.cliente_derivado] =
+        (counts[c.cliente_derivado] || 0) + 1;
     });
 
   report += `TOP CLIENTES POR DERIVACIONES:\n`;
@@ -1308,59 +1463,55 @@ function exportFullReport() {
       report += `${idx + 1}. ${name}: ${count} derivaciones\n`;
     });
 
-  downloadTextFile(report, "informe-completo.txt", "text/plain;charset=utf-8");
+  downloadTextFile(
+    report,
+    "informe-completo.txt",
+    "text/plain;charset=utf-8"
+  );
 }
 
-
 /*****************************************************
- *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL (CORREGIDO)
+ *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL
  *****************************************************/
 
-// === MAPA DE CLIENTES (Versión final estable con Leaflet) ===
 let mapView = null;
 let markersLayer = null;
 
-// Inicializa o reinicia el mapa
-async function initLeafletMap() {
-  try {
-    const mapDiv = document.getElementById("map");
-    if (!mapDiv) return;
+function ensureMapInitialized() {
+  const mapDiv = document.getElementById("map");
+  if (!mapDiv) return false;
 
-    // Si ya existe, eliminarlo para evitar errores
-    if (mapView) {
-      mapView.remove();
-      mapView = null;
-    }
-
+  if (!mapView) {
     mapView = L.map("map").setView([-34.6037, -58.3816], 6);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap contributors",
     }).addTo(mapView);
 
     markersLayer = L.layerGroup().addTo(mapView);
-    await showAllClientsOnMap();
-  } catch (err) {
-    console.error("initLeafletMap error:", err);
   }
+  return true;
 }
 
-// Muestra todos los clientes con coordenadas
-async function showAllClientsOnMap() {
+async function plotClientsOnMap(clientList) {
+  if (!ensureMapInitialized()) return;
   if (!markersLayer) return;
+
   markersLayer.clearLayers();
 
-  if (!clients || clients.length === 0) {
-    alert("No hay clientes registrados.");
+  if (!clientList || clientList.length === 0) {
+    alert("No hay clientes para mostrar en el mapa.");
+    resetMapView();
     return;
   }
 
   const coords = [];
 
-  for (const c of clients) {
-    // Geocodificación si no tiene coordenadas
+  for (const c of clientList) {
     if (!c.coordinates && c.address) {
       try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(c.address)}`;
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          c.address
+        )}`;
         const res = await fetch(url);
         const data = await res.json();
         if (data && data.length > 0) {
@@ -1376,13 +1527,11 @@ async function showAllClientsOnMap() {
       const lat = parseFloat(c.coordinates.lat);
       const lng = parseFloat(c.coordinates.lng);
       if (!isNaN(lat) && !isNaN(lng)) {
-
-        // 🔹 Calcular cantidad de derivaciones de este cliente
-        const derivCount = contacts.filter(x => x.cliente_derivado === c.company).length;
+        const derivCount = contacts.filter(
+          (x) => x.cliente_derivado === c.company
+        ).length;
 
         const marker = L.marker([lat, lng]).addTo(markersLayer);
-
-        // 🔹 Popup con datos + cantidad de derivaciones
         marker.bindPopup(`
           <b>${c.name || "-"}</b><br>
           ${c.company || ""}<br>
@@ -1405,33 +1554,59 @@ async function showAllClientsOnMap() {
   }
 }
 
-// Restablece la vista inicial
+async function initLeafletMap() {
+  try {
+    await plotClientsOnMap(clients);
+  } catch (err) {
+    console.error("initLeafletMap error:", err);
+  }
+}
+
 function resetMapView() {
   if (mapView) {
     mapView.setView([-34.6037, -58.3816], 6);
   }
 }
 
-// Botón "Ver en mapa"
-function showClientsOnMap() {
-  // Mostramos directamente la sección del mapa usando la función principal
+// Botones del mapa (HTML)
+async function showAllClients() {
   showSection("map-section");
+  await plotClientsOnMap(clients);
+}
+
+async function showActiveClients() {
+  showSection("map-section");
+  const list = clients.filter((c) => c.status === "Activo");
+  await plotClientsOnMap(list);
+}
+
+async function showByType(type) {
+  showSection("map-section");
+  const list = clients.filter((c) => c.type === type);
+  await plotClientsOnMap(list);
+}
+
+// Botón "Ver en mapa" desde la tabla de clientes
+async function showClientsOnMap() {
+  await showAllClients();
 }
 
 // === GEOLOCALIZACIÓN ===
 
-// Buscar coordenadas (formulario nuevo cliente)
 async function geocodeCurrentAddress() {
   const addressInput = document.getElementById("client-address");
   const coordDisplay = document.getElementById("coordinates-display");
   if (!addressInput || !coordDisplay) return;
 
   const address = addressInput.value.trim();
-  if (!address) return alert("Por favor ingresá una dirección para geocodificar.");
+  if (!address)
+    return alert("Por favor ingresá una dirección para geocodificar.");
 
   coordDisplay.textContent = "Buscando ubicación...";
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      address
+    )}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -1452,18 +1627,20 @@ async function geocodeCurrentAddress() {
   }
 }
 
-// Buscar coordenadas (formulario editar cliente)
 async function geocodeCurrentAddressEdit() {
   const addressInput = document.getElementById("edit-client-address");
   const coordDisplay = document.getElementById("edit-coordinates-display");
   if (!addressInput || !coordDisplay) return;
 
   const address = addressInput.value.trim();
-  if (!address) return alert("Por favor ingresá una dirección para geocodificar.");
+  if (!address)
+    return alert("Por favor ingresá una dirección para geocodificar.");
 
   coordDisplay.textContent = "Buscando ubicación...";
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      address
+    )}`;
     const res = await fetch(url);
     const data = await res.json();
 
@@ -1484,7 +1661,6 @@ async function geocodeCurrentAddressEdit() {
   }
 }
 
-// Obtener ubicación actual (modo edición)
 function getCurrentLocationEdit() {
   const coordDisplay = document.getElementById("edit-coordinates-display");
   if (!navigator.geolocation) {
@@ -1494,7 +1670,7 @@ function getCurrentLocationEdit() {
 
   coordDisplay.textContent = "Obteniendo tu ubicación actual...";
   navigator.geolocation.getCurrentPosition(
-    pos => {
+    (pos) => {
       const lat = pos.coords.latitude.toFixed(6);
       const lon = pos.coords.longitude.toFixed(6);
       coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
@@ -1502,14 +1678,14 @@ function getCurrentLocationEdit() {
       coordDisplay.dataset.lng = lon;
       alert(`Ubicación actual:\nLat: ${lat}\nLng: ${lon}`);
     },
-    err => {
+    (err) => {
       coordDisplay.textContent = "No se pudo obtener ubicación.";
       alert("Error al obtener ubicación: " + err.message);
     }
   );
 }
 
-// --- Mostrar secciones del mapa (solo afecta al mapa) ---
+// Mostrar secciones del mapa (si alguna vez lo usás)
 function showMapSection(sectionId) {
   document.querySelectorAll(".section").forEach((section) => {
     section.classList.remove("active");
@@ -1520,7 +1696,6 @@ function showMapSection(sectionId) {
     targetSection.classList.add("active");
   }
 
-  // Si el usuario va al mapa directamente
   if (sectionId === "map-section") {
     setTimeout(() => {
       if (mapView) {
@@ -1540,13 +1715,23 @@ window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
 window.getCurrentLocationEdit = getCurrentLocationEdit;
 window.initLeafletMap = initLeafletMap;
 window.resetMapView = resetMapView;
+window.showAllClients = showAllClients;
+window.showActiveClients = showActiveClients;
+window.showByType = showByType;
+window.exportContacts = exportContacts;
+window.exportClients = exportClients;
+window.exportFullReport = exportFullReport;
+window.filterContacts = filterContacts;
+window.filterClients = filterClients;
 
-console.log("🌍 Funciones de geolocalización registradas correctamente en window");
+console.log(
+  "🌍 Funciones de geolocalización y reportes registradas correctamente en window"
+);
 
 // === DOM READY (unificado y al final de TODO el script) ===
 document.addEventListener("DOMContentLoaded", () => {
   if (typeof initApp === "function") {
-    initApp().catch(err => console.error("initApp error:", err));
+    initApp().catch((err) => console.error("initApp error:", err));
   } else {
     console.error("⚠️ initApp no está definida o cargó fuera de orden.");
   }
