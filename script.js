@@ -263,52 +263,6 @@ async function loadClientsFromDB() {
 }
 
 // Guardar un contacto (insert o update según tenga id)
-async function saveContactToDB(contact) {
-  const db = window.supabase;
-  if (!db) return;
-
-  try {
-    if (!contact.id) {
-      // nuevo
-      const { data, error } = await db
-        .from("commercial_contacts")
-        .insert(contact)
-        .select("*")
-        .single();
-      if (error) throw error;
-      return data;
-    } else {
-      const { data, error } = await db
-        .from("commercial_contacts")
-        .update(contact)
-        .eq("id", contact.id)
-        .select("*")
-        .single();
-      if (error) throw error;
-      return data;
-    }
-  } catch (e) {
-    console.error("saveContactToDB error:", e);
-    throw e;
-  }
-}
-
-async function deleteContactFromDB(id) {
-  const db = window.supabase;
-  if (!db) return;
-  try {
-    const { error } = await db
-      .from("commercial_contacts")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
-  } catch (e) {
-    console.error("deleteContactFromDB error:", e);
-    throw e;
-  }
-}
-
-// Guardar cliente en DB
 async function saveClientToDB(client) {
   try {
     const { data, error } = await window.supabase
@@ -323,21 +277,23 @@ async function saveClientToDB(client) {
         status: client.status || "",
         notes: client.notes || "",
         registradoPor: currentUser?.username || null,
-        fechaRegistro: new Date().toISOString()
+        fechaRegistro: new Date().toISOString(),
       })
       .eq("id", client.id)
-      .select("*"); // 👈 notación sin coerción
+      .select("*")
+      .maybeSingle(); // 👈 evita el 406 si la fila no se devuelve correctamente
 
     if (error) throw error;
-    if (!data?.length) throw new Error("No se actualizó ningún registro.");
+    if (!data) throw new Error("No se actualizó ningún registro");
 
-    console.log("Cliente actualizado:", data[0]);
-    return data[0];
+    console.log("Cliente actualizado:", data);
+    return data;
   } catch (e) {
     console.error("saveClientToDB error:", e);
     throw e;
   }
 }
+
 
 
 
