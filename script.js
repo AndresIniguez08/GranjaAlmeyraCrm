@@ -867,6 +867,8 @@ function filterClients() {
 
 // === CLIENTES: EDICIÓN / BORRADO ===
 
+// === CLIENTES: EDICIÓN / BORRADO ===
+
 function editClient(id) {
   const c = clients.find(x => x.id === id);
   if (!c) return;
@@ -893,6 +895,51 @@ function closeEditClientModal() {
   hideElement("edit-client-modal");
 }
 
+// === GUARDAR CAMBIOS DEL CLIENTE ===
+async function saveClientToDB(client) {
+  try {
+    const safe = {
+      name: client.name?.toString() || "Sin nombre",
+      company: client.company?.toString() || "",
+      phone: client.phone?.toString() || "",
+      email: client.email?.toString() || "",
+      address: client.address?.toString() || "",
+      type: client.type?.toString() || "",
+      status: client.status?.toString() || "",
+      notes: client.notes?.toString() || "",
+      registered_by: currentUser?.username?.toString() || "",
+      registered_at: new Date().toISOString()
+    };
+
+    // agregar coordenadas solo si son válidas
+    if (
+      client.coordinates &&
+      typeof client.coordinates === "object" &&
+      client.coordinates.lat &&
+      client.coordinates.lng
+    ) {
+      safe.coordinates = client.coordinates;
+    }
+
+    // === PATCH con manejo del 406 ===
+    const { data, error } = await window.supabase
+      .from("commercial_clients")
+      .update(safe)
+      .eq("id", client.id)
+      .select("*"); // sin maybeSingle()
+
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error("No se actualizó ningún registro");
+
+    console.log("Cliente actualizado correctamente:", data[0]);
+    return data[0];
+  } catch (e) {
+    console.error("saveClientToDB error:", e);
+    throw e;
+  }
+}
+
+// === ENVÍO DEL FORMULARIO DE EDICIÓN ===
 async function handleEditClientSubmit(e) {
   e.preventDefault();
 
@@ -914,7 +961,7 @@ async function handleEditClientSubmit(e) {
     address: form.querySelector("#edit-client-address").value.trim(),
     type: form.querySelector("#edit-client-type").value,
     status: form.querySelector("#edit-client-status").value,
-    notes: form.querySelector("#edit-client-notes").value.trim(),
+    notes: form.querySelector("#edit-client-notes").value.trim()
   };
 
   // intentar leer las coordenadas visibles en el formulario
@@ -922,23 +969,31 @@ async function handleEditClientSubmit(e) {
   if (coordsDisplay && coordsDisplay.dataset.lat && coordsDisplay.dataset.lng) {
     updatedClient.coordinates = {
       lat: parseFloat(coordsDisplay.dataset.lat),
-      lng: parseFloat(coordsDisplay.dataset.lng),
+      lng: parseFloat(coordsDisplay.dataset.lng)
     };
   }
 
   try {
     const saved = await saveClientToDB(updatedClient);
-    const idx = clients.findIndex((c) => c.id === id);
+    const idx = clients.findIndex(c => c.id === id);
     if (idx !== -1) clients[idx] = saved;
+
     closeEditClientModal();
     updateDashboard();
     renderClientsList();
-    alert("Cliente actualizado correctamente ✅");
+
+    alert("✅ Cliente actualizado correctamente");
   } catch (err) {
     console.error("Error editando cliente:", err);
-    alert("Error guardando los cambios del cliente ❌");
+    alert("❌ Error guardando los cambios del cliente");
   }
 }
+
+// Exponer al scope global
+window.handleEditClientSubmit = handleEditClientSubmit;
+window.editClient = editClient;
+window.closeEditClientModal = closeEditClientModal;
+
 
 
 async function deleteClient(id) {
