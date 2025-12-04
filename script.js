@@ -1578,6 +1578,7 @@ async function showAllClientsOnMap() {
   const coords = [];
 
   for (const c of clients) {
+    // Geocodificación si no tiene coordenadas
     if (!c.coordinates && c.address) {
       try {
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(c.address)}`;
@@ -1595,14 +1596,24 @@ async function showAllClientsOnMap() {
     if (c.coordinates) {
       const lat = parseFloat(c.coordinates.lat);
       const lng = parseFloat(c.coordinates.lng);
+
       if (!isNaN(lat) && !isNaN(lng)) {
+        // 🔹 Calcular cantidad de derivaciones de este cliente
+        const derivCount = contacts.filter(x => x.cliente_derivado === c.company).length;
+
+        // Crear marcador
         const marker = L.marker([lat, lng]).addTo(markersLayer);
+
+        // 🔹 Popup con datos + cantidad de derivaciones
         marker.bindPopup(`
-          <b>${c.name}</b><br>
+          <b>${c.name || "-"}</b><br>
           ${c.company || ""}<br>
           ${c.address || ""}<br>
-          <em>${c.type || ""} - ${c.status || ""}</em>
+          <em>${c.type || ""} - ${c.status || ""}</em><br>
+          <hr>
+          <b>Derivaciones recibidas:</b> ${derivCount}
         `);
+
         coords.push([lat, lng]);
       }
     }
@@ -1615,6 +1626,7 @@ async function showAllClientsOnMap() {
     resetMapView();
   }
 }
+
 
 // Restablece la vista inicial
 function resetMapView() {
