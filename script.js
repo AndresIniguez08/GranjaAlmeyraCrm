@@ -713,15 +713,35 @@ function filterContacts() {
 
 // === CONTACTOS: EDICIÓN / BORRADO ===
 
-function toggleDerivacion() {
+async function toggleDerivacion() {
   const estadoSel = document.getElementById("estado");
   const derivGroup = document.getElementById("derivacion-group");
-  if (!estadoSel || !derivGroup) return;
+  const selectDeriv = document.getElementById("cliente-derivado");
+
+  if (!estadoSel || !derivGroup || !selectDeriv) return;
 
   if (estadoSel.value === "Derivado") {
     derivGroup.style.display = "block";
-    // 🔹 Actualiza la lista de clientes cuando el estado es "Derivado"
-    updateClientSelectFromClients();
+
+    // 🔹 Si no hay clientes cargados aún, los traemos de Supabase
+    if (!clients || clients.length === 0) {
+      try {
+        await loadClientsFromDB();
+      } catch (err) {
+        console.error("Error cargando clientes para derivación:", err);
+      }
+    }
+
+    // 🔹 Llenar el combo con los clientes
+    selectDeriv.innerHTML = `<option value="">Seleccionar cliente</option>`;
+    clients.forEach(c => {
+      if (c.company) {
+        const opt = document.createElement("option");
+        opt.value = c.company;
+        opt.textContent = c.company;
+        selectDeriv.appendChild(opt);
+      }
+    });
   } else {
     derivGroup.style.display = "none";
   }
