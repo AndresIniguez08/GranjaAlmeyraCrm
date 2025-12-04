@@ -590,7 +590,6 @@ async function handleEditContactSubmit(e) {
   }
 
   const updated = {
-    ...old,
     fecha: formData.get("fecha"),
     vendedor: formData.get("vendedor"),
     cliente: formData.get("cliente"),
@@ -602,18 +601,21 @@ async function handleEditContactSubmit(e) {
     cliente_derivado: formData.get("cliente-derivado") || "",
     motivo: formData.get("motivo") || "",
     editado_por: currentUser.username,
-    fecha_edicion: new Date().toISOString()
+    fecha_edicion: new Date().toISOString(),
   };
 
   try {
-    const { error } = await window.supabase
+    const { error, status } = await window.supabase
       .from("commercial_contacts")
       .update(updated)
       .eq("id", id);
 
     if (error) throw error;
+    if (status === 204) {
+      console.log("✅ Actualización realizada correctamente (sin retorno de datos)");
+    }
 
-    // 🔹 Actualizamos localmente sin esperar respuesta del servidor
+    // Actualizar localmente
     const idx = contacts.findIndex(c => c.id === id);
     if (idx !== -1) contacts[idx] = { ...contacts[idx], ...updated };
 
@@ -627,6 +629,7 @@ async function handleEditContactSubmit(e) {
     alert("Error al guardar los cambios");
   }
 }
+
 
 
 async function deleteContact(id) {
