@@ -1568,7 +1568,7 @@ function resetMapView() {
   }
 }
 
-// Botones del mapa (HTML)
+// Botones del mapa
 async function showAllClients() {
   showSection("map-section");
   await plotClientsOnMap(clients);
@@ -1586,13 +1586,11 @@ async function showByType(type) {
   await plotClientsOnMap(list);
 }
 
-// Botón "Ver en mapa" desde la tabla de clientes
 async function showClientsOnMap() {
   await showAllClients();
 }
 
 // === GEOLOCALIZACIÓN ===
-
 async function geocodeCurrentAddress() {
   const addressInput = document.getElementById("client-address");
   const coordDisplay = document.getElementById("coordinates-display");
@@ -1685,31 +1683,8 @@ function getCurrentLocationEdit() {
   );
 }
 
-// Mostrar secciones del mapa (si alguna vez lo usás)
-function showMapSection(sectionId) {
-  document.querySelectorAll(".section").forEach((section) => {
-    section.classList.remove("active");
-  });
-
-  const targetSection = document.getElementById(sectionId);
-  if (targetSection) {
-    targetSection.classList.add("active");
-  }
-
-  if (sectionId === "map-section") {
-    setTimeout(() => {
-      if (mapView) {
-        mapView.invalidateSize();
-      } else {
-        initLeafletMap();
-      }
-    }, 400);
-  }
-}
-
 // === REGISTRO GLOBAL (window) ===
 window.showClientsOnMap = showClientsOnMap;
-window.showMapSection = showMapSection;
 window.geocodeCurrentAddress = geocodeCurrentAddress;
 window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
 window.getCurrentLocationEdit = getCurrentLocationEdit;
@@ -1724,51 +1699,41 @@ window.exportFullReport = exportFullReport;
 window.filterContacts = filterContacts;
 window.filterClients = filterClients;
 
-console.log(
-  "🌍 Funciones de geolocalización y reportes registradas correctamente en window"
-);
 /*****************************************************
- *  BLOQUE FINAL - BOTONES DE NAVEGACIÓN
+ *  BLOQUE FINAL - BOTONES DE NAVEGACIÓN Y ARRANQUE
  *****************************************************/
 
 function setupNavigation() {
-  const buttons = [
-    { id: "btn-dashboard", section: "dashboard" },
-    { id: "btn-register-contact", section: "form-contact" },
-    { id: "btn-view-contacts", section: "list-contacts" },
-    { id: "btn-register-client", section: "form-client" },
-    { id: "btn-view-clients", section: "list-clients" },
-    { id: "btn-map", section: "map-section" },
-    { id: "btn-reports", section: "reports" },
-  ];
+  const navMap = {
+    "btn-dashboard": "dashboard",
+    "btn-register-contact": "form-contact",
+    "btn-view-contacts": "list-contacts",
+    "btn-register-client": "form-client",
+    "btn-view-clients": "list-clients",
+    "btn-map": "map-section",
+    "btn-reports": "reports",
+  };
 
-  buttons.forEach(({ id, section }) => {
-    const btn = document.getElementById(id);
+  Object.entries(navMap).forEach(([btnId, section]) => {
+    const btn = document.getElementById(btnId);
     if (btn) {
-      btn.onclick = () => showSection(section);
+      btn.addEventListener("click", () => showSection(section));
     }
   });
 
   const logoutBtn = document.getElementById("btn-logout");
-  if (logoutBtn) logoutBtn.onclick = logout;
+  if (logoutBtn) logoutBtn.addEventListener("click", logout);
 }
 
 // === INICIALIZACIÓN FINAL ===
 document.addEventListener("DOMContentLoaded", () => {
   if (typeof initApp === "function") {
-    initApp().catch((err) => console.error("initApp error:", err));
-  } else {
-    console.error("⚠️ initApp no está definida o cargó fuera de orden.");
-  }
-
-  // 🔹 Vincula los botones de navegación
-  setupNavigation();
-});
-
-// === DOM READY (unificado y al final de TODO el script) ===
-document.addEventListener("DOMContentLoaded", () => {
-  if (typeof initApp === "function") {
-    initApp().catch((err) => console.error("initApp error:", err));
+    initApp()
+      .then(() => {
+        setupNavigation();
+        console.log("✅ Sistema inicializado correctamente con navegación activa");
+      })
+      .catch((err) => console.error("initApp error:", err));
   } else {
     console.error("⚠️ initApp no está definida o cargó fuera de orden.");
   }
