@@ -445,6 +445,12 @@ function renderContactsList(filtered = null) {
     .sort((a, b) => (a.fecha || "").localeCompare(b.fecha || ""))
     .reverse()
     .forEach((c) => {
+      const phone = c.telefono || "";
+      const whatsappBtn = phone
+        ? `<button class="btn-whatsapp" title="Contactar por WhatsApp" 
+            onclick="sendWhatsApp('${phone}', '', '${c.cliente}', '${c.producto}')">💬</button>`
+        : "";
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${formatDate(c.fecha)}</td>
@@ -458,6 +464,7 @@ function renderContactsList(filtered = null) {
         <td>${c.cliente_derivado || "-"}</td>
         <td>${c.motivo || "-"}</td>
         <td class="actions-column">
+          ${whatsappBtn}
           <button class="btn-edit" onclick="editContact('${c.id}')">✏️</button>
           <button class="btn-delete" onclick="deleteContact('${c.id}')">🗑️</button>
         </td>
@@ -465,6 +472,8 @@ function renderContactsList(filtered = null) {
       tbody.appendChild(tr);
     });
 }
+
+
 
 function filterContacts() {
   const vendedor = document.getElementById("filter-vendedor")?.value || "";
@@ -1638,6 +1647,59 @@ window.filterClients = filterClients;
 console.log(
   "🌍 Funciones de geolocalización y reportes registradas correctamente en window"
 );
+// === CONTACTO POR WHATSAPP ===
+function sendWhatsApp(phone, msg, clientName = "", product = "", empresa = "") {
+  if (!phone) return alert("No hay teléfono disponible para este contacto.");
+
+  // Limpiar número
+  const cleaned = phone.replace(/\D/g, "");
+  const fullNumber = cleaned.startsWith("54") ? cleaned : `54${cleaned}`;
+
+  // Mensaje base
+  if (!msg) {
+    msg = `Hola ${clientName || ""}, soy ${
+      currentUser?.name || currentUser?.username || "del equipo"
+    } de Granja Almeyra 🐔${
+      empresa ? ` (${empresa})` : ""
+    }. Te contacto por ${product || "nuestros productos"}.`;
+  }
+
+  const encodedMsg = encodeURIComponent(msg);
+  const ua = navigator.userAgent.toLowerCase();
+  const isMobile = /android|iphone|ipad|ipod/i.test(ua);
+  const isDesktop = /win|mac|linux/i.test(ua) && !isMobile;
+
+  // URL universal
+  const deepLink = `whatsapp://send?phone=${fullNumber}&text=${encodedMsg}`;
+  const webLink = `https://web.whatsapp.com/send?phone=${fullNumber}&text=${encodedMsg}`;
+  const desktopLink = `https://api.whatsapp.com/send?phone=${fullNumber}&text=${encodedMsg}`;
+
+  try {
+    if (isMobile) {
+      // Dispositivos móviles → app nativa
+      window.location.href = deepLink;
+    } else if (isDesktop) {
+      /* Escritorio → intentar abrir app primero
+      const a = document.createElement("a");
+      a.href = deepLink;
+      document.body.appendChild(a);
+      a.click(); */
+
+      // Si falla (no abre app), fallback automático a web
+      setTimeout(() => {
+        window.open(webLink, "_blank");
+      }, 1000);
+    } else {
+      // Fallback genérico
+      window.open(desktopLink, "_blank");
+    }
+  } catch (err) {
+    console.error("Error abriendo WhatsApp:", err);
+    window.open(webLink, "_blank");
+  }
+}
+
+
 
 // === DOM READY (unificado y al final de TODO el script) ===
 document.addEventListener("DOMContentLoaded", () => {
