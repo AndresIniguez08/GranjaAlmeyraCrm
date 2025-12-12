@@ -1946,14 +1946,25 @@ tr:hover {
   }
 }
 .btn-whatsapp {
-  background-color: #25d366;
-  color: white;
+  background-color: #25D366;
   border: none;
-  padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: 8px;
+  padding: 8px 10px;
   cursor: pointer;
-  font-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
 .btn-whatsapp:hover {
-  background-color: #1ebe5a;
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
+
+.icon-whatsapp {
+  width: 22px;
+  height: 22px;
+  filter: brightness(0) invert(1);
+}
+

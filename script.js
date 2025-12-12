@@ -447,9 +447,11 @@ function renderContactsList(filtered = null) {
     .forEach((c) => {
       const phone = c.telefono || "";
       const whatsappBtn = phone
-        ? `<button class="btn-whatsapp" title="Contactar por WhatsApp" 
-            onclick="sendWhatsApp('${phone}', '', '${c.cliente}', '${c.producto}')">💬</button>`
-        : "";
+        ? `<button class="btn-whatsapp" onclick="sendWhatsApp('${c.telefono}', '', '${c.cliente}', '${c.producto}', '${c.empresa}')">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" class="icon-whatsapp" />
+</button>`
+        : ""
+
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
