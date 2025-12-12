@@ -763,6 +763,24 @@ function filterClients() {
 
   renderClientsList(filtered);
 }
+function searchClients() {
+  const term = document.getElementById("client-search").value.toLowerCase().trim();
+  if (!term) {
+    renderClientsList();
+    return;
+  }
+
+  const filtered = clients.filter(c =>
+    (c.name && c.name.toLowerCase().includes(term)) ||
+    (c.company && c.company.toLowerCase().includes(term)) ||
+    (c.phone && c.phone.toLowerCase().includes(term)) ||
+    (c.email && c.email.toLowerCase().includes(term)) ||
+    (c.address && c.address.toLowerCase().includes(term))
+  );
+
+  renderClientsList(filtered);
+}
+
 
 // === CLIENTES: EDICIÓN / BORRADO ===
 function editClient(id) {

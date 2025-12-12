@@ -278,7 +278,7 @@
         <div class="success-message" id="client-success-message">
           ¡Cliente registrado exitosamente!
         </div>
-
+       
         <form id="client-form">
           <div class="form-grid">
             <div class="form-group">
@@ -413,6 +413,15 @@
             Ver en Mapa
           </button>
         </div>
+ <div class="client-search-box">
+  <input
+    type="text"
+    id="client-search"
+    placeholder="Buscar cliente, empresa o teléfono..."
+    oninput="searchClients()"
+  />
+</div>
+
 
         <div class="filters">
           <div class="filter-group">
