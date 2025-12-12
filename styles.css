@@ -1982,7 +1982,7 @@ tr:hover {
 }
 
 #client-search:focus {
-  border-color: #25D366;
-  box-shadow: 0 0 5px rgba(37, 211, 102, 0.4);
+  border-color: #ffd700;
+  box-shadow: 0 0 5px rgba(229, 226, 38, 0.758);
 }
 
