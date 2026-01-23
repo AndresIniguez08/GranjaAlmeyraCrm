@@ -51,12 +51,90 @@ let clients = [];
 // === UTILIDADES DE UI ===
 function showElement(id) {
   const el = document.getElementById(id);
-  // 🔴 IMPORTANTE: usar "block" para que se vean aunque .section tenga display:none en CSS
   if (el) el.style.display = "block";
 }
 function hideElement(id) {
   const el = document.getElementById(id);
   if (el) el.style.display = "none";
+}
+
+/* ===================================================
+   HELPERS (faltaban en tu código y el mapa los usa)
+=================================================== */
+function looseEquals(a, b) {
+  const A = (a ?? "").toString().trim().toLowerCase();
+  const B = (b ?? "").toString().trim().toLowerCase();
+  return A === B;
+}
+
+/*****************************************************
+ *  CLIENTES - SEGMENTACIÓN
+ *****************************************************/
+
+const CLIENT_SEGMENTS = {
+  REPARTIDORES: "Repartidores",
+  ALMACEN: "Almacen / supermercado",
+  NEGOCIO: "Negocio",
+  B2B: "B2B",
+};
+
+const SEGMENT_COLORS = {
+  [CLIENT_SEGMENTS.REPARTIDORES]: "#1e88e5", // azul
+  [CLIENT_SEGMENTS.ALMACEN]: "#43a047", // verde
+  [CLIENT_SEGMENTS.NEGOCIO]: "#fb8c00", // naranja
+  [CLIENT_SEGMENTS.B2B]: "#8e24aa", // violeta
+};
+
+function getSegmentColor(segment) {
+  return SEGMENT_COLORS[segment] || "#607d8b"; // gris fallback
+}
+
+function normalizeSegment(raw) {
+  const s = (raw || "").toString().trim();
+  return Object.values(CLIENT_SEGMENTS).includes(s) ? s : "";
+}
+
+/* ===================================================
+   COLOR FINAL PARA MAPA
+   - 1) segmento si existe
+   - 2) fallback por type
+=================================================== */
+function getTypeColor(type) {
+  const t = (type || "").toString().trim().toLowerCase();
+  if (t === "distribuidor") return "#1e88e5"; // azul
+  if (t === "retail") return "#43a047"; // verde
+  return "#607d8b"; // gris
+}
+
+function getClientColor(client) {
+  const seg = normalizeSegment(client?.segment);
+  if (seg) return getSegmentColor(seg);
+  return getTypeColor(client?.type);
+}
+
+// Rellena selects si existen (alta/edición/filtro)
+function hydrateSegmentSelects() {
+  const ids = ["client-segment", "edit-client-segment", "filter-client-segment"];
+  ids.forEach((id) => {
+    const sel = document.getElementById(id);
+    if (!sel || sel.dataset.hydrated === "1") return;
+
+    const hasBlank = !!sel.querySelector("option[value='']");
+    const firstText = hasBlank
+      ? sel.querySelector("option[value='']").textContent
+      : "Seleccionar";
+
+    sel.innerHTML = `<option value="">${firstText || "Seleccionar"}</option>`;
+
+    Object.values(CLIENT_SEGMENTS).forEach((seg) => {
+      const opt = document.createElement("option");
+      opt.value = seg;
+      opt.textContent = seg;
+      sel.appendChild(opt);
+    });
+
+    sel.dataset.hydrated = "1";
+  });
 }
 
 // === CONTROL DE PANTALLAS ===
@@ -71,7 +149,6 @@ function showSection(sectionId) {
       if (sectionId === "app-screen") {
         el.style.display = "block";
       } else {
-        // login y cambio de contraseña usan flex
         el.style.display = "flex";
       }
     }
@@ -98,8 +175,11 @@ function showSection(sectionId) {
 
   if (realId === "reports" && typeof generateReports === "function")
     generateReports();
-  if (realId === "map-section" && typeof initLeafletMap === "function")
-    setTimeout(initLeafletMap, 300);
+
+  // ✅ FIX CLAVE: NO reiniciar mapa con timeouts cada vez que entrás
+  if (realId === "map-section" && typeof initLeafletMap === "function") {
+    initLeafletMap();
+  }
 }
 
 // === SESIONES ===
@@ -107,9 +187,7 @@ async function createSession(user) {
   const token = crypto.randomUUID();
   setCookie("granja_session", token, 7);
   try {
-    await window.supabase
-      .from("sessions")
-      .insert({ token, user_id: user.username });
+    await window.supabase.from("sessions").insert({ token, user_id: user.username });
   } catch (e) {
     console.error("createSession error:", e);
   }
@@ -117,8 +195,7 @@ async function createSession(user) {
 async function clearSession() {
   const token = getCookie("granja_session");
   eraseCookie("granja_session");
-  if (token)
-    await window.supabase.from("sessions").delete().eq("token", token);
+  if (token) await window.supabase.from("sessions").delete().eq("token", token);
 }
 async function restoreSessionFromCookie() {
   const token = getCookie("granja_session");
@@ -130,11 +207,13 @@ async function restoreSessionFromCookie() {
       .eq("token", token)
       .limit(1);
     if (!s?.length) return;
+
     const { data: u } = await window.supabase
       .from("users")
       .select("*")
       .eq("username", s[0].user_id)
       .limit(1);
+
     if (u?.length) currentUser = u[0];
   } catch (e) {
     console.error("restoreSessionFromCookie error:", e);
@@ -172,6 +251,8 @@ async function initApp() {
   console.log("🚀 Init started");
   showSection("login-screen");
 
+  hydrateSegmentSelects();
+
   const fechaInput = document.getElementById("fecha");
   if (fechaInput) fechaInput.valueAsDate = new Date();
 
@@ -184,8 +265,8 @@ async function initApp() {
     userSpan.textContent = currentUser.name || currentUser.username;
 
   if (currentUser) {
-    showSection("dashboard");
     showSection("app-screen");
+    showSection("dashboard");
     if (typeof updateDashboard === "function") updateDashboard();
     if (typeof renderContactsList === "function") renderContactsList();
     if (typeof renderClientsList === "function") renderClientsList();
@@ -205,10 +286,7 @@ async function initApp() {
 async function handleLogin(e) {
   e.preventDefault();
   const db = window.supabase;
-  if (!db) {
-    alert("Supabase no está disponible");
-    return;
-  }
+  if (!db) return alert("Supabase no está disponible");
 
   const usernameInput = document.getElementById("username");
   const passwordInput = document.getElementById("password");
@@ -221,9 +299,7 @@ async function handleLogin(e) {
     if (errorBox) {
       errorBox.textContent = "Completa usuario y contraseña";
       errorBox.style.display = "block";
-    } else {
-      alert("Completa usuario y contraseña");
-    }
+    } else alert("Completa usuario y contraseña");
     return;
   }
 
@@ -235,28 +311,20 @@ async function handleLogin(e) {
       .eq("password", password)
       .limit(1);
 
-    if (error || !userRows || userRows.length === 0) {
+    if (error || !userRows?.length) {
       if (errorBox) {
         errorBox.textContent = "Usuario o contraseña incorrectos";
         errorBox.style.display = "block";
-      } else {
-        alert("Usuario o contraseña incorrectos");
-      }
+      } else alert("Usuario o contraseña incorrectos");
       return;
     }
 
     currentUser = userRows[0];
-
-    // Crear sesión
     await createSession(currentUser);
 
-    // Mostrar nombre
     const currentUserSpan = document.getElementById("current-user");
-    if (currentUserSpan) {
-      currentUserSpan.textContent = currentUser.name || currentUser.username;
-    }
+    if (currentUserSpan) currentUserSpan.textContent = currentUser.name || currentUser.username;
 
-    // ¿primer login?
     if (currentUser.first_login) {
       showSection("password-change-screen");
     } else {
@@ -271,9 +339,7 @@ async function handleLogin(e) {
     if (errorBox) {
       errorBox.textContent = "Error al conectar con la base de datos";
       errorBox.style.display = "block";
-    } else {
-      alert("Error al conectar con la base de datos");
-    }
+    } else alert("Error al conectar con la base de datos");
   }
 }
 
@@ -295,19 +361,14 @@ async function handlePasswordChange(e) {
       errorBox.textContent =
         "Las contraseñas no coinciden o son muy cortas (mínimo 6 caracteres)";
       errorBox.style.display = "block";
-    } else {
-      alert("Las contraseñas no coinciden o son muy cortas");
-    }
+    } else alert("Las contraseñas no coinciden o son muy cortas");
     return;
   }
 
   try {
     const { error } = await db
       .from("users")
-      .update({
-        password: newPwd,
-        first_login: false,
-      })
+      .update({ password: newPwd, first_login: false })
       .eq("username", currentUser.username);
 
     if (error) throw error;
@@ -324,9 +385,7 @@ async function handlePasswordChange(e) {
     if (errorBox) {
       errorBox.textContent = "Error al cambiar la contraseña";
       errorBox.style.display = "block";
-    } else {
-      alert("Error al cambiar la contraseña");
-    }
+    } else alert("Error al cambiar la contraseña");
   }
 }
 
@@ -352,21 +411,18 @@ function setupEventListeners() {
   if (clientForm) clientForm.addEventListener("submit", handleClientSubmit);
 
   const editContactForm = document.getElementById("edit-contact-form");
-  if (editContactForm)
-    editContactForm.addEventListener("submit", handleEditContactSubmit);
+  if (editContactForm) editContactForm.addEventListener("submit", handleEditContactSubmit);
 
   const editClientForm = document.getElementById("edit-client-form");
-  if (editClientForm)
-    editClientForm.addEventListener("submit", handleEditClientSubmit);
+  if (editClientForm) editClientForm.addEventListener("submit", handleEditClientSubmit);
+
+  hydrateSegmentSelects();
 }
 
-// === CONTACTOS: ALTA ===
+/* ====== CONTACTOS ====== */
 async function handleContactSubmit(e) {
   e.preventDefault();
-  if (!currentUser) {
-    alert("Sesión expirada, vuelve a iniciar sesión");
-    return;
-  }
+  if (!currentUser) return alert("Sesión expirada, vuelve a iniciar sesión");
 
   const form = e.target;
   const formData = new FormData(form);
@@ -410,24 +466,17 @@ function showMessage(id) {
 }
 
 async function saveContactToDB(contact) {
-  try {
-    const { data, error } = await window.supabase
-      .from("commercial_contacts")
-      .insert(contact)
-      .select("*")
-      .maybeSingle();
+  const { data, error } = await window.supabase
+    .from("commercial_contacts")
+    .insert(contact)
+    .select("*")
+    .maybeSingle();
 
-    if (error) throw error;
-    if (!data) throw new Error("No se devolvieron datos al guardar contacto");
-
-    return data;
-  } catch (e) {
-    console.error("saveContactToDB error:", e);
-    throw e;
-  }
+  if (error) throw error;
+  if (!data) throw new Error("No se devolvieron datos al guardar contacto");
+  return data;
 }
 
-// === CONTACTOS: LISTA Y FILTROS ===
 function formatDate(dateString) {
   if (!dateString) return "-";
   const date = new Date(dateString);
@@ -448,10 +497,9 @@ function renderContactsList(filtered = null) {
       const phone = c.telefono || "";
       const whatsappBtn = phone
         ? `<button class="btn-whatsapp" onclick="sendWhatsApp('${c.telefono}', '', '${c.cliente}', '${c.producto}', '${c.empresa}')">
-  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" class="icon-whatsapp" />
-</button>`
-        : ""
-
+            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" class="icon-whatsapp" />
+          </button>`
+        : "";
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -475,8 +523,6 @@ function renderContactsList(filtered = null) {
     });
 }
 
-
-
 function filterContacts() {
   const vendedor = document.getElementById("filter-vendedor")?.value || "";
   const estado = document.getElementById("filter-estado")?.value || "";
@@ -492,13 +538,9 @@ function filterContacts() {
   renderContactsList(filtered);
 }
 
-// === CONTACTOS: EDICIÓN / BORRADO ===
 function editContact(id) {
   const c = contacts.find((x) => x.id === id);
-  if (!c) {
-    console.warn("No se encontró el contacto con id:", id);
-    return;
-  }
+  if (!c) return;
 
   showElement("edit-contact-modal");
 
@@ -522,7 +564,6 @@ function editContact(id) {
   toggleEditDerivacion();
 }
 
-// === Derivación (alta / edición) ===
 function toggleDerivacion() {
   const estado = document.getElementById("estado")?.value || "";
   const derivGroup = document.getElementById("derivacion-group");
@@ -542,21 +583,17 @@ function toggleEditDerivacion() {
 window.toggleDerivacion = toggleDerivacion;
 window.toggleEditDerivacion = toggleEditDerivacion;
 
-// === EDICIÓN FINAL SIN 406 ===
+function closeEditContactModal() {
+  hideElement("edit-contact-modal");
+}
+
 async function handleEditContactSubmit(e) {
   e.preventDefault();
-
-  if (!currentUser) {
-    alert("Sesión expirada");
-    return;
-  }
+  if (!currentUser) return alert("Sesión expirada");
 
   const id = document.getElementById("edit-contact-id").value;
   const old = contacts.find((c) => c.id === id);
-  if (!old) {
-    alert("No se encontró el contacto a editar.");
-    return;
-  }
+  if (!old) return alert("No se encontró el contacto a editar.");
 
   const updated = {
     fecha: document.getElementById("edit-fecha").value,
@@ -577,7 +614,7 @@ async function handleEditContactSubmit(e) {
     const { error } = await window.supabase
       .from("commercial_contacts")
       .update(updated)
-      .eq("id", id); // 👈 sin .select("*")
+      .eq("id", id);
 
     if (error) throw error;
 
@@ -597,7 +634,6 @@ async function handleEditContactSubmit(e) {
 
 async function deleteContact(id) {
   if (!confirm("¿Estás seguro de eliminar este contacto?")) return;
-
   try {
     await window.supabase.from("commercial_contacts").delete().eq("id", id);
     contacts = contacts.filter((c) => c.id !== id);
@@ -609,39 +645,20 @@ async function deleteContact(id) {
   }
 }
 
-window.closeEditContactModal = () => hideElement("edit-contact-modal");
-
-// Exponer funciones globalmente
-window.editContact = editContact;
-window.handleEditContactSubmit = handleEditContactSubmit;
-window.deleteContact = deleteContact;
-window.logout = logout;
-window.handleLogin = handleLogin;
-window.handlePasswordChange = handlePasswordChange;
-
-
 /*****************************************************
- *  BLOQUE 3 - CLIENTES, DASHBOARD, REPORTES, EXPORT
+ *  BLOQUE 3 - CLIENTES, DASHBOARD (CORREGIDO COMPLETO)
  *****************************************************/
 
-// === CLIENTES: ALTA ===
 async function handleClientSubmit(e) {
   e.preventDefault();
-  if (!currentUser) {
-    alert("Sesión expirada, vuelve a iniciar sesión");
-    return;
-  }
+  if (!currentUser) return alert("Sesión expirada, vuelve a iniciar sesión");
 
   const form = e.target;
   const formData = new FormData(form);
 
   const coordinates = (() => {
     const coordDisplay = document.getElementById("coordinates-display");
-    if (
-      coordDisplay &&
-      coordDisplay.dataset.lat &&
-      coordDisplay.dataset.lng
-    ) {
+    if (coordDisplay && coordDisplay.dataset.lat && coordDisplay.dataset.lng) {
       return {
         lat: parseFloat(coordDisplay.dataset.lat),
         lng: parseFloat(coordDisplay.dataset.lng),
@@ -658,6 +675,9 @@ async function handleClientSubmit(e) {
     address: formData.get("client-address") || "",
     type: formData.get("client-type") || "",
     status: formData.get("client-status") || "",
+    segment: typeof normalizeSegment === "function"
+      ? normalizeSegment(formData.get("client-segment"))
+      : "",
     notes: formData.get("client-notes") || "",
     registered_by: currentUser.username,
     registered_at: new Date().toISOString(),
@@ -669,12 +689,14 @@ async function handleClientSubmit(e) {
     clients.push(saved);
     showMessage("client-success-message");
     form.reset();
+
     const coordDisp = document.getElementById("coordinates-display");
     if (coordDisp) {
       coordDisp.textContent = "";
       delete coordDisp.dataset.lat;
       delete coordDisp.dataset.lng;
     }
+
     updateDashboard();
     renderClientsList();
     updateClientSelectFromClients();
@@ -684,39 +706,33 @@ async function handleClientSubmit(e) {
   }
 }
 
-// Insertar nuevo cliente
 async function insertClientToDB(client) {
-  try {
-    const safe = {
-      name: client.name?.toString() || "Sin nombre",
-      company: client.company?.toString() || "",
-      phone: client.phone?.toString() || "",
-      email: client.email?.toString() || "",
-      address: client.address?.toString() || "",
-      type: client.type?.toString() || "",
-      status: client.status?.toString() || "",
-      notes: client.notes?.toString() || "",
-      registered_by: currentUser?.username?.toString() || "",
-      registered_at: new Date().toISOString(),
-      coordinates: client.coordinates || null,
-    };
+  const safe = {
+    name: client.name?.toString() || "Sin nombre",
+    company: client.company?.toString() || "",
+    phone: client.phone?.toString() || "",
+    email: client.email?.toString() || "",
+    address: client.address?.toString() || "",
+    type: client.type?.toString() || "",
+    status: client.status?.toString() || "",
+    segment: typeof normalizeSegment === "function" ? normalizeSegment(client.segment) : "",
+    notes: client.notes?.toString() || "",
+    registered_by: currentUser?.username?.toString() || "",
+    registered_at: new Date().toISOString(),
+    coordinates: client.coordinates || null,
+  };
 
-    const { data, error } = await window.supabase
-      .from("commercial_clients")
-      .insert(safe)
-      .select("*")
-      .maybeSingle();
+  const { data, error } = await window.supabase
+    .from("commercial_clients")
+    .insert(safe)
+    .select("*")
+    .maybeSingle();
 
-    if (error) throw error;
-    if (!data) throw new Error("No se devolvieron datos al insertar cliente");
-    return data;
-  } catch (e) {
-    console.error("insertClientToDB error:", e);
-    throw e;
-  }
+  if (error) throw error;
+  if (!data) throw new Error("No se devolvieron datos al insertar cliente");
+  return data;
 }
 
-// === CLIENTES: LISTA Y FILTROS ===
 function renderClientsList(filtered = null) {
   const tbody = document.getElementById("clients-tbody");
   if (!tbody) return;
@@ -725,9 +741,12 @@ function renderClientsList(filtered = null) {
   tbody.innerHTML = "";
 
   data.forEach((c) => {
-    const derivCount = contacts.filter(
-      (x) => x.cliente_derivado === c.company
-    ).length;
+    const derivCount = contacts.filter((x) => x.cliente_derivado === c.company).length;
+
+    const typeText = c.type || "-";
+    const statusText = c.status || "-";
+    const statusClass = statusText.toLowerCase().replace(/\s+/g, "-");
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${c.name || ""}</td>
@@ -735,10 +754,8 @@ function renderClientsList(filtered = null) {
       <td>${c.phone || "-"}</td>
       <td>${c.email || "-"}</td>
       <td>${c.address || "-"}</td>
-      <td>${c.type || "-"}</td>
-      <td><span class="status-badge status-${(c.status || "").toLowerCase()}">${
-      c.status || "-"
-    }</span></td>
+      <td>${typeText}</td>
+      <td><span class="status-badge status-${statusClass}">${statusText}</span></td>
       <td><strong>${derivCount}</strong></td>
       <td class="actions-column">
         <button class="btn-edit" onclick="editClient('${c.id}')">✏️</button>
@@ -752,37 +769,41 @@ function renderClientsList(filtered = null) {
 function filterClients() {
   const typeSel = document.getElementById("filter-client-type");
   const statusSel = document.getElementById("filter-client-status");
+  const segmentSel = document.getElementById("filter-client-segment");
 
   const type = typeSel ? typeSel.value : "";
   const status = statusSel ? statusSel.value : "";
+  const segment = segmentSel ? segmentSel.value : "";
 
   let filtered = [...clients];
 
   if (type) filtered = filtered.filter((c) => c.type === type);
   if (status) filtered = filtered.filter((c) => c.status === status);
+  if (segment) filtered = filtered.filter((c) => (c.segment || "") === segment);
 
   renderClientsList(filtered);
 }
-function searchClients() {
-  const term = document.getElementById("client-search").value.toLowerCase().trim();
-  if (!term) {
-    renderClientsList();
-    return;
-  }
 
-  const filtered = clients.filter(c =>
-    (c.name && c.name.toLowerCase().includes(term)) ||
-    (c.company && c.company.toLowerCase().includes(term)) ||
-    (c.phone && c.phone.toLowerCase().includes(term)) ||
-    (c.email && c.email.toLowerCase().includes(term)) ||
-    (c.address && c.address.toLowerCase().includes(term))
+function searchClients() {
+  const input = document.getElementById("client-search");
+  const term = (input?.value || "").toLowerCase().trim();
+  if (!term) return renderClientsList();
+
+  const filtered = clients.filter(
+    (c) =>
+      (c.name && c.name.toLowerCase().includes(term)) ||
+      (c.company && c.company.toLowerCase().includes(term)) ||
+      (c.phone && c.phone.toLowerCase().includes(term)) ||
+      (c.email && c.email.toLowerCase().includes(term)) ||
+      (c.address && c.address.toLowerCase().includes(term)) ||
+      (c.segment && c.segment.toLowerCase().includes(term)) ||
+      (c.type && c.type.toLowerCase().includes(term)) ||
+      (c.status && c.status.toLowerCase().includes(term))
   );
 
   renderClientsList(filtered);
 }
 
-
-// === CLIENTES: EDICIÓN / BORRADO ===
 function editClient(id) {
   const c = clients.find((x) => x.id === id);
   if (!c) return;
@@ -801,12 +822,13 @@ function editClient(id) {
   setVal("edit-client-email", c.email);
   setVal("edit-client-address", c.address);
   setVal("edit-client-type", c.type);
+  setVal("edit-client-segment", c.segment);
   setVal("edit-client-status", c.status);
   setVal("edit-client-notes", c.notes);
 
   const coordDisplay = document.getElementById("edit-coordinates-display");
   if (coordDisplay) {
-    if (c.coordinates && c.coordinates.lat && c.coordinates.lng) {
+    if (c.coordinates?.lat && c.coordinates?.lng) {
       coordDisplay.textContent = `Lat: ${c.coordinates.lat}, Lng: ${c.coordinates.lng}`;
       coordDisplay.dataset.lat = c.coordinates.lat;
       coordDisplay.dataset.lng = c.coordinates.lng;
@@ -822,63 +844,47 @@ function closeEditClientModal() {
   hideElement("edit-client-modal");
 }
 
-// Actualizar cliente en DB
 async function saveClientToDB(client) {
-  try {
-    const safe = {
-      name: client.name?.toString() || "Sin nombre",
-      company: client.company?.toString() || "",
-      phone: client.phone?.toString() || "",
-      email: client.email?.toString() || "",
-      address: client.address?.toString() || "",
-      type: client.type?.toString() || "",
-      status: client.status?.toString() || "",
-      notes: client.notes?.toString() || "",
-      registered_by: currentUser?.username?.toString() || "",
-      registered_at: client.registered_at || new Date().toISOString(),
-    };
+  const safe = {
+    name: client.name?.toString() || "Sin nombre",
+    company: client.company?.toString() || "",
+    phone: client.phone?.toString() || "",
+    email: client.email?.toString() || "",
+    address: client.address?.toString() || "",
+    type: client.type?.toString() || "",
+    status: client.status?.toString() || "",
+    segment: typeof normalizeSegment === "function" ? normalizeSegment(client.segment) : "",
+    notes: client.notes?.toString() || "",
+    registered_by: currentUser?.username?.toString() || "",
+    registered_at: client.registered_at || new Date().toISOString(),
+  };
 
-    if (
-      client.coordinates &&
-      typeof client.coordinates === "object" &&
-      client.coordinates.lat &&
-      client.coordinates.lng
-    ) {
-      safe.coordinates = client.coordinates;
-    }
-
-    const { error } = await window.supabase
-      .from("commercial_clients")
-      .update(safe)
-      .eq("id", client.id.toString().trim());
-
-    if (error) throw error;
-
-    const { data: verify, error: verifyErr } = await window.supabase
-      .from("commercial_clients")
-      .select("*")
-      .eq("id", client.id.toString().trim())
-      .limit(1);
-
-    if (verifyErr) throw verifyErr;
-    if (!verify || verify.length === 0)
-      throw new Error("No se actualizó ningún registro");
-
-    return verify[0];
-  } catch (e) {
-    console.error("saveClientToDB error:", e);
-    throw e;
+  if (client.coordinates?.lat && client.coordinates?.lng) {
+    safe.coordinates = client.coordinates;
   }
+
+  const { error } = await window.supabase
+    .from("commercial_clients")
+    .update(safe)
+    .eq("id", client.id.toString().trim());
+
+  if (error) throw error;
+
+  const { data: verify, error: verifyErr } = await window.supabase
+    .from("commercial_clients")
+    .select("*")
+    .eq("id", client.id.toString().trim())
+    .limit(1);
+
+  if (verifyErr) throw verifyErr;
+  if (!verify?.length) throw new Error("No se actualizó ningún registro");
+
+  return verify[0];
 }
 
-// Envío formulario edición cliente
 async function handleEditClientSubmit(e) {
   e.preventDefault();
-
-  if (!currentUser) {
-    alert("Sesión expirada. Iniciá sesión nuevamente.");
-    return;
-  }
+  if (!currentUser) return alert("Sesión expirada. Iniciá sesión nuevamente.");
 
   const form = e.target;
   const id = document.getElementById("edit-client-id").value;
@@ -891,12 +897,15 @@ async function handleEditClientSubmit(e) {
     email: form.querySelector("#edit-client-email").value.trim(),
     address: form.querySelector("#edit-client-address").value.trim(),
     type: form.querySelector("#edit-client-type").value,
+    segment: typeof normalizeSegment === "function"
+      ? normalizeSegment(form.querySelector("#edit-client-segment")?.value)
+      : "",
     status: form.querySelector("#edit-client-status").value,
     notes: form.querySelector("#edit-client-notes").value.trim(),
   };
 
   const coordsDisplay = document.getElementById("edit-coordinates-display");
-  if (coordsDisplay && coordsDisplay.dataset.lat && coordsDisplay.dataset.lng) {
+  if (coordsDisplay?.dataset.lat && coordsDisplay?.dataset.lng) {
     updatedClient.coordinates = {
       lat: parseFloat(coordsDisplay.dataset.lat),
       lng: parseFloat(coordsDisplay.dataset.lng),
@@ -919,18 +928,9 @@ async function handleEditClientSubmit(e) {
   }
 }
 
-// Borrar cliente
 async function deleteClientFromDB(id) {
-  try {
-    const { error } = await window.supabase
-      .from("commercial_clients")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
-  } catch (e) {
-    console.error("deleteClientFromDB error:", e);
-    throw e;
-  }
+  const { error } = await window.supabase.from("commercial_clients").delete().eq("id", id);
+  if (error) throw error;
 }
 
 async function deleteClient(id) {
@@ -947,30 +947,15 @@ async function deleteClient(id) {
   }
 }
 
-// Exponer al scope global
-window.handleEditClientSubmit = handleEditClientSubmit;
-window.editClient = editClient;
-window.closeEditClientModal = closeEditClientModal;
-
-// === DASHBOARD ===
 function updateDashboard() {
   try {
     const totalContacts = contacts.length;
     const totalSales = contacts.filter((c) => c.estado === "Vendido").length;
-    const totalReferrals = contacts.filter(
-      (c) => c.estado === "Derivado"
-    ).length;
-    const conversionRate = totalContacts
-      ? Math.round((totalSales / totalContacts) * 100)
-      : 0;
+    const totalReferrals = contacts.filter((c) => c.estado === "Derivado").length;
+    const conversionRate = totalContacts ? Math.round((totalSales / totalContacts) * 100) : 0;
     const totalClients = clients.length;
-    const activeClients = clients.filter(
-      (c) => c.status === "Activo"
-    ).length;
-
-    const totalProducts = contacts.filter(
-      (c) => c.producto && c.producto.trim() !== ""
-    ).length;
+    const activeClients = clients.filter((c) => c.status === "Activo").length;
+    const totalProducts = contacts.filter((c) => c.producto && c.producto.trim() !== "").length;
 
     const setText = (id, val) => {
       const el = document.getElementById(id);
@@ -989,15 +974,13 @@ function updateDashboard() {
   }
 }
 
-// === SELECT DE CLIENTES PARA DERIVACIÓN ===
 function updateClientSelectFromClients() {
   const sel = document.getElementById("cliente-derivado");
   const editSel = document.getElementById("edit-cliente-derivado");
   if (!sel && !editSel) return;
 
-  const companies = [
-    ...new Set(clients.map((c) => c.company).filter(Boolean)),
-  ].sort();
+  const companies = [...new Set(clients.map((c) => c.company).filter(Boolean))].sort();
+
   const fill = (select) => {
     if (!select) return;
     select.innerHTML = `<option value="">Seleccionar cliente</option>`;
@@ -1014,307 +997,243 @@ function updateClientSelectFromClients() {
 }
 
 function updateClientSelectFromContacts() {
-  // reservado por si lo necesitás luego
+  // reservado
 }
 
-// === REPORTES ===
-function generateReports() {
-  generateSalesReport();
-  generateStatusReport();
-  generateTopReferralsReport();
-  generateTimelineReport();
-  generateReferralsReport();
-  generateTopProductsReport();
-  generateProductsBySellerReport();
-  generateRequestsByCategoryReport();
+/*****************************************************
+ *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN (FIX DEFINITIVO)
+ *****************************************************/
+
+let mapView = null;
+let markersLayer = null;
+
+function ensureMapInitialized() {
+  const mapDiv = document.getElementById("map");
+  if (!mapDiv) return false;
+
+  if (!mapView) {
+    mapView = L.map("map").setView([-34.6037, -58.3816], 6);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+    }).addTo(mapView);
+
+    markersLayer = L.layerGroup().addTo(mapView);
+  }
+
+  return true;
 }
 
-// Ventas por vendedor
-function generateSalesReport() {
-  const container = document.getElementById("sales-report");
-  if (!container) return;
+function getClientColor(c) {
+  const t = String(c?.type || "").trim().toLowerCase();
 
-  const vendedores = [
-    "Juan Larrondo",
-    "Andrés Iñiguez",
-    "Eduardo Schiavi",
-    "Gabriel Caffarello",
-    "Natalia Montero",
-  ];
+  // ✅ mismos colores que CSS de la leyenda (y agregado repartidor)
+  const COLORS_BY_TYPE = {
+    "distribuidor": "#1e88e5",
+    "supermercados": "#43a047",
+    "negocio local": "#fb8c00",
+    "b2b": "#8e24aa",
+    "mayorista": "#c5223b",
+    "repartidor": "#fbc02d", // ✅ sugerido (cambialo si querés)
+  };
 
-  const salesData = vendedores.map((v) => ({
-    name: v,
-    count: contacts.filter(
-      (c) => c.vendedor === v && c.estado === "Vendido"
-    ).length,
-  }));
-
-  const max = Math.max(...salesData.map((d) => d.count), 1);
-
-  container.innerHTML = salesData
-    .map(
-      (item) => `
-    <div class="chart-bar">
-      <div class="chart-label">${item.name}</div>
-      <div class="chart-value" style="width: ${Math.max(
-        (item.count / max) * 100,
-        5
-      )}%">
-        ${item.count} ventas
-      </div>
-    </div>
-  `
-    )
-    .join("");
+  return COLORS_BY_TYPE[t] || "#607d8b";
 }
 
-// Productos más solicitados
-function generateTopProductsReport() {
-  const container = document.getElementById("top-products-report");
-  if (!container) return;
+async function plotClientsOnMap(clientList) {
+  if (!ensureMapInitialized()) return;
+  if (!markersLayer) return;
 
-  const counts = {};
-  contacts.forEach((c) => {
-    if (c.producto && c.producto.trim() !== "") {
-      const name = c.producto.trim();
-      counts[name] = (counts[name] || 0) + 1;
-    }
-  });
+  markersLayer.clearLayers();
 
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-
-  if (sorted.length === 0) {
-    container.innerHTML = `<p style="text-align:center;color:#666;">No hay productos registrados</p>`;
+  if (!clientList || clientList.length === 0) {
+    resetMapView();
     return;
   }
 
-  container.innerHTML = sorted
-    .map(
-      ([prod, count], i) => `
-    <div class="ranking-item">
-      <span class="ranking-position">#${i + 1}</span>
-      <span class="ranking-name">${prod}</span>
-      <span class="ranking-value">${count}</span>
-    </div>
-  `
-    )
-    .join("");
-}
+  const coords = [];
 
-// Productos por vendedor
-function generateProductsBySellerReport() {
-  const container = document.getElementById("products-by-seller-report");
-  if (!container) return;
-
-  const sellers = {};
-  contacts.forEach((c) => {
-    if (!c.vendedor || !c.producto) return;
-    if (!sellers[c.vendedor]) sellers[c.vendedor] = {};
-    const prod = c.producto.trim();
-    sellers[c.vendedor][prod] = (sellers[c.vendedor][prod] || 0) + 1;
-  });
-
-  const html = Object.entries(sellers)
-    .map(([seller, products]) => {
-      const items = Object.entries(products)
-        .sort((a, b) => b[1] - a[1])
-        .map(([prod, count]) => `<li>${prod}: ${count}</li>`)
-        .join("");
-      return `
-      <div class="seller-block">
-        <strong>${seller}</strong>
-        <ul>${items}</ul>
-      </div>
-    `;
-    })
-    .join("");
-
-  container.innerHTML =
-    html ||
-    `<p style="text-align:center;color:#666;">Sin registros de productos por vendedor</p>`;
-}
-
-// Solicitudes por categoría (si usás type en contactos)
-function generateRequestsByCategoryReport() {
-  const container = document.getElementById("requests-by-category-report");
-  if (!container) return;
-
-  const counts = {};
-  contacts.forEach((c) => {
-    if (c.type && c.type.trim() !== "") {
-      counts[c.type] = (counts[c.type] || 0) + 1;
-    }
-  });
-
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  if (sorted.length === 0) {
-    container.innerHTML = `<p style="text-align:center;color:#666;">No hay categorías registradas</p>`;
-    return;
-  }
-
-  container.innerHTML = sorted
-    .map(
-      ([cat, count]) => `
-    <div class="ranking-item">
-      <span class="ranking-name">${cat}</span>
-      <span class="ranking-value">${count}</span>
-    </div>
-  `
-    )
-    .join("");
-}
-
-// Resumen de estados
-function generateStatusReport() {
-  const container = document.getElementById("status-report");
-  if (!container) return;
-
-  const vendidos = contacts.filter((c) => c.estado === "Vendido").length;
-  const noVendidos = contacts.filter((c) => c.estado === "No Vendido").length;
-  const derivados = contacts.filter((c) => c.estado === "Derivado").length;
-
-  container.innerHTML = `
-    <div class="status-item status-vendido">
-      <span class="status-number">${vendidos}</span>
-      <span>Vendidos</span>
-    </div>
-    <div class="status-item status-no-vendido">
-      <span class="status-number">${noVendidos}</span>
-      <span>No Vendidos</span>
-    </div>
-    <div class="status-item status-derivado">
-      <span class="status-number">${derivados}</span>
-      <span>Derivados</span>
-    </div>
-  `;
-}
-
-// Top derivaciones
-function generateTopReferralsReport() {
-  const container = document.getElementById("referrals-report");
-  if (!container) return;
-
-  const counts = {};
-  contacts
-    .filter((c) => c.estado === "Derivado" && c.cliente_derivado)
-    .forEach((c) => {
-      counts[c.cliente_derivado] = (counts[c.cliente_derivado] || 0) + 1;
-    });
-
-  const sorted = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-
-  if (!sorted.length) {
-    container.innerHTML = `<p style="text-align:center;color:#666;">No hay derivaciones registradas</p>`;
-    return;
-  }
-
-  container.innerHTML = sorted
-    .map(
-      ([name, count], idx) => `
-    <div class="ranking-item">
-      <span class="ranking-position">#${idx + 1}</span>
-      <span class="ranking-name">${name}</span>
-      <span class="ranking-value">${count}</span>
-    </div>
-  `
-    )
-    .join("");
-}
-
-// Evolución mensual
-function generateTimelineReport() {
-  const container = document.getElementById("timeline-report");
-  if (!container) return;
-
-  const monthly = {};
-  contacts.forEach((c) => {
-    if (!c.fecha) return;
-    const month = c.fecha.substring(0, 7);
-    if (!monthly[month])
-      monthly[month] = { total: 0, vendidos: 0, derivados: 0 };
-    monthly[month].total++;
-    if (c.estado === "Vendido") monthly[month].vendidos++;
-    if (c.estado === "Derivado") monthly[month].derivados++;
-  });
-
-  const months = Object.keys(monthly).sort().slice(-6);
-  if (!months.length) {
-    container.innerHTML = `<p style="text-align:center;color:#666;">No hay datos temporales</p>`;
-    return;
-  }
-
-  container.innerHTML = months
-    .map((m) => {
-      const d = monthly[m];
-      const label = new Date(m + "-01").toLocaleDateString("es-ES", {
-        month: "short",
-        year: "numeric",
-      });
-      return `
-      <div class="timeline-item">
-        <span class="timeline-month">${label}</span>
-        <div class="timeline-stats">
-          <span class="timeline-stat stat-total">${d.total} total</span>
-          <span class="timeline-stat stat-ventas">${d.vendidos} ventas</span>
-          <span class="timeline-stat stat-derivaciones">${d.derivados} deriv.</span>
-        </div>
-      </div>
-    `;
-    })
-    .join("");
-}
-
-// Informe detallado de derivaciones
-function generateReferralsReport() {
-  const tbody = document.getElementById("referrals-tbody");
-  if (!tbody) return;
-
-  const stats = {};
-  const todayMonth = new Date().toISOString().slice(0, 7);
-
-  contacts
-    .filter((c) => c.estado === "Derivado" && c.cliente_derivado)
-    .forEach((c) => {
-      const name = c.cliente_derivado;
-      if (!stats[name]) {
-        stats[name] = {
-          total: 0,
-          thisMonth: 0,
-          lastContact: null,
-          sellers: {},
-        };
+  for (const c of clientList) {
+    if (!c.coordinates && c.address) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          c.address
+        )}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data?.length) {
+          c.coordinates = {
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon),
+          };
+        }
+      } catch (err) {
+        console.warn("No se pudo geocodificar:", c.address);
       }
-      stats[name].total++;
-      if ((c.fecha || "").slice(0, 7) === todayMonth) stats[name].thisMonth++;
-      if (!stats[name].lastContact || (c.fecha || "") > stats[name].lastContact) {
-        stats[name].lastContact = c.fecha;
-      }
-      if (!stats[name].sellers[c.vendedor]) stats[name].sellers[c.vendedor] = 0;
-      stats[name].sellers[c.vendedor]++;
-    });
+    }
 
-  const rows = Object.entries(stats).sort((a, b) => b[1].total - a[1].total);
+    if (!c.coordinates) continue;
 
-  tbody.innerHTML = "";
-  rows.forEach(([clientName, data]) => {
-    const bestSeller =
-      Object.entries(data.sellers).sort((a, b) => b[1] - a[1])[0] || null;
+    const lat = parseFloat(c.coordinates.lat);
+    const lng = parseFloat(c.coordinates.lng);
+    if (isNaN(lat) || isNaN(lng)) continue;
 
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><strong>${clientName}</strong></td>
-      <td>${data.total}</td>
-      <td>${data.thisMonth}</td>
-      <td>${formatDate(data.lastContact)}</td>
-      <td>${bestSeller ? `${bestSeller[0]} (${bestSeller[1]})` : "-"}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+    const derivCount = contacts.filter((x) => x.cliente_derivado === c.company).length;
+    const color = getClientColor(c);
+
+    const marker = L.circleMarker([lat, lng], {
+      radius: 8,
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.9,
+      weight: 2,
+    }).addTo(markersLayer);
+
+    marker.bindPopup(`
+      <b>${c.name || "-"}</b><br>
+      ${c.company || ""}<br>
+      ${c.address || ""}<br>
+      <em>${c.type || ""} - ${c.status || ""}</em><br>
+      <b>Segmento:</b> ${c.segment || "-"}<br>
+      <hr>
+      <b>Derivaciones:</b> ${derivCount}
+    `);
+
+    coords.push([lat, lng]);
+  }
+
+  if (coords.length) {
+    mapView.fitBounds(L.latLngBounds(coords), { padding: [50, 50] });
+  } else {
+    resetMapView();
+  }
 }
 
-// === EXPORTACIONES ===
+async function initLeafletMap() {
+  try {
+    if (!ensureMapInitialized()) return;
+
+    // ✅ importante: NO re-plotear si ya hay markers
+    if (markersLayer && markersLayer.getLayers().length > 0) return;
+
+    await plotClientsOnMap(clients);
+  } catch (err) {
+    console.error("initLeafletMap error:", err);
+  }
+}
+
+function resetMapView() {
+  if (mapView) mapView.setView([-34.6037, -58.3816], 6);
+}
+
+// Botones del mapa (NO llaman showSection para no re-entrar)
+async function showAllClients() {
+  await plotClientsOnMap(clients);
+}
+
+async function showActiveClients() {
+  const list = clients.filter((c) => looseEquals(c.status, "Activo"));
+  await plotClientsOnMap(list);
+}
+
+async function showByType(type) {
+  const list = clients.filter((c) => looseEquals(c.type, type));
+  await plotClientsOnMap(list);
+}
+
+async function showBySegment(segment) {
+  const list = clients.filter((c) => looseEquals(c.segment, segment));
+  await plotClientsOnMap(list);
+}
+
+async function showClientsOnMap() {
+  await showAllClients();
+}
+
+// === GEOLOCALIZACIÓN ===
+async function geocodeCurrentAddress() {
+  const addressInput = document.getElementById("client-address");
+  const coordDisplay = document.getElementById("coordinates-display");
+  if (!addressInput || !coordDisplay) return;
+
+  const address = addressInput.value.trim();
+  if (!address) return alert("Por favor ingresá una dirección para geocodificar.");
+
+  coordDisplay.textContent = "Buscando ubicación...";
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      address
+    )}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data?.length) {
+      coordDisplay.textContent = "No se encontró ubicación.";
+      return;
+    }
+
+    coordDisplay.textContent = `Lat: ${data[0].lat}, Lng: ${data[0].lon}`;
+    coordDisplay.dataset.lat = data[0].lat;
+    coordDisplay.dataset.lng = data[0].lon;
+  } catch (err) {
+    coordDisplay.textContent = "Error al obtener coordenadas.";
+    console.error("Error en geocodeCurrentAddress:", err);
+  }
+}
+
+async function geocodeCurrentAddressEdit() {
+  const addressInput = document.getElementById("edit-client-address");
+  const coordDisplay = document.getElementById("edit-coordinates-display");
+  if (!addressInput || !coordDisplay) return;
+
+  const address = addressInput.value.trim();
+  if (!address) return alert("Por favor ingresá una dirección para geocodificar.");
+
+  coordDisplay.textContent = "Buscando ubicación...";
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+      address
+    )}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data?.length) {
+      coordDisplay.textContent = "No se encontró ubicación.";
+      return;
+    }
+
+    coordDisplay.textContent = `Lat: ${data[0].lat}, Lng: ${data[0].lon}`;
+    coordDisplay.dataset.lat = data[0].lat;
+    coordDisplay.dataset.lng = data[0].lon;
+  } catch (err) {
+    coordDisplay.textContent = "Error al obtener coordenadas.";
+    console.error("Error en geocodeCurrentAddressEdit:", err);
+  }
+}
+
+function getCurrentLocationEdit() {
+  const coordDisplay = document.getElementById("edit-coordinates-display");
+  if (!navigator.geolocation) return alert("Tu navegador no soporta geolocalización.");
+
+  coordDisplay.textContent = "Obteniendo tu ubicación actual...";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lon = pos.coords.longitude.toFixed(6);
+      coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
+      coordDisplay.dataset.lat = lat;
+      coordDisplay.dataset.lng = lon;
+    },
+    (err) => {
+      coordDisplay.textContent = "No se pudo obtener ubicación.";
+      alert("Error al obtener ubicación: " + err.message);
+    }
+  );
+}
+
+/*****************************************************
+ *  EXPORTACIONES
+ *****************************************************/
 function downloadTextFile(content, filename, mime = "text/plain") {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -1353,9 +1272,7 @@ function exportContacts() {
   ]);
 
   const csvLines = [header, ...rows].map((cols) =>
-    cols
-      .map((v) => `"${(v || "").toString().replace(/"/g, '""')}"`)
-      .join(",")
+    cols.map((v) => `"${(v || "").toString().replace(/"/g, '""')}"`).join(",")
   );
 
   const csv = "\uFEFF" + csvLines.join("\n");
@@ -1369,6 +1286,7 @@ function exportClients() {
     "Teléfono",
     "Email",
     "Dirección",
+    "Segmento",
     "Tipo",
     "Estado",
     "Derivaciones Recibidas",
@@ -1376,15 +1294,14 @@ function exportClients() {
   ];
 
   const rows = clients.map((c) => {
-    const derivs = contacts.filter(
-      (x) => x.cliente_derivado === c.company
-    ).length;
+    const derivs = contacts.filter((x) => x.cliente_derivado === c.company).length;
     return [
       c.name || "",
       c.company || "",
       c.phone || "",
       c.email || "",
       c.address || "",
+      c.segment || "",
       c.type || "",
       c.status || "",
       derivs,
@@ -1393,9 +1310,7 @@ function exportClients() {
   });
 
   const csvLines = [header, ...rows].map((cols) =>
-    cols
-      .map((v) => `"${(v || "").toString().replace(/"/g, '""')}"`)
-      .join(",")
+    cols.map((v) => `"${(v || "").toString().replace(/"/g, '""')}"`).join(",")
   );
 
   const csv = "\uFEFF" + csvLines.join("\n");
@@ -1409,12 +1324,8 @@ function exportFullReport() {
   report += `INFORME COMERCIAL COMPLETO - ${today}\n\n`;
   report += `ESTADÍSTICAS GENERALES:\n`;
   report += `Total de contactos: ${contacts.length}\n`;
-  report += `Ventas realizadas: ${
-    contacts.filter((c) => c.estado === "Vendido").length
-  }\n`;
-  report += `Derivaciones: ${
-    contacts.filter((c) => c.estado === "Derivado").length
-  }\n`;
+  report += `Ventas realizadas: ${contacts.filter((c) => c.estado === "Vendido").length}\n`;
+  report += `Derivaciones: ${contacts.filter((c) => c.estado === "Derivado").length}\n`;
   report += `Clientes registrados: ${clients.length}\n\n`;
 
   const counts = {};
@@ -1436,219 +1347,414 @@ function exportFullReport() {
 }
 
 /*****************************************************
- *  BLOQUE 4 - MAPA, GEOLOCALIZACIÓN, GLOBAL
+ *  WHATSAPP
+ *****************************************************/
+function sendWhatsApp(phone, msg, clientName = "", product = "", empresa = "") {
+  if (!phone) return alert("No hay teléfono disponible para este contacto.");
+
+  const cleaned = phone.replace(/\D/g, "");
+  const fullNumber = cleaned.startsWith("54") ? cleaned : `54${cleaned}`;
+
+  if (!msg) {
+    msg = `Hola ${clientName || ""}, soy ${
+      currentUser?.name || currentUser?.username || "del equipo"
+    } de Granja Almeyra 🐔${empresa ? ` (${empresa})` : ""}. Te contacto por ${
+      product || "nuestros productos"
+    }.`;
+  }
+
+  const encodedMsg = encodeURIComponent(msg);
+  const ua = navigator.userAgent.toLowerCase();
+  const isMobile = /android|iphone|ipad|ipod/i.test(ua);
+  const isDesktop = /win|mac|linux/i.test(ua) && !isMobile;
+
+  const deepLink = `whatsapp://send?phone=${fullNumber}&text=${encodedMsg}`;
+  const webLink = `https://web.whatsapp.com/send?phone=${fullNumber}&text=${encodedMsg}`;
+  const desktopLink = `https://api.whatsapp.com/send?phone=${fullNumber}&text=${encodedMsg}`;
+
+  try {
+    if (isMobile) {
+      window.location.href = deepLink;
+    } else if (isDesktop) {
+      setTimeout(() => window.open(webLink, "_blank"), 300);
+    } else {
+      window.open(desktopLink, "_blank");
+    }
+  } catch (err) {
+    console.error("Error abriendo WhatsApp:", err);
+    window.open(webLink, "_blank");
+  }
+}
+/*****************************************************
+ *  BLOQUE REPORTES - GENERATE + RENDERERS (FIX)
  *****************************************************/
 
-let mapView = null;
-let markersLayer = null;
-
-function ensureMapInitialized() {
-  const mapDiv = document.getElementById("map");
-  if (!mapDiv) return false;
-
-  if (!mapView) {
-    mapView = L.map("map").setView([-34.6037, -58.3816], 6);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-    }).addTo(mapView);
-
-    markersLayer = L.layerGroup().addTo(mapView);
-  }
-  return true;
+function escapeHtml(v) {
+  return String(v ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-async function plotClientsOnMap(clientList) {
-  if (!ensureMapInitialized()) return;
-  if (!markersLayer) return;
+function monthKey(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
 
-  markersLayer.clearLayers();
+function sortEntriesDesc(obj) {
+  return Object.entries(obj).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
+}
 
-  if (!clientList || clientList.length === 0) {
-    alert("No hay clientes para mostrar en el mapa.");
-    resetMapView();
+function renderBars(containerId, rows, opts = {}) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const titleLeft = opts.titleLeft || "";
+  const titleRight = opts.titleRight || "";
+
+  if (!rows || rows.length === 0) {
+    el.innerHTML = `<div style="color:#777;font-size:13px;padding:10px;">Sin datos</div>`;
     return;
   }
 
-  const coords = [];
+  const max = Math.max(...rows.map((r) => Number(r.value) || 0), 1);
 
-  for (const c of clientList) {
-    if (!c.coordinates && c.address) {
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          c.address
-        )}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data && data.length > 0) {
-          const { lat, lon } = data[0];
-          c.coordinates = { lat: parseFloat(lat), lng: parseFloat(lon) };
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;color:#666;font-size:12px;">
+      <span>${escapeHtml(titleLeft)}</span>
+      <span>${escapeHtml(titleRight)}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${rows
+        .map((r) => {
+          const v = Number(r.value) || 0;
+          const pct = Math.round((v / max) * 100);
+          return `
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:170px;font-size:13px;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${escapeHtml(r.label)}
+              </div>
+              <div style="flex:1;background:#f2f2f2;border-radius:999px;height:10px;overflow:hidden;">
+                <div style="width:${pct}%;height:10px;border-radius:999px;background:#f4c430;"></div>
+              </div>
+              <div style="width:42px;text-align:right;font-size:13px;color:#222;">
+                ${v}
+              </div>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderStatusSummary(containerId, stats) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  // ✅ FORZAR CENTRADO REAL EN EL CONTENEDOR (gana a la mayoría de CSS)
+  el.style.display = "flex";
+  el.style.justifyContent = "center";
+  el.style.width = "100%";
+  el.style.boxSizing = "border-box";
+
+  const total = Number(stats.total) || 0;
+  const sold = Number(stats.sold) || 0;
+  const derived = Number(stats.derived) || 0;
+  const noSold = Number(stats.noSold) || 0;
+
+  const pct = (v) => (total ? Math.round((v / total) * 100) : 0);
+
+  const items = [
+    { label: "Total", value: total, percent: 100, color: "#616161" },
+    { label: "Vendido", value: sold, percent: pct(sold), color: "#43a047" },
+    { label: "Derivado", value: derived, percent: pct(derived), color: "#fb8c00" },
+    { label: "No vendido", value: noSold, percent: pct(noSold), color: "#e53935" },
+  ];
+
+  el.innerHTML = `
+    <div style="
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:18px;
+      margin:10px 0;
+      width:260px;   /* ✅ ancho fijo = centrado perfecto */
+    ">
+      ${items
+        .map(
+          (it) => `
+          <div style="
+            background:#fff;
+            border:1px solid #eee;
+            border-radius:16px;
+            padding:16px;
+            min-height:110px;
+            width:260px;
+            display:flex;
+            flex-direction:column;
+            justify-content:space-between;
+            box-shadow:0 8px 20px rgba(0,0,0,0.04);
+          ">
+            <div style="font-size:13px;font-weight:600;color:#555;text-align:center;">
+              ${it.label}
+            </div>
+
+            <div style="font-size:30px;font-weight:800;color:#111;line-height:1;margin:6px 0;text-align:center;">
+              ${it.value}
+            </div>
+
+            <div style="width:100%;height:8px;background:#eee;border-radius:6px;overflow:hidden;">
+              <div
+                class="status-bar-fill"
+                data-target="${it.percent}"
+                style="
+                  width:0%;
+                  height:100%;
+                  background:${it.color};
+                  border-radius:6px;
+                "
+              ></div>
+            </div>
+
+            <div style="font-size:12px;font-weight:600;color:#777;margin-top:6px;text-align:right;">
+              ${it.percent}%
+            </div>
+          </div>
+        `
+        )
+        .join("")}
+    </div>
+  `;
+
+  // ✅ Animación 0% -> valor
+  const bars = el.querySelectorAll(".status-bar-fill");
+  const DURATION_MS = 650;
+
+  bars.forEach((bar) => {
+    const target = Math.max(0, Math.min(100, Number(bar.dataset.target) || 0));
+    bar.style.width = "0%";
+
+    const start = performance.now();
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / DURATION_MS);
+      bar.style.width = `${target * easeOutCubic(t)}%`;
+      if (t < 1) requestAnimationFrame(tick);
+      else bar.style.width = `${target}%`;
+    };
+
+    requestAnimationFrame(tick);
+  });
+}
+
+
+
+function generateReports() {
+  try {
+    // Asegurar arrays
+    const cc = Array.isArray(contacts) ? contacts : [];
+    const cl = Array.isArray(clients) ? clients : [];
+
+    // ===== Ventas por vendedor (count vendidos)
+    const salesBySeller = {};
+    cc.forEach((c) => {
+      if ((c.estado || "") === "Vendido") {
+        const k = (c.vendedor || "Sin vendedor").trim() || "Sin vendedor";
+        salesBySeller[k] = (salesBySeller[k] || 0) + 1;
+      }
+    });
+    const salesRows = sortEntriesDesc(salesBySeller).map(([label, value]) => ({ label, value }));
+    renderBars("sales-report", salesRows, { titleLeft: "Vendedor", titleRight: "Ventas" });
+
+    // ===== Resumen de estados
+    const stats = {
+      total: cc.length,
+      sold: cc.filter((c) => (c.estado || "") === "Vendido").length,
+      derived: cc.filter((c) => (c.estado || "") === "Derivado").length,
+      noSold: cc.filter((c) => (c.estado || "") === "No Vendido").length,
+    };
+    renderStatusSummary("status-report", stats);
+
+    // ===== Top derivaciones (clientes receptores)
+    const derivByClient = {};
+    cc.forEach((c) => {
+      if ((c.estado || "") === "Derivado" && c.cliente_derivado) {
+        const k = String(c.cliente_derivado).trim();
+        if (!k) return;
+        derivByClient[k] = (derivByClient[k] || 0) + 1;
+      }
+    });
+    const topDerivRows = sortEntriesDesc(derivByClient)
+      .slice(0, 10)
+      .map(([label, value]) => ({ label, value }));
+    renderBars("referrals-report", topDerivRows, { titleLeft: "Cliente", titleRight: "Deriv." });
+
+    // ===== Evolución mensual (contactos por mes)
+    const monthly = {};
+    cc.forEach((c) => {
+      const k = monthKey(c.fecha);
+      if (!k) return;
+      monthly[k] = (monthly[k] || 0) + 1;
+    });
+    const monthlyRows = Object.entries(monthly)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-12) // últimos 12 meses
+      .map(([label, value]) => ({ label, value }));
+    renderBars("timeline-report", monthlyRows, { titleLeft: "Mes", titleRight: "Contactos" });
+
+    // ===== Informe detallado de derivaciones (tabla)
+    const tbody = document.getElementById("referrals-tbody");
+    if (tbody) {
+      const nowKey = monthKey(new Date().toISOString());
+      const byClient = {};
+
+      cc.forEach((c) => {
+        if ((c.estado || "") !== "Derivado" || !c.cliente_derivado) return;
+        const client = String(c.cliente_derivado).trim();
+        if (!client) return;
+
+        if (!byClient[client]) {
+          byClient[client] = {
+            client,
+            total: 0,
+            thisMonth: 0,
+            lastDate: "",
+            sellerCount: {},
+          };
         }
-      } catch (err) {
-        console.warn(`No se pudo geocodificar: ${c.address}`, err);
+
+        byClient[client].total += 1;
+
+        const mk = monthKey(c.fecha);
+        if (mk && mk === nowKey) byClient[client].thisMonth += 1;
+
+        // último contacto
+        const fd = c.fecha || "";
+        if (fd && (!byClient[client].lastDate || fd > byClient[client].lastDate)) {
+          byClient[client].lastDate = fd;
+        }
+
+        // vendedor que más deriva
+        const seller = (c.vendedor || "Sin vendedor").trim() || "Sin vendedor";
+        byClient[client].sellerCount[seller] = (byClient[client].sellerCount[seller] || 0) + 1;
+      });
+
+      const rows = Object.values(byClient)
+        .sort((a, b) => (b.total ?? 0) - (a.total ?? 0))
+        .slice(0, 30);
+
+      tbody.innerHTML = rows
+        .map((r) => {
+          const topSeller = Object.entries(r.sellerCount)
+            .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] || "-";
+
+          const last = r.lastDate ? formatDate(r.lastDate) : "-";
+
+          return `
+            <tr>
+              <td>${escapeHtml(r.client)}</td>
+              <td><strong>${r.total}</strong></td>
+              <td>${r.thisMonth}</td>
+              <td>${escapeHtml(last)}</td>
+              <td>${escapeHtml(topSeller)}</td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      if (!rows.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="padding:12px;color:#777;">Sin derivaciones registradas</td>
+          </tr>
+        `;
       }
     }
 
-    if (c.coordinates) {
-      const lat = parseFloat(c.coordinates.lat);
-      const lng = parseFloat(c.coordinates.lng);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        const derivCount = contacts.filter(
-          (x) => x.cliente_derivado === c.company
-        ).length;
+    // ===== Productos más solicitados
+    const prodCounts = {};
+    cc.forEach((c) => {
+      const p = (c.producto || "").trim();
+      if (!p) return;
+      prodCounts[p] = (prodCounts[p] || 0) + 1;
+    });
+    const topProdRows = sortEntriesDesc(prodCounts)
+      .slice(0, 10)
+      .map(([label, value]) => ({ label, value }));
+    renderBars("top-products-report", topProdRows, { titleLeft: "Producto", titleRight: "Solic." });
 
-        const marker = L.marker([lat, lng]).addTo(markersLayer);
-        marker.bindPopup(`
-          <b>${c.name || "-"}</b><br>
-          ${c.company || ""}<br>
-          ${c.address || ""}<br>
-          <em>${c.type || ""} - ${c.status || ""}</em><br>
-          <hr>
-          <b>Derivaciones recibidas:</b> ${derivCount}
-        `);
+    // ===== Productos por vendedor (top 10 combinados "Vendedor - Producto")
+    const prodBySeller = {};
+    cc.forEach((c) => {
+      const s = (c.vendedor || "Sin vendedor").trim() || "Sin vendedor";
+      const p = (c.producto || "").trim();
+      if (!p) return;
+      const k = `${s} — ${p}`;
+      prodBySeller[k] = (prodBySeller[k] || 0) + 1;
+    });
+    const prodBySellerRows = sortEntriesDesc(prodBySeller)
+      .slice(0, 10)
+      .map(([label, value]) => ({ label, value }));
+    renderBars("products-by-seller-report", prodBySellerRows, { titleLeft: "Vendedor — Producto", titleRight: "Cant." });
 
-        coords.push([lat, lng]);
+    // ===== Solicitudes por categoría (tipo de cliente)
+    const reqByType = {};
+    cc.forEach((c) => {
+      // si en tu contacto no guardás el tipo, no hay forma de hacerlo exacto.
+      // fallback: usa empresa -> busca en clientes por company
+      const empresa = (c.empresa || "").trim();
+      let type = "";
+      if (empresa) {
+        const found = cl.find((x) => (x.company || "").trim() === empresa);
+        type = found?.type || "";
       }
-    }
-  }
+      type = (type || "Sin categoría").trim() || "Sin categoría";
+      reqByType[type] = (reqByType[type] || 0) + 1;
+    });
+    const reqByTypeRows = sortEntriesDesc(reqByType)
+      .slice(0, 10)
+      .map(([label, value]) => ({ label, value }));
+    renderBars("requests-by-category-report", reqByTypeRows, { titleLeft: "Categoría", titleRight: "Solic." });
 
-  if (coords.length > 0) {
-    const bounds = L.latLngBounds(coords);
-    mapView.fitBounds(bounds, { padding: [50, 50] });
-  } else {
-    resetMapView();
-  }
-}
-
-async function initLeafletMap() {
-  try {
-    await plotClientsOnMap(clients);
   } catch (err) {
-    console.error("initLeafletMap error:", err);
+    console.error("generateReports error:", err);
   }
 }
 
-function resetMapView() {
-  if (mapView) {
-    mapView.setView([-34.6037, -58.3816], 6);
-  }
-}
+// ✅ EXPO: que exista global y que showSection('reports') lo pueda llamar
+window.generateReports = generateReports;
 
-// Botones del mapa
-async function showAllClients() {
-  showSection("map-section");
-  await plotClientsOnMap(clients);
-}
+/*****************************************************
+ *  REGISTRO GLOBAL (window)
+ *****************************************************/
 
-async function showActiveClients() {
-  showSection("map-section");
-  const list = clients.filter((c) => c.status === "Activo");
-  await plotClientsOnMap(list);
-}
+// contactos
+window.editContact = editContact;
+window.handleEditContactSubmit = handleEditContactSubmit;
+window.deleteContact = deleteContact;
+window.logout = logout;
+window.handleLogin = handleLogin;
+window.handlePasswordChange = handlePasswordChange;
+window.closeEditContactModal = closeEditContactModal;
 
-async function showByType(type) {
-  showSection("map-section");
-  const list = clients.filter((c) => c.type === type);
-  await plotClientsOnMap(list);
-}
+// clientes
+window.handleClientSubmit = handleClientSubmit;
+window.handleEditClientSubmit = handleEditClientSubmit;
+window.editClient = editClient;
+window.closeEditClientModal = closeEditClientModal;
+window.deleteClient = deleteClient;
+window.filterClients = filterClients;
+window.searchClients = searchClients;
 
-async function showClientsOnMap() {
-  await showAllClients();
-}
-
-// === GEOLOCALIZACIÓN ===
-async function geocodeCurrentAddress() {
-  const addressInput = document.getElementById("client-address");
-  const coordDisplay = document.getElementById("coordinates-display");
-  if (!addressInput || !coordDisplay) return;
-
-  const address = addressInput.value.trim();
-  if (!address)
-    return alert("Por favor ingresá una dirección para geocodificar.");
-
-  coordDisplay.textContent = "Buscando ubicación...";
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-      address
-    )}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data || data.length === 0) {
-      coordDisplay.textContent = "No se encontró ubicación.";
-      return alert("No se encontró la dirección ingresada.");
-    }
-
-    const { lat, lon } = data[0];
-    coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
-    coordDisplay.dataset.lat = lat;
-    coordDisplay.dataset.lng = lon;
-    alert(`Ubicación encontrada:\nLat: ${lat}\nLng: ${lon}`);
-  } catch (err) {
-    coordDisplay.textContent = "Error al obtener coordenadas.";
-    console.error("Error en geocodeCurrentAddress:", err);
-    alert("Ocurrió un error al obtener la ubicación.");
-  }
-}
-
-async function geocodeCurrentAddressEdit() {
-  const addressInput = document.getElementById("edit-client-address");
-  const coordDisplay = document.getElementById("edit-coordinates-display");
-  if (!addressInput || !coordDisplay) return;
-
-  const address = addressInput.value.trim();
-  if (!address)
-    return alert("Por favor ingresá una dirección para geocodificar.");
-
-  coordDisplay.textContent = "Buscando ubicación...";
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-      address
-    )}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data || data.length === 0) {
-      coordDisplay.textContent = "No se encontró ubicación.";
-      return alert("No se encontró la dirección ingresada.");
-    }
-
-    const { lat, lon } = data[0];
-    coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
-    coordDisplay.dataset.lat = lat;
-    coordDisplay.dataset.lng = lon;
-    alert(`Ubicación encontrada:\nLat: ${lat}\nLng: ${lon}`);
-  } catch (err) {
-    coordDisplay.textContent = "Error al obtener coordenadas.";
-    console.error("Error en geocodeCurrentAddressEdit:", err);
-    alert("Ocurrió un error al obtener la ubicación.");
-  }
-}
-
-function getCurrentLocationEdit() {
-  const coordDisplay = document.getElementById("edit-coordinates-display");
-  if (!navigator.geolocation) {
-    alert("Tu navegador no soporta geolocalización.");
-    return;
-  }
-
-  coordDisplay.textContent = "Obteniendo tu ubicación actual...";
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const lat = pos.coords.latitude.toFixed(6);
-      const lon = pos.coords.longitude.toFixed(6);
-      coordDisplay.textContent = `Lat: ${lat}, Lng: ${lon}`;
-      coordDisplay.dataset.lat = lat;
-      coordDisplay.dataset.lng = lon;
-      alert(`Ubicación actual:\nLat: ${lat}\nLng: ${lon}`);
-    },
-    (err) => {
-      coordDisplay.textContent = "No se pudo obtener ubicación.";
-      alert("Error al obtener ubicación: " + err.message);
-    }
-  );
-}
-
-// === REGISTRO GLOBAL (window) ===
+// mapa
 window.showClientsOnMap = showClientsOnMap;
 window.geocodeCurrentAddress = geocodeCurrentAddress;
 window.geocodeCurrentAddressEdit = geocodeCurrentAddressEdit;
@@ -1658,70 +1764,23 @@ window.resetMapView = resetMapView;
 window.showAllClients = showAllClients;
 window.showActiveClients = showActiveClients;
 window.showByType = showByType;
+window.showBySegment = showBySegment;
+
+// exports / filtros
 window.exportContacts = exportContacts;
 window.exportClients = exportClients;
 window.exportFullReport = exportFullReport;
 window.filterContacts = filterContacts;
-window.filterClients = filterClients;
 
-console.log(
-  "🌍 Funciones de geolocalización y reportes registradas correctamente en window"
-);
-// === CONTACTO POR WHATSAPP ===
-function sendWhatsApp(phone, msg, clientName = "", product = "", empresa = "") {
-  if (!phone) return alert("No hay teléfono disponible para este contacto.");
+// whatsapp
+window.sendWhatsApp = sendWhatsApp;
 
-  // Limpiar número
-  const cleaned = phone.replace(/\D/g, "");
-  const fullNumber = cleaned.startsWith("54") ? cleaned : `54${cleaned}`;
+// init
+window.initApp = initApp;
 
-  // Mensaje base
-  if (!msg) {
-    msg = `Hola ${clientName || ""}, soy ${
-      currentUser?.name || currentUser?.username || "del equipo"
-    } de Granja Almeyra 🐔${
-      empresa ? ` (${empresa})` : ""
-    }. Te contacto por ${product || "nuestros productos"}.`;
-  }
+console.log("🌍 Funciones registradas correctamente en window");
 
-  const encodedMsg = encodeURIComponent(msg);
-  const ua = navigator.userAgent.toLowerCase();
-  const isMobile = /android|iphone|ipad|ipod/i.test(ua);
-  const isDesktop = /win|mac|linux/i.test(ua) && !isMobile;
-
-  // URL universal
-  const deepLink = `whatsapp://send?phone=${fullNumber}&text=${encodedMsg}`;
-  const webLink = `https://web.whatsapp.com/send?phone=${fullNumber}&text=${encodedMsg}`;
-  const desktopLink = `https://api.whatsapp.com/send?phone=${fullNumber}&text=${encodedMsg}`;
-
-  try {
-    if (isMobile) {
-      // Dispositivos móviles → app nativa
-      window.location.href = deepLink;
-    } else if (isDesktop) {
-      /* Escritorio → intentar abrir app primero
-      const a = document.createElement("a");
-      a.href = deepLink;
-      document.body.appendChild(a);
-      a.click(); */
-
-      // Si falla (no abre app), fallback automático a web
-      setTimeout(() => {
-        window.open(webLink, "_blank");
-      }, 1000);
-    } else {
-      // Fallback genérico
-      window.open(desktopLink, "_blank");
-    }
-  } catch (err) {
-    console.error("Error abriendo WhatsApp:", err);
-    window.open(webLink, "_blank");
-  }
-}
-
-
-
-// === DOM READY (unificado y al final de TODO el script) ===
+// === DOM READY ===
 document.addEventListener("DOMContentLoaded", () => {
   if (typeof initApp === "function") {
     initApp().catch((err) => console.error("initApp error:", err));

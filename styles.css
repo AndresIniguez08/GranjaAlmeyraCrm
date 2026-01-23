@@ -1986,3 +1986,45 @@ tr:hover {
   box-shadow: 0 0 5px rgba(229, 226, 38, 0.758);
 }
 
+.map-legend ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.map-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-dot.distribuidor {
+  background-color: #1e88e5;
+}
+
+.legend-dot.supermercados {
+  background-color: #43a047;
+}
+
+.legend-dot.negocio {
+  background-color: #fb8c00;
+}
+
+.legend-dot.b2b {
+  background-color: #8e24aa;
+}
+.legend-dot.mayorista {
+  background-color: #c5223b;
+}
+.legend-dot.repartidor {
+  background-color: #fbf727;
+}

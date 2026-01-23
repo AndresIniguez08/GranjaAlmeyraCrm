@@ -178,7 +178,6 @@
             <div class="stat-number" id="active-clients">0</div>
             <div class="stat-label">Clientes Activos</div>
           </div>
-          <!-- NUEVA tarjeta de productos solicitados dentro del dashboard -->
           <div class="stat-card">
             <div class="stat-number" id="total-products">0</div>
             <div class="stat-label">Productos Solicitados</div>
@@ -278,7 +277,7 @@
         <div class="success-message" id="client-success-message">
           ¡Cliente registrado exitosamente!
         </div>
-       
+
         <form id="client-form">
           <div class="form-grid">
             <div class="form-group">
@@ -311,17 +310,21 @@
               </div>
               <div id="coordinates-display" style="font-size: 12px; color: #666; margin-top: 5px"></div>
             </div>
+
+            <!-- ✅ TIPO UNIFICADO -->
             <div class="form-group">
               <label for="client-type">Tipo de Cliente</label>
               <select id="client-type" name="client-type" required>
                 <option value="">Seleccionar tipo</option>
                 <option value="Distribuidor">Distribuidor</option>
-                <option value="Retail">Retail</option>
+                <option value="Supermercados">Supermercados</option>
+                <option value="Negocio local">Negocio local</option>
                 <option value="Mayorista">Mayorista</option>
-                <option value="Corporativo">Corporativo</option>
-                <option value="Otro">Otro</option>
+                <option value="B2B">B2B</option>
+                <option value="Repartidor">Repartidor</option>
               </select>
             </div>
+
             <div class="form-group">
               <label for="client-status">Estado</label>
               <select id="client-status" name="client-status" required>
@@ -330,6 +333,7 @@
                 <option value="Prospecto">Prospecto</option>
               </select>
             </div>
+
             <div class="form-group full-width">
               <label for="client-notes">Notas</label>
               <textarea id="client-notes" name="client-notes"
@@ -413,28 +417,26 @@
             Ver en Mapa
           </button>
         </div>
- <div class="client-search-box">
-  <input
-    type="text"
-    id="client-search"
-    placeholder="Buscar cliente, empresa o teléfono..."
-    oninput="searchClients()"
-  />
-</div>
 
+        <div class="client-search-box">
+          <input type="text" id="client-search" placeholder="Buscar cliente, empresa o teléfono..." oninput="searchClients()" />
+        </div>
 
         <div class="filters">
+          <!-- ✅ FILTRO UNIFICADO -->
           <div class="filter-group">
             <label>Tipo:</label>
             <select id="filter-client-type" onchange="filterClients()">
               <option value="">Todos</option>
               <option value="Distribuidor">Distribuidor</option>
-              <option value="Retail">Retail</option>
+              <option value="Supermercados">Supermercados</option>
+              <option value="Negocio local">Negocio local</option>
               <option value="Mayorista">Mayorista</option>
-              <option value="Corporativo">Corporativo</option>
-              <option value="Otro">Otro</option>
+              <option value="B2B">B2B</option>
+              <option value="Repartidor">Repartidor</option>
             </select>
           </div>
+
           <div class="filter-group">
             <label>Estado:</label>
             <select id="filter-client-status" onchange="filterClients()">
@@ -471,25 +473,29 @@
         <h2>Mapa de Clientes</h2>
 
         <div class="map-controls">
-          <button class="map-control-btn" onclick="showAllClients()">
-            Todos los Clientes
-          </button>
-          <button class="map-control-btn" onclick="showActiveClients()">
-            Solo Activos
-          </button>
-          <button class="map-control-btn" onclick="showByType('Distribuidor')">
-            Distribuidores
-          </button>
-          <button class="map-control-btn" onclick="showByType('Retail')">
-            Retail
-          </button>
+          <button class="map-control-btn" onclick="showAllClients()">Todos los clientes</button>
+          <button class="map-control-btn" onclick="showActiveClients()">Solo activos</button>
+
+          <button class="map-control-btn" onclick="showByType('Distribuidor')">Distribuidores</button>
+          <button class="map-control-btn" onclick="showByType('Supermercados')">Supermercados</button>
+          <button class="map-control-btn" onclick="showByType('Negocio local')">Negocio local</button>
+          <button class="map-control-btn" onclick="showByType('Mayorista')">Mayoristas</button>
+          <button class="map-control-btn" onclick="showByType('B2B')">B2B</button>
+          <button class="map-control-btn" onclick="showByType('Repartidor')">Repartidores</button>
         </div>
 
         <div id="map"></div>
 
-        <div style="margin-top: 20px">
-          <h3>Leyenda:</h3>
-          <p>🔵 Activo | 🔴 Inactivo | 🟡 Prospecto</p>
+        <div class="map-legend" style="margin-top: 20px">
+          <h3>Leyenda</h3>
+          <ul>
+            <li><span class="legend-dot distribuidor"></span> Distribuidor</li>
+            <li><span class="legend-dot supermercados"></span> Supermercados</li>
+            <li><span class="legend-dot negocio"></span> Negocio local</li>
+            <li><span class="legend-dot mayorista"></span> Mayorista</li>
+            <li><span class="legend-dot b2b"></span> B2B</li>
+            <li><span class="legend-dot repartidor"></span> Repartidor</li>
+          </ul>
         </div>
       </div>
 
@@ -498,9 +504,7 @@
         <h2>Informes y Analytics</h2>
 
         <div class="action-buttons">
-          <button class="action-btn btn-success" onclick="exportFullReport()">
-            Exportar Informe Completo
-          </button>
+          <button class="action-btn btn-success" onclick="exportFullReport()">Exportar Informe Completo</button>
         </div>
 
         <div class="reports-grid">
@@ -543,7 +547,6 @@
           </div>
         </div>
 
-        <!-- NUEVOS REPORTES DE PRODUCTOS -->
         <div class="reports-grid" style="margin-top: 30px;">
           <div class="report-card">
             <h3 class="report-title">Productos Más Solicitados</h3>
@@ -561,6 +564,7 @@
           </div>
         </div>
       </div>
+
     </div>
 
     <!-- Elementos decorativos laterales -->
@@ -574,8 +578,6 @@
       <img src="huevo roto.png" alt="huevo roto" />
     </div>
   </div>
-
-  <!-- Modales de Edición -->
 
   <!-- Modal para Editar Contacto -->
   <div id="edit-contact-modal" class="modal" style="display: none">
@@ -644,9 +646,7 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-cancel" onclick="closeEditContactModal()">
-            Cancelar
-          </button>
+          <button type="button" class="btn-cancel" onclick="closeEditContactModal()">Cancelar</button>
           <button type="submit" class="btn-save">Guardar Cambios</button>
         </div>
       </form>
@@ -684,29 +684,29 @@
             <div class="address-input-group">
               <input type="text" id="edit-client-address" name="client-address" required
                 placeholder="Ej: Av. Corrientes 1234, CABA, Buenos Aires, Argentina" />
-              <button type="button" class="location-btn" onclick="getCurrentLocationEdit()">
-                Mi Ubicación
-              </button>
-              <button type="button" class="geocode-btn" onclick="geocodeCurrentAddressEdit()">
-                Buscar
-              </button>
+              <button type="button" class="location-btn" onclick="getCurrentLocationEdit()">Mi Ubicación</button>
+              <button type="button" class="geocode-btn" onclick="geocodeCurrentAddressEdit()">Buscar</button>
             </div>
             <div class="address-helper">
               Incluye ciudad, provincia y país para mejor geolocalización
             </div>
             <div id="edit-coordinates-display" style="font-size: 12px; color: #666; margin-top: 5px"></div>
           </div>
+
+          <!-- ✅ EDIT TYPE UNIFICADO -->
           <div class="form-group">
             <label for="edit-client-type">Tipo de Cliente</label>
             <select id="edit-client-type" name="client-type" required>
               <option value="">Seleccionar tipo</option>
               <option value="Distribuidor">Distribuidor</option>
-              <option value="Retail">Retail</option>
+              <option value="Supermercados">Supermercados</option>
+              <option value="Negocio local">Negocio local</option>
               <option value="Mayorista">Mayorista</option>
-              <option value="Corporativo">Corporativo</option>
-              <option value="Otro">Otro</option>
+              <option value="B2B">B2B</option>
+              <option value="Repartidor">Repartidor</option>
             </select>
           </div>
+
           <div class="form-group">
             <label for="edit-client-status">Estado</label>
             <select id="edit-client-status" name="client-status" required>
@@ -722,21 +722,15 @@
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-cancel" onclick="closeEditClientModal()">
-            Cancelar
-          </button>
+          <button type="button" class="btn-cancel" onclick="closeEditClientModal()">Cancelar</button>
           <button type="submit" class="btn-save">Guardar Cambios</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- 4) Cargar tu script principal UNA sola vez -->
   <script src="script.js"></script>
-
-  <!-- 5) Cargar Leaflet (se usa para el mapa) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 
 </body>
-
 </html>
