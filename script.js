@@ -846,41 +846,51 @@ function closeEditClientModal() {
 
 async function saveClientToDB(client) {
   const safe = {
-    name: client.name?.toString() || "Sin nombre",
-    company: client.company?.toString() || "",
-    phone: client.phone?.toString() || "",
-    email: client.email?.toString() || "",
-    address: client.address?.toString() || "",
-    type: client.type?.toString() || "",
-    status: client.status?.toString() || "",
-    segment: typeof normalizeSegment === "function" ? normalizeSegment(client.segment) : "",
-    notes: client.notes?.toString() || "",
-    registered_by: currentUser?.username?.toString() || "",
-    registered_at: client.registered_at || new Date().toISOString(),
+    name: (client.name ?? "").toString(),
+    company: (client.company ?? "").toString(),
+    phone: (client.phone ?? "").toString(),
+    email: (client.email ?? "").toString(),
+    address: (client.address ?? "").toString(),
+    type: (client.type ?? "").toString(),
+    status: (client.status ?? "").toString(),
+    segment: normalizeSegment(client.segment),
+    notes: (client.notes ?? "").toString(),
+    // OJO: solo mandá columnas que EXISTAN en la tabla
+    // registered_by: currentUser?.username?.toString() || "",
+    // registered_at: client.registered_at || new Date().toISOString(),
   };
 
-  if (client.coordinates?.lat && client.coordinates?.lng) {
-    safe.coordinates = client.coordinates;
+  // coordinates (si existe la columna y es json/jsonb)
+  if (client.coordinates?.lat != null && client.coordinates?.lng != null) {
+    safe.coordinates = {
+      lat: Number(client.coordinates.lat),
+      lng: Number(client.coordinates.lng),
+    };
   }
 
-  const { error } = await window.supabase
+  const id = (client.id ?? "").toString().trim();
+
+  const { data, error } = await window.supabase
     .from("commercial_clients")
     .update(safe)
-    .eq("id", client.id.toString().trim());
-
-  if (error) throw error;
-
-  const { data: verify, error: verifyErr } = await window.supabase
-    .from("commercial_clients")
+    .eq("id", id)
     .select("*")
-    .eq("id", client.id.toString().trim())
-    .limit(1);
+    .maybeSingle();
 
-  if (verifyErr) throw verifyErr;
-  if (!verify?.length) throw new Error("No se actualizó ningún registro");
+  if (error) {
+    console.error("❌ Supabase update error FULL:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+    throw error;
+  }
 
-  return verify[0];
+  if (!data) throw new Error("No se devolvieron datos al actualizar el cliente");
+  return data;
 }
+
 
 async function handleEditClientSubmit(e) {
   e.preventDefault();
@@ -923,9 +933,15 @@ async function handleEditClientSubmit(e) {
 
     alert("✅ Cliente actualizado correctamente");
   } catch (err) {
-    console.error("Error editando cliente:", err);
-    alert("❌ Error guardando los cambios del cliente");
-  }
+  console.error("Error editando cliente FULL:", err);
+  const msg =
+    (err?.message || "") +
+    (err?.details ? ` | ${err.details}` : "") +
+    (err?.hint ? ` | hint: ${err.hint}` : "") +
+    (err?.code ? ` | code: ${err.code}` : "");
+  alert("❌ " + (msg.trim() || "Error guardando los cambios del cliente"));
+}
+
 }
 
 async function deleteClientFromDB(id) {
