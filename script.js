@@ -282,6 +282,20 @@ async function initApp() {
  *  BLOQUE 2 - LOGIN, PASSWORD, CONTACTOS
  *****************************************************/
 
+/* ✅ Normaliza first_login a boolean real
+   Soporta: true/false, "true"/"false", 1/0, "1"/"0", "t"/"f"
+*/
+function toBool(v) {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v === 1;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (["true", "t", "1", "yes", "y"].includes(s)) return true;
+    if (["false", "f", "0", "no", "n", ""].includes(s)) return false;
+  }
+  return false;
+}
+
 // === LOGIN ===
 async function handleLogin(e) {
   e.preventDefault();
@@ -295,55 +309,58 @@ async function handleLogin(e) {
   const username = usernameInput ? usernameInput.value.trim() : "";
   const password = passwordInput ? passwordInput.value.trim() : "";
 
-  if (!username || !password) {
+  const fail = (msg) => {
     if (errorBox) {
-      errorBox.textContent = "Completa usuario y contraseña";
+      errorBox.textContent = msg;
       errorBox.style.display = "block";
-    } else alert("Completa usuario y contraseña");
-    return;
-  }
+    } else {
+      alert(msg);
+    }
+  };
+
+  if (!username || !password) return fail("Completa usuario y contraseña");
 
   try {
+    // ✅ Pedimos explícito lo que usamos (evita sorpresas y cache raro)
     const { data: userRows, error } = await db
       .from("users")
-      .select("*")
+      .select("id, username, password, name, role, first_login")
       .eq("username", username)
       .eq("password", password)
       .limit(1);
 
-    if (error || !userRows?.length) {
-      if (errorBox) {
-        errorBox.textContent = "Usuario o contraseña incorrectos";
-        errorBox.style.display = "block";
-      } else alert("Usuario o contraseña incorrectos");
-      return;
-    }
+    if (error || !userRows?.length) return fail("Usuario o contraseña incorrectos");
 
-    currentUser = userRows[0];
+    // ✅ Normalizar first_login (por si viene como string)
+    const row = userRows[0];
+    row.first_login = toBool(row.first_login);
+
+    currentUser = row;
     await createSession(currentUser);
 
     const currentUserSpan = document.getElementById("current-user");
-    if (currentUserSpan) currentUserSpan.textContent = currentUser.name || currentUser.username;
-
-    if (currentUser.first_login) {
-      showSection("password-change-screen");
-    } else {
-      showSection("app-screen");
-      showSection("dashboard");
-      updateDashboard();
-      renderContactsList();
-      renderClientsList();
+    if (currentUserSpan) {
+      currentUserSpan.textContent = currentUser.name || currentUser.username;
     }
+
+    // ✅ CHECK ESTRICTO (solo true manda a cambio)
+    if (currentUser.first_login === true) {
+      showSection("password-change-screen");
+      return;
+    }
+
+    showSection("app-screen");
+    showSection("dashboard");
+    if (typeof updateDashboard === "function") updateDashboard();
+    if (typeof renderContactsList === "function") renderContactsList();
+    if (typeof renderClientsList === "function") renderClientsList();
   } catch (e) {
     console.error("Error en login:", e);
-    if (errorBox) {
-      errorBox.textContent = "Error al conectar con la base de datos";
-      errorBox.style.display = "block";
-    } else alert("Error al conectar con la base de datos");
+    fail("Error al conectar con la base de datos");
   }
 }
 
-// === CAMBIO DE CONTRASEÑA ===
+// === CAMBIO DE CONTRASEÑA (FIX: update por ID + verificación real) ===
 async function handlePasswordChange(e) {
   e.preventDefault();
   const db = window.supabase;
@@ -356,36 +373,51 @@ async function handlePasswordChange(e) {
   const newPwd = newPwdInput ? newPwdInput.value.trim() : "";
   const confirmPwd = confirmInput ? confirmInput.value.trim() : "";
 
-  if (!newPwd || newPwd.length < 6 || newPwd !== confirmPwd) {
+  const fail = (msg) => {
     if (errorBox) {
-      errorBox.textContent =
-        "Las contraseñas no coinciden o son muy cortas (mínimo 6 caracteres)";
+      errorBox.textContent = msg;
       errorBox.style.display = "block";
-    } else alert("Las contraseñas no coinciden o son muy cortas");
-    return;
+    } else {
+      alert(msg);
+    }
+  };
+
+  if (!newPwd || newPwd.length < 6 || newPwd !== confirmPwd) {
+    return fail("Las contraseñas no coinciden o son muy cortas (mínimo 6 caracteres)");
   }
 
   try {
-    const { error } = await db
+    const userId = currentUser.id;
+    if (!userId) {
+      return fail("No se encontró el ID del usuario. Verificá que la tabla 'users' tenga columna 'id'.");
+    }
+
+    const { data: updatedUser, error } = await db
       .from("users")
       .update({ password: newPwd, first_login: false })
-      .eq("username", currentUser.username);
+      .eq("id", userId)
+      .select("id, username, name, role, first_login")
+      .single();
 
     if (error) throw error;
 
-    currentUser.first_login = false;
+    // ✅ Normalizar por si devuelve string
+    const fixed = { ...updatedUser, first_login: toBool(updatedUser?.first_login) };
+
+    if (fixed.first_login !== false) {
+      return fail("La DB no confirmó el cambio de first_login. Revisar columnas/policies/duplicados.");
+    }
+
+    currentUser = { ...currentUser, ...fixed, first_login: false };
 
     showSection("app-screen");
     showSection("dashboard");
-    updateDashboard();
-    renderContactsList();
-    renderClientsList();
+    if (typeof updateDashboard === "function") updateDashboard();
+    if (typeof renderContactsList === "function") renderContactsList();
+    if (typeof renderClientsList === "function") renderClientsList();
   } catch (e) {
     console.error("Error cambiando contraseña:", e);
-    if (errorBox) {
-      errorBox.textContent = "Error al cambiar la contraseña";
-      errorBox.style.display = "block";
-    } else alert("Error al cambiar la contraseña");
+    fail(`Error al cambiar la contraseña: ${e?.message || "desconocido"}`);
   }
 }
 
@@ -418,6 +450,7 @@ function setupEventListeners() {
 
   hydrateSegmentSelects();
 }
+
 
 /* ====== CONTACTOS ====== */
 async function handleContactSubmit(e) {
