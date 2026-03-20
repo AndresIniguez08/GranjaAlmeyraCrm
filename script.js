@@ -572,8 +572,11 @@ function filterContacts() {
 }
 
 function editContact(id) {
-  const c = contacts.find((x) => x.id === id);
-  if (!c) return;
+  const c = contacts.find((x) => String(x.id) === String(id));
+  if (!c) {
+    console.warn("No se encontró el contacto con id:", id);
+    return;
+  }
 
   showElement("edit-contact-modal");
 
@@ -622,46 +625,86 @@ function closeEditContactModal() {
 
 async function handleEditContactSubmit(e) {
   e.preventDefault();
-  if (!currentUser) return alert("Sesión expirada");
 
-  const id = document.getElementById("edit-contact-id").value;
-  const old = contacts.find((c) => c.id === id);
-  if (!old) return alert("No se encontró el contacto a editar.");
+  if (!currentUser) {
+    alert("Sesión expirada");
+    return;
+  }
+
+  const id = document.getElementById("edit-contact-id").value?.trim();
+  if (!id) {
+    alert("No se encontró el ID del contacto.");
+    return;
+  }
+
+  const old = contacts.find((c) => String(c.id) === String(id));
+  if (!old) {
+    alert("No se encontró el contacto a editar.");
+    return;
+  }
 
   const updated = {
-    fecha: document.getElementById("edit-fecha").value,
-    vendedor: document.getElementById("edit-vendedor").value,
-    cliente: document.getElementById("edit-cliente").value,
-    empresa: document.getElementById("edit-empresa").value,
-    telefono: document.getElementById("edit-telefono").value,
-    email: document.getElementById("edit-email").value,
-    producto: document.getElementById("edit-producto").value,
-    estado: document.getElementById("edit-estado").value,
-    cliente_derivado: document.getElementById("edit-cliente-derivado").value || "",
+    fecha: document.getElementById("edit-fecha").value || null,
+    vendedor: document.getElementById("edit-vendedor").value || "",
+    cliente: document.getElementById("edit-cliente").value || "",
+    empresa: document.getElementById("edit-empresa").value || "",
+    telefono: document.getElementById("edit-telefono").value || "",
+    email: document.getElementById("edit-email").value || "",
+    producto: document.getElementById("edit-producto").value || "",
+    estado: document.getElementById("edit-estado").value || "",
+    cliente_derivado:
+      document.getElementById("edit-cliente-derivado")?.value || "",
     motivo: document.getElementById("edit-motivo").value || "",
     editado_por: currentUser.username,
     fecha_edicion: new Date().toISOString(),
   };
 
   try {
-    const { error } = await window.supabase
+    console.log("🟡 Intentando actualizar contacto ID:", id);
+    console.log("🟡 Datos a guardar:", updated);
+
+    // 1) UPDATE real en base
+    const { error: updateError } = await window.supabase
       .from("commercial_contacts")
       .update(updated)
       .eq("id", id);
 
-    if (error) throw error;
+    if (updateError) {
+      throw updateError;
+    }
 
-    const idx = contacts.findIndex((c) => c.id === id);
-    if (idx !== -1) contacts[idx] = { ...contacts[idx], ...updated };
+    // 2) Volver a consultar la fila desde la base para confirmar
+    const { data: dbRow, error: selectError } = await window.supabase
+      .from("commercial_contacts")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (selectError) {
+      throw selectError;
+    }
+
+    if (!dbRow) {
+      throw new Error(
+        "La edición no se confirmó en la base de datos. Verificá RLS o el ID."
+      );
+    }
+
+    // 3) Reemplazar en memoria con lo que realmente quedó guardado
+    const idx = contacts.findIndex((c) => String(c.id) === String(id));
+    if (idx !== -1) {
+      contacts[idx] = dbRow;
+    }
 
     closeEditContactModal();
     updateDashboard();
     renderContactsList();
 
+    console.log("✅ Contacto actualizado en base:", dbRow);
     alert("✅ Contacto actualizado correctamente");
   } catch (err) {
     console.error("Error al editar contacto:", err);
-    alert("Error al guardar los cambios");
+    alert("Error al guardar los cambios en la base de datos.");
   }
 }
 
