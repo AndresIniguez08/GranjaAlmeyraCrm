@@ -663,44 +663,45 @@ async function handleEditContactSubmit(e) {
     console.log("🟡 Intentando actualizar contacto ID:", id);
     console.log("🟡 Datos a guardar:", updated);
 
-    // 1) UPDATE real en base
+    // 1) UPDATE real
     const { error: updateError } = await window.supabase
       .from("commercial_contacts")
       .update(updated)
       .eq("id", id);
 
-    if (updateError) {
-      throw updateError;
+    if (updateError) throw updateError;
+
+    // 2) Recargar TODO desde la base
+    await loadContactsFromDB();
+
+    // 3) Buscar nuevamente el registro ya recargado desde DB
+    const savedRow = contacts.find((c) => String(c.id) === String(id));
+
+    if (!savedRow) {
+      throw new Error("No se encontró el contacto luego de recargar desde la base.");
     }
 
-    // 2) Volver a consultar la fila desde la base para confirmar
-    const { data: dbRow, error: selectError } = await window.supabase
-      .from("commercial_contacts")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    console.log("✅ Contacto recargado desde DB:", savedRow);
 
-    if (selectError) {
-      throw selectError;
-    }
-
-    if (!dbRow) {
-      throw new Error(
-        "La edición no se confirmó en la base de datos. Verificá RLS o el ID."
-      );
-    }
-
-    // 3) Reemplazar en memoria con lo que realmente quedó guardado
-    const idx = contacts.findIndex((c) => String(c.id) === String(id));
-    if (idx !== -1) {
-      contacts[idx] = dbRow;
+    // 4) Verificación real
+    if (
+      savedRow.motivo !== updated.motivo ||
+      savedRow.cliente !== updated.cliente ||
+      savedRow.empresa !== updated.empresa ||
+      savedRow.producto !== updated.producto ||
+      savedRow.estado !== updated.estado
+    ) {
+      console.warn("⚠️ La base devolvió valores distintos a los guardados.");
+      console.warn("Esperado:", updated);
+      console.warn("Recibido:", savedRow);
+      alert("La edición no quedó persistida en la base. Revisá la consola.");
+      return;
     }
 
     closeEditContactModal();
     updateDashboard();
     renderContactsList();
 
-    console.log("✅ Contacto actualizado en base:", dbRow);
     alert("✅ Contacto actualizado correctamente");
   } catch (err) {
     console.error("Error al editar contacto:", err);
