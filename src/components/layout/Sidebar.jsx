@@ -58,7 +58,7 @@ export function Sidebar() {
           <div className="flex items-center gap-3">
             <div className="w-35 h-35 rounded-xl  flex items-center justify-center shrink-0">
               <img
-                src="../img/logo.png"
+                src="../../img/logo.png"
                 alt="Logo"
                 className="w-24 h-24 object-contain"
                 onError={(e) => {
