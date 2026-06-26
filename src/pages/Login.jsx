@@ -46,7 +46,7 @@ export default function Login() {
         {/* Logo */}
         <div className="flex flex-col items-center gap-3 mb-8">
           <img
-            src="../logo.png"
+            src="../img/logo.png"
             alt="Granja Almeyra"
             className="w-45 h-45 object-contain"
             onError={(e) => {
