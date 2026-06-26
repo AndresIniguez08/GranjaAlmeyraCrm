@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #FFFBEB;
+    min-height: 100vh;
+    color: #1F2937;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  /* Usado solo en Login */
+  .gradient-bg {
+    background: linear-gradient(135deg, #FDE68A 0%, #FBBF24 45%, #F59E0B 100%);
+  }
+
+  /* Scrollbar personalizado */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #F9FAFB; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: #FCD34D; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #F59E0B; }
+}
+
+/* Leaflet overrides */
+.leaflet-container {
+  border-radius: 12px;
+  z-index: 0;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.leaflet-popup-content {
+  margin: 12px 16px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* Recharts tooltip z-index */
+.recharts-tooltip-wrapper { z-index: 50; }
