@@ -89,4 +89,22 @@ export const contactService = {
     const { error } = await supabase.from(TABLE).delete().eq('id', id)
     if (error) throw error
   },
+
+  async getPendingFollowupsByContacts(contactIds) {
+    if (!contactIds?.length) return {}
+    const { data, error } = await supabase
+      .from('contact_followups')
+      .select('contact_id, scheduled_date, action_type')
+      .in('contact_id', contactIds)
+      .eq('status', 'pendiente')
+      .order('scheduled_date', { ascending: true })
+
+    if (error) throw error
+
+    const map = {}
+    data.forEach(f => {
+      if (!map[f.contact_id]) map[f.contact_id] = f
+    })
+    return map
+  },
 }

@@ -3,11 +3,20 @@ import { Pagination } from '@/components/ui/Pagination'
 import { formatDate, cleanPhoneForWhatsApp, truncate } from '@/utils/formatters'
 import { getUrgency } from '@/utils/followupUtils'
 import { URGENCY_COLORS } from '@/utils/constants'
+import { Phone, MapPin, MessageCircle, Mail, MessageSquare } from 'lucide-react'
+
+const ACTION_ICONS = {
+  llamada:  <Phone size={12} />,
+  visita:   <MapPin size={12} />,
+  whatsapp: <MessageCircle size={12} />,
+  email:    <Mail size={12} />,
+}
 
 export function ContactTable({
   contacts, totalCount, page, pageSize,
   onPage, onEdit, onDelete, onView,
   loading, canDelete, followupMap = {},
+  onScheduleFollowup,
 }) {
   const columns = [
     {
@@ -45,12 +54,22 @@ export function ContactTable({
       header: 'Seguimiento',
       render: (c) => {
         const f = followupMap[c.id]
-        if (!f) return <span className="text-xs text-gray-300">—</span>
+        if (!f) {
+          return onScheduleFollowup ? (
+            <button
+              onClick={() => onScheduleFollowup(c)}
+              className="text-xs text-amber-600 hover:text-amber-700 border border-amber-300 rounded px-2 py-0.5 hover:bg-amber-50"
+            >
+              + Agendar
+            </button>
+          ) : <span className="text-xs text-gray-300">—</span>
+        }
         const u = getUrgency(f.scheduled_date)
+        const shortDate = formatDate(f.scheduled_date).slice(0, 5)
         return (
-          <span className={`inline-flex flex-col text-xs px-2 py-1 rounded-lg border leading-tight ${URGENCY_COLORS[u]}`}>
-            <span className="font-semibold">{formatDate(f.scheduled_date)}</span>
-            <span className="capitalize opacity-80">{f.action_type}</span>
+          <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border leading-tight ${URGENCY_COLORS[u]}`}>
+            {ACTION_ICONS[f.action_type]}
+            <span className="font-semibold">{shortDate}</span>
           </span>
         )
       },
@@ -62,7 +81,6 @@ export function ContactTable({
       className: 'text-right',
       render: (c) => (
         <div className="flex items-center justify-end gap-1">
-          {/* WhatsApp */}
           {c.telefono && (
             <a
               href={`https://api.whatsapp.com/send?phone=${cleanPhoneForWhatsApp(c.telefono) ?? c.telefono}`}
@@ -73,6 +91,16 @@ export function ContactTable({
             >
               💬
             </a>
+          )}
+          {onScheduleFollowup && (
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => onScheduleFollowup(c)}
+              className="w-7 h-7 p-0 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+              title="Agendar seguimiento"
+            >
+              <MessageSquare size={14} />
+            </Button>
           )}
           <Button variant="ghost" size="sm" onClick={() => onView(c)} className="w-7 h-7 p-0" title="Ver">👁</Button>
           <Button variant="ghost" size="sm" onClick={() => onEdit(c)} className="w-7 h-7 p-0" title="Editar">✏️</Button>

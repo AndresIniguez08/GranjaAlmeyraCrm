@@ -1,14 +1,14 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { useContacts } from '@/hooks/useContacts'
 import useAuthStore from '@/store/authStore'
-import useFollowupStore from '@/store/followupStore'
 import { clientService } from '@/services/clientService'
 import { contactService } from '@/services/contactService'
 import { ContactFilters } from '@/features/contacts/ContactFilters'
 import { ContactTable } from '@/features/contacts/ContactTable'
 import { ContactForm } from '@/features/contacts/ContactForm'
 import { ContactViewModal } from '@/features/contacts/ContactModal'
+import { FollowupModal } from '@/features/followups/FollowupModal'
 import { Modal, Button } from '@/components/ui'
 import { PageHeader } from '@/components/layout/Layout'
 import { exportContacts } from '@/utils/exporters'
@@ -22,15 +22,27 @@ export default function Contacts() {
     load, create, update, remove, setFilters, setPage,
   } = useContacts()
 
-  // Build followup map from store (Sidebar already fetches on mount)
-  const { pendingFollowups } = useFollowupStore()
-  const followupMap = useMemo(() => {
-    const map = {}
-    for (const f of pendingFollowups) {
-      if (!map[f.contact_id]) map[f.contact_id] = f
-    }
-    return map
-  }, [pendingFollowups])
+  const [followupMap, setFollowupMap] = useState({})
+  const [followupContact, setFollowupContact] = useState(null)
+
+  const loadFollowupsMap = useCallback(async (list) => {
+    if (!list?.length) return
+    try {
+      const map = await contactService.getPendingFollowupsByContacts(list.map(c => c.id))
+      setFollowupMap(map)
+    } catch (_) { /* silencioso — la tabla sigue funcionando sin el mapa */ }
+  }, [])
+
+  useEffect(() => {
+    if (contacts.length > 0) loadFollowupsMap(contacts)
+    else setFollowupMap({})
+  }, [contacts, loadFollowupsMap])
+
+  const openFollowupModal = useCallback((contact) => setFollowupContact(contact), [])
+  const closeFollowupModal = useCallback(() => {
+    setFollowupContact(null)
+    loadFollowupsMap(contacts)
+  }, [contacts, loadFollowupsMap])
 
   const [clientOptions, setClientOptions] = useState([])
   const [formOpen, setFormOpen] = useState(false)
@@ -128,6 +140,7 @@ export default function Contacts() {
         onView={setViewContact}
         onEdit={setEditContact}
         onDelete={handleDelete}
+        onScheduleFollowup={openFollowupModal}
       />
 
       {/* Modal: nuevo contacto */}
@@ -168,6 +181,15 @@ export default function Contacts() {
         onClose={() => setViewContact(null)}
         onEdit={(c) => { setViewContact(null); setEditContact(c) }}
       />
+
+      {/* Modal: agendar seguimiento desde tabla */}
+      {followupContact && (
+        <FollowupModal
+          open={true}
+          contact={followupContact}
+          onClose={closeFollowupModal}
+        />
+      )}
     </div>
   )
 }
