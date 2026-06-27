@@ -1,5 +1,47 @@
 import { supabase } from './supabase'
 
+export async function getNoVendidosWithFollowups() {
+  const { data: contacts, error: cErr } = await supabase
+    .from('commercial_contacts')
+    .select('*')
+    .eq('estado', 'No Vendido')
+    .order('fecha_registro', { ascending: false })
+
+  if (cErr) throw cErr
+  if (!contacts?.length) return []
+
+  const ids = contacts.map(c => c.id)
+
+  const { data: followups, error: fErr } = await supabase
+    .from('contact_followups')
+    .select('*')
+    .in('contact_id', ids)
+    .order('scheduled_date', { ascending: true })
+
+  if (fErr) throw fErr
+
+  const followupsMap = {}
+  followups?.forEach(f => {
+    if (!followupsMap[f.contact_id]) followupsMap[f.contact_id] = []
+    followupsMap[f.contact_id].push({
+      ...f,
+      attempt_date: f.scheduled_date,
+      action: f.action_type,
+      action_note: f.note,
+      result: f.result ?? 'sin_respuesta',
+    })
+  })
+
+  return contacts.map(c => ({
+    ...c,
+    _type: 'contact',
+    name: c.cliente,
+    business: c.empresa,
+    phone: c.telefono,
+    attempts: followupsMap[c.id] || [],
+  }))
+}
+
 export async function getProspectsWithAttempts() {
   const { data: prospects, error: pErr } = await supabase
     .from('prospects')

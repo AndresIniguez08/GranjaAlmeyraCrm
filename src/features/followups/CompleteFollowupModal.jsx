@@ -26,7 +26,7 @@ const schema = z.object({
   return true
 }, { message: 'Completá la fecha y tipo del nuevo seguimiento', path: ['new_date'] })
 
-export function CompleteFollowupModal({ open, onClose, followup }) {
+export function CompleteFollowupModal({ open, onClose, followup, onConvertToClient }) {
   const { userName } = useAuthStore()
   const resolveFollowup = useFollowupStore(s => s.resolveFollowup)
   const addFollowup = useFollowupStore(s => s.addFollowup)
@@ -77,6 +77,16 @@ export function CompleteFollowupModal({ open, onClose, followup }) {
       }
 
       onClose()
+
+      // Disparar conversión a cliente si el estado cambió a Vendido
+      if (data.new_contact_status === 'Vendido' && onConvertToClient) {
+        onConvertToClient({
+          id: followup.contact_id,
+          cliente: followup.cliente,
+          empresa: followup.empresa,
+          telefono: followup.telefono,
+        })
+      }
     } catch (err) {
       toast.error('Error: ' + err.message)
     }

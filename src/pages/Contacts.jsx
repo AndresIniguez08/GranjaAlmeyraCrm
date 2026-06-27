@@ -9,6 +9,7 @@ import { ContactTable } from '@/features/contacts/ContactTable'
 import { ContactForm } from '@/features/contacts/ContactForm'
 import { ContactViewModal } from '@/features/contacts/ContactModal'
 import { FollowupModal } from '@/features/followups/FollowupModal'
+import { ConvertToClientModal } from '@/features/clients/ConvertToClientModal'
 import { Modal, Button } from '@/components/ui'
 import { PageHeader } from '@/components/layout/Layout'
 import { exportContacts } from '@/utils/exporters'
@@ -49,6 +50,7 @@ export default function Contacts() {
   const [viewContact, setViewContact] = useState(null)
   const [editContact, setEditContact] = useState(null)
   const [formLoading, setFormLoading] = useState(false)
+  const [convertContact, setConvertContact] = useState(null)
 
   // Cargar datos iniciales
   useEffect(() => { load() }, []) // eslint-disable-line
@@ -82,10 +84,15 @@ export default function Contacts() {
 
   async function handleEdit(data) {
     setFormLoading(true)
+    const previousEstado = editContact?.estado
     try {
       await update(editContact.id, data)
       toast.success('Contacto actualizado')
+      const saved = { ...editContact, ...data }
       setEditContact(null)
+      if (data.estado === 'Vendido' && previousEstado !== 'Vendido') {
+        setConvertContact(saved)
+      }
     } catch (err) {
       toast.error('Error al actualizar: ' + err.message)
     } finally {
@@ -190,6 +197,13 @@ export default function Contacts() {
           onClose={closeFollowupModal}
         />
       )}
+
+      {/* Modal: convertir contacto Vendido en cliente */}
+      <ConvertToClientModal
+        open={!!convertContact}
+        onClose={() => setConvertContact(null)}
+        contact={convertContact}
+      />
     </div>
   )
 }

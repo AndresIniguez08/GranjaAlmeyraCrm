@@ -9,6 +9,7 @@ import { ProspectList }      from '@/features/prospects/ProspectList'
 import { ProspectModal }     from '@/features/prospects/ProspectModal'
 import { AttemptModal }      from '@/features/prospects/AttemptModal'
 import { AttemptEditModal }  from '@/features/prospects/AttemptEditModal'
+import { FollowupModal }     from '@/features/followups/FollowupModal'
 import { LoadingSpinner }    from '@/components/shared/LoadingSpinner'
 
 const TABS = [
@@ -34,15 +35,33 @@ export default function Prospectos() {
 
   const { userName } = useAuthStore()
 
+  // ── Estado "Sin vender" ─────────────────────────────────────────────────────
+  const [noVendidos, setNoVendidos] = useState([])
+  const [noVendidosLoading, setNoVendidosLoading] = useState(false)
+
+  const fetchNoVendidos = useCallback(async () => {
+    setNoVendidosLoading(true)
+    try {
+      const data = await prospectService.getNoVendidosWithFollowups()
+      setNoVendidos(data)
+    } catch (err) {
+      toast.error('Error al cargar contactos No Vendidos: ' + err.message)
+    } finally {
+      setNoVendidosLoading(false)
+    }
+  }, [])
+
   // ── Modales ─────────────────────────────────────────────────────────────────
   const [prospectModal, setProspectModal] = useState({ open: false, prospect: null })
   const [attemptModal,  setAttemptModal]  = useState({ open: false, prospect: null })
   const [editModal,     setEditModal]     = useState({ open: false, prospect: null, attempt: null })
+  const [followupContact, setFollowupContact] = useState(null)
   const [saving, setSaving] = useState(false)
 
   // ── Fetch inicial ───────────────────────────────────────────────────────────
   useEffect(() => {
     fetchProspects().catch(() => toast.error('Error al cargar prospectos'))
+    fetchNoVendidos()
   }, []) // eslint-disable-line
 
   // ── CRUD Prospectos ─────────────────────────────────────────────────────────
@@ -83,7 +102,7 @@ export default function Prospectos() {
     }
   }, [removeProspect])
 
-  // ── CRUD Intentos ───────────────────────────────────────────────────────────
+  // ── CRUD Intentos (prospectos propios) ──────────────────────────────────────
   const handleSaveAttempt = useCallback(async (data) => {
     setSaving(true)
     try {
@@ -129,9 +148,19 @@ export default function Prospectos() {
   }, [editModal.prospect, storeRemoveAttempt])
 
   // ── Handlers de UI ──────────────────────────────────────────────────────────
-  const openAddAttempt  = (prospect) => setAttemptModal({ open: true, prospect })
-  const openEditAttempt = (prospect, attempt) => setEditModal({ open: true, prospect, attempt })
+  const openAddAttempt   = (prospect) => setAttemptModal({ open: true, prospect })
+  const openEditAttempt  = (prospect, attempt) => setEditModal({ open: true, prospect, attempt })
   const openEditProspect = (prospect) => setProspectModal({ open: true, prospect })
+
+  // Seguimiento para contacto "Sin vender"
+  const openAddFollowup  = (contact) => setFollowupContact(contact)
+  const closeFollowup    = () => {
+    setFollowupContact(null)
+    // Refrescar lista de no vendidos para reflejar el nuevo seguimiento
+    fetchNoVendidos()
+  }
+
+  const isLoading = loading || noVendidosLoading
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -145,7 +174,7 @@ export default function Prospectos() {
           <div>
             <h1 className="text-xl font-bold text-gray-900">Prospectos</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {prospects.length} prospecto{prospects.length !== 1 ? 's' : ''} en seguimiento
+              {noVendidos.length} sin vender · {prospects.length} prospecto{prospects.length !== 1 ? 's' : ''} propio{prospects.length !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
@@ -180,13 +209,15 @@ export default function Prospectos() {
 
       {/* ── Contenido ───────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto px-6 py-5">
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center py-20">
             <LoadingSpinner />
           </div>
         ) : tab === 'grid' ? (
           <ProspectGrid
+            contacts={noVendidos}
             prospects={prospects}
+            onAddFollowup={openAddFollowup}
             onAddAttempt={openAddAttempt}
             onEditAttempt={openEditAttempt}
           />
@@ -226,6 +257,15 @@ export default function Prospectos() {
         onDelete={handleDeleteAttempt}
         loading={saving}
       />
+
+      {/* Modal: agendar seguimiento para contacto "Sin vender" */}
+      {followupContact && (
+        <FollowupModal
+          open={true}
+          contact={followupContact}
+          onClose={closeFollowup}
+        />
+      )}
     </div>
   )
 }

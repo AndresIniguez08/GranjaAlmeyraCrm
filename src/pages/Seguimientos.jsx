@@ -11,6 +11,7 @@ import { followupService } from '@/services/followupService'
 import useFollowupStore from '@/store/followupStore'
 import useAuthStore from '@/store/authStore'
 import { CompleteFollowupModal } from '@/features/followups/CompleteFollowupModal'
+import { ConvertToClientModal } from '@/features/clients/ConvertToClientModal'
 import { ACTION_TYPES, URGENCY_COLORS } from '@/utils/constants'
 import { getUrgency, getUrgencyLabel } from '@/utils/followupUtils'
 import { formatDate } from '@/utils/formatters'
@@ -54,6 +55,7 @@ function PendingTab({ onNavigateToContact }) {
   const [filterType, setFilterType] = useState('todos')
   const [filterUrgency, setFilterUrgency] = useState(initialUrgency)
   const [completing, setCompleting] = useState(null)
+  const [convertContact, setConvertContact] = useState(null)
 
   useEffect(() => { fetchPendingFollowups() }, []) // eslint-disable-line
 
@@ -207,6 +209,16 @@ function PendingTab({ onNavigateToContact }) {
         open={!!completing}
         onClose={() => setCompleting(null)}
         followup={completing}
+        onConvertToClient={(contact) => {
+          setCompleting(null)
+          setConvertContact(contact)
+        }}
+      />
+
+      <ConvertToClientModal
+        open={!!convertContact}
+        onClose={() => setConvertContact(null)}
+        contact={convertContact}
       />
     </div>
   )
