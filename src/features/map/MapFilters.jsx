@@ -1,12 +1,14 @@
 import { useForm } from 'react-hook-form'
 import { Select } from '@/components/ui/Select'
 import { Button } from '@/components/ui/Button'
-import { TIPOS_CLIENTE, ESTADOS_CLIENTE } from '@/utils/constants'
+import { TIPOS_CLIENTE } from '@/utils/constants'
 
 // Versión inline — sin posicionamiento absoluto.
 // Se monta en la barra de header del mapa.
+const ESTADO_OPTIONS = ['Activo', 'Inactivo']
+
 export function MapFilters({ onApply, onReset }) {
-  const { register, handleSubmit, reset } = useForm()
+  const { register, handleSubmit, reset } = useForm({ defaultValues: { status: 'Activo' } })
 
   function onSubmit(data) {
     const clean = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== ''))
@@ -14,7 +16,7 @@ export function MapFilters({ onApply, onReset }) {
   }
 
   function handleReset() {
-    reset({})
+    reset({ status: 'Activo' })
     onReset()
   }
 
@@ -30,7 +32,7 @@ export function MapFilters({ onApply, onReset }) {
       <Select
         label="Estado"
         placeholder="Todos"
-        options={ESTADOS_CLIENTE}
+        options={ESTADO_OPTIONS}
         className="w-32"
         {...register('status')}
       />

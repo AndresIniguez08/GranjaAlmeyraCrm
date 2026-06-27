@@ -3,7 +3,7 @@ import { MapView } from '@/features/map/MapView'
 import { MapFilters } from '@/features/map/MapFilters'
 
 export default function Map() {
-  const [filters, setFilters] = useState({})
+  const [filters, setFilters] = useState({ status: 'Activo' })
 
   return (
     // h-full llega hasta el borde de <main> que tiene h-screen
@@ -18,7 +18,7 @@ export default function Map() {
         </div>
         <MapFilters
           onApply={setFilters}
-          onReset={() => setFilters({})}
+          onReset={() => setFilters({ status: 'Activo' })}
         />
       </div>
 
