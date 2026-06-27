@@ -3,14 +3,14 @@ import { parse, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Phone, Plus, Target,
-  Instagram, MessageCircle, FileText, MapPin, Edit3,
+  AtSign, MessageCircle, FileText, MapPin, Edit3,
 } from 'lucide-react'
 import { PROSPECT_ACTIONS, PROSPECT_RESULTS } from '@/utils/constants'
 
 // ─── Icono dinámico por acción ────────────────────────────────────────────────
 
 const ACTION_ICONS = {
-  ig:            Instagram,
+  ig:            AtSign,
   whatsapp:      MessageCircle,
   lista_precios: FileText,
   llamada:       Phone,

@@ -85,7 +85,7 @@ export const AUTH_EMAIL_DOMAIN = '@crm.internal'
 // ─── Prospectos ───────────────────────────────────────────────────────────────
 
 export const PROSPECT_ACTIONS = [
-  { value: 'ig',            label: 'Mandé IG',        icon: 'Instagram',     color: '#E1306C' },
+  { value: 'ig',            label: 'Mandé IG',        icon: 'AtSign',        color: '#E1306C' },
   { value: 'whatsapp',      label: 'WhatsApp',         icon: 'MessageCircle', color: '#25D366' },
   { value: 'lista_precios', label: 'Lista de precios', icon: 'FileText',      color: '#3B82F6' },
   { value: 'llamada',       label: 'Llamé',            icon: 'Phone',         color: '#8B5CF6' },

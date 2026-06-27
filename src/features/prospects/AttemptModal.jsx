@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import {
-  Instagram, MessageCircle, FileText, Phone, MapPin, Edit3,
+  AtSign, MessageCircle, FileText, Phone, MapPin, Edit3,
 } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { PROSPECT_ACTIONS, PROSPECT_RESULTS } from '@/utils/constants'
 
 const ACTION_ICONS = {
-  ig:            Instagram,
+  ig:            AtSign,
   whatsapp:      MessageCircle,
   lista_precios: FileText,
   llamada:       Phone,
