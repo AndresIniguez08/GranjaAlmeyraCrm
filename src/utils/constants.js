@@ -82,6 +82,24 @@ export const NOMINATIM_DELAY_MS = 1000
 
 export const AUTH_EMAIL_DOMAIN = '@crm.internal'
 
+// ─── Prospectos ───────────────────────────────────────────────────────────────
+
+export const PROSPECT_ACTIONS = [
+  { value: 'ig',            label: 'Mandé IG',        icon: 'Instagram',     color: '#E1306C' },
+  { value: 'whatsapp',      label: 'WhatsApp',         icon: 'MessageCircle', color: '#25D366' },
+  { value: 'lista_precios', label: 'Lista de precios', icon: 'FileText',      color: '#3B82F6' },
+  { value: 'llamada',       label: 'Llamé',            icon: 'Phone',         color: '#8B5CF6' },
+  { value: 'visita',        label: 'Visita',           icon: 'MapPin',        color: '#F97316' },
+  { value: 'otro',          label: 'Otro',             icon: 'Edit3',         color: '#6B7280' },
+]
+
+export const PROSPECT_RESULTS = {
+  positivo:      { label: 'Positivo',      color: '#10B981', bg: '#D1FAE5', text: '#065F46' },
+  en_proceso:    { label: 'En proceso',    color: '#F59E0B', bg: '#FEF3C7', text: '#92400E' },
+  negativo:      { label: 'Negativo',      color: '#EF4444', bg: '#FEE2E2', text: '#991B1B' },
+  sin_respuesta: { label: 'Sin respuesta', color: '#1E40AF', bg: '#DBEAFE', text: '#1E3A5F' },
+}
+
 // ─── Seguimientos ─────────────────────────────────────────────────────────────
 
 export const ACTION_TYPES = [

@@ -10,6 +10,7 @@ import Clients from '@/pages/Clients'
 import MapPage from '@/pages/Map'
 import Reports from '@/pages/Reports'
 import Seguimientos from '@/pages/Seguimientos'
+import Prospectos from '@/pages/Prospectos'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -81,6 +82,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <Seguimientos />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/prospectos"
+        element={
+          <ProtectedRoute>
+            <Prospectos />
           </ProtectedRoute>
         }
       />
