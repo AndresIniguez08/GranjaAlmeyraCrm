@@ -14,7 +14,7 @@ const schema = z.object({
   email: z.string().email('Email inválido').or(z.literal('')).optional(),
   producto: z.string().min(1, 'El producto es requerido'),
   estado: z.string().min(1, 'El estado es requerido'),
-  cliente_derivado: z.string().optional(),
+  cliente_derivado: z.string().nullish(),
   motivo: z.string().optional(),
   note: z.string().optional(),
 })
