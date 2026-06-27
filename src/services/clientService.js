@@ -79,7 +79,12 @@ export const clientService = {
   },
 
   async geocodeAddress(address) {
-    const url = `${NOMINATIM_URL}?q=${encodeURIComponent(address)}&format=json&limit=1`
+    const query = address.toLowerCase().includes('argentina')
+      ? address
+      : `${address}, Argentina`
+    const url =
+      `${NOMINATIM_URL}?q=${encodeURIComponent(query)}` +
+      `&format=json&limit=1&countrycodes=ar`
     const res = await fetch(url, {
       headers: { 'Accept-Language': 'es' },
     })

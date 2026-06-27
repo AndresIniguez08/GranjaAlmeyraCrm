@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
+import L from 'leaflet'
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import { Input, Select, Textarea, Button } from '@/components/ui'
 import { TIPOS_CLIENTE, ESTADOS_CLIENTE } from '@/utils/constants'
-import { clientService } from '@/services/clientService'
 
 const schema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -18,60 +19,164 @@ const schema = z.object({
   notes: z.string().optional(),
 })
 
-export function ClientForm({ defaultValues, onSubmit, loading }) {
-  const [geocoding, setGeocoding] = useState(false)
-  const [coords, setCoords] = useState(defaultValues?.coordinates ?? null)
+const ARGENTINA_DEFAULT = { lat: -38.4161, lng: -63.6167 }
+const ZOOM_DEFAULT  = 4
+const ZOOM_LOCATED  = 15
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm({
+// ─── Ícono dorado para el marcador draggable ──────────────────────────────────
+const goldIcon = L.divIcon({
+  className: '',
+  html: `<div style="
+    width:24px;height:24px;
+    background:#F59E0B;
+    border:3px solid white;
+    border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);
+    box-shadow:0 2px 8px rgba(0,0,0,0.3);
+  "></div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 24],
+})
+
+// ─── Actualiza la vista del mapa cuando cambian lat/lng/zoom ──────────────────
+function MapUpdater({ center, zoom }) {
+  const map = useMap()
+  const { lat, lng } = center
+  const firstRef = useRef(true)
+
+  useEffect(() => {
+    // Saltar el primer render — MapContainer ya está centrado correctamente
+    if (firstRef.current) { firstRef.current = false; return }
+    map.setView([lat, lng], zoom, { animate: true })
+  }, [lat, lng, zoom, map])
+
+  return null
+}
+
+// ─── Marcador arrastrable ─────────────────────────────────────────────────────
+function DraggableMarker({ position, onDragEnd }) {
+  const markerRef = useRef(null)
+
+  const eventHandlers = useMemo(() => ({
+    dragend() {
+      const m = markerRef.current
+      if (m) {
+        const { lat, lng } = m.getLatLng()
+        onDragEnd({ lat, lng })
+      }
+    },
+  }), [onDragEnd])
+
+  return (
+    <Marker
+      draggable
+      eventHandlers={eventHandlers}
+      position={[position.lat, position.lng]}
+      ref={markerRef}
+      icon={goldIcon}
+    />
+  )
+}
+
+// ─── ClientForm ───────────────────────────────────────────────────────────────
+export function ClientForm({ defaultValues, onSubmit, loading }) {
+  const initialCoords = defaultValues?.coordinates ?? null
+
+  const [mapCoords,      setMapCoords]      = useState(initialCoords ?? ARGENTINA_DEFAULT)
+  const [mapZoom,        setMapZoom]        = useState(initialCoords ? ZOOM_LOCATED : ZOOM_DEFAULT)
+  const [geocodeStatus,  setGeocodeStatus]  = useState(initialCoords ? 'success' : null)
+  const [hasLocation,    setHasLocation]    = useState(!!initialCoords)
+  const [geocoding,      setGeocoding]      = useState(false)
+
+  const { register, handleSubmit, watch, reset, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: defaultValues ?? { status: 'Activo' },
   })
 
+  // Reinicializar cuando cambia el cliente que se está editando
   useEffect(() => {
     if (defaultValues) {
       reset(defaultValues)
-      setCoords(defaultValues.coordinates ?? null)
+      const c = defaultValues.coordinates ?? null
+      setMapCoords(c ?? ARGENTINA_DEFAULT)
+      setMapZoom(c ? ZOOM_LOCATED : ZOOM_DEFAULT)
+      setGeocodeStatus(c ? 'success' : null)
+      setHasLocation(!!c)
     }
   }, [defaultValues, reset])
 
   const address = watch('address')
 
-  async function geocodeAddress() {
+  // ─── Geocodificación mejorada (Argentina + fallback 3 resultados) ───────────
+  async function geocode() {
     if (!address?.trim()) return toast.error('Ingresá una dirección primero')
     setGeocoding(true)
+    setGeocodeStatus('loading')
     try {
-      const result = await clientService.geocodeAddress(address)
-      if (!result) return toast.error('No se encontró la dirección')
-      setCoords(result)
-      toast.success(`Ubicación encontrada: ${result.lat.toFixed(4)}, ${result.lng.toFixed(4)}`)
+      const query = address.toLowerCase().includes('argentina')
+        ? address
+        : `${address}, Argentina`
+      const url =
+        `https://nominatim.openstreetmap.org/search` +
+        `?q=${encodeURIComponent(query)}` +
+        `&format=json&limit=3&countrycodes=ar&addressdetails=1`
+      const res  = await fetch(url, { headers: { 'Accept-Language': 'es' } })
+      const data = await res.json()
+      if (data.length > 0) {
+        const newCoords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+        setMapCoords(newCoords)
+        setMapZoom(ZOOM_LOCATED)
+        setGeocodeStatus('success')
+        setHasLocation(true)
+      } else {
+        setGeocodeStatus('error')
+        toast.error('No se encontró la dirección — arrastrá el marcador al lugar exacto')
+      }
     } catch {
-      toast.error('Error al geocodificar la dirección')
+      setGeocodeStatus('error')
+      toast.error('Error al geocodificar')
     } finally {
       setGeocoding(false)
     }
   }
 
+  // ─── GPS ─────────────────────────────────────────────────────────────────────
   function useGPS() {
     if (!navigator.geolocation) return toast.error('Tu dispositivo no soporta geolocalización')
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        setCoords(c)
-        toast.success(`GPS: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}`)
+        const newCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setMapCoords(newCoords)
+        setMapZoom(16)
+        setGeocodeStatus('manual')
+        setHasLocation(true)
       },
       () => toast.error('No se pudo obtener la ubicación GPS'),
     )
   }
 
+  // ─── Drag del marcador ────────────────────────────────────────────────────────
+  const handleMarkerDrag = useCallback((newCoords) => {
+    setMapCoords(newCoords)
+    setGeocodeStatus('manual')
+    setHasLocation(true)
+  }, [])
+
+  // ─── Submit ───────────────────────────────────────────────────────────────────
   function handleFormSubmit(data) {
-    onSubmit({ ...data, coordinates: coords ?? null })
+    onSubmit({ ...data, coordinates: hasLocation ? mapCoords : null })
   }
+
+  // ─── Texto de estado del mapa ─────────────────────────────────────────────────
+  const statusLabel = {
+    success: '✓ Ubicado automáticamente',
+    manual:  '📍 Posición ajustada manualmente',
+    error:   '⚠️ No se encontró — arrastrá el marcador',
+    loading: 'Buscando dirección…',
+  }[geocodeStatus] ?? 'Arrastrá el marcador para ubicar manualmente'
+
+  // Clave estable por cliente → el mapa se recrea solo al abrir un cliente distinto
+  const mapKey = defaultValues?.id ?? 'new'
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} noValidate className="space-y-4">
@@ -105,12 +210,12 @@ export function ClientForm({ defaultValues, onSubmit, loading }) {
           {...register('email')}
         />
 
-        {/* Dirección + geocodificación */}
+        {/* ─── Dirección + geocodificación + mapa ─────────────────────────── */}
         <div className="md:col-span-2 space-y-2">
           <div className="flex gap-2 items-end">
             <Input
               label="Dirección"
-              placeholder="Av. Corrientes 1234, CABA, Buenos Aires, Argentina"
+              placeholder="Av. Corrientes 1234, CABA, Buenos Aires"
               className="flex-1"
               {...register('address')}
             />
@@ -119,7 +224,7 @@ export function ClientForm({ defaultValues, onSubmit, loading }) {
               variant="secondary"
               size="sm"
               loading={geocoding}
-              onClick={geocodeAddress}
+              onClick={geocode}
               className="shrink-0 mb-[1px]"
             >
               📍 Geocodificar
@@ -134,12 +239,31 @@ export function ClientForm({ defaultValues, onSubmit, loading }) {
               🛰 GPS
             </Button>
           </div>
-          {coords && (
-            <p className="text-xs text-text-muted bg-green-50 border border-green-200 rounded px-2 py-1">
-              ✓ Coordenadas: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-              <button type="button" onClick={() => setCoords(null)} className="ml-2 text-red-500 hover:underline">× limpiar</button>
-            </p>
-          )}
+
+          {/* Mini mapa interactivo */}
+          <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+            <MapContainer
+              key={mapKey}
+              center={[mapCoords.lat, mapCoords.lng]}
+              zoom={mapZoom}
+              style={{ height: '280px', width: '100%' }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <DraggableMarker position={mapCoords} onDragEnd={handleMarkerDrag} />
+              <MapUpdater center={mapCoords} zoom={mapZoom} />
+            </MapContainer>
+
+            {/* Footer del mapa */}
+            <div className="bg-gray-50 px-3 py-2 flex items-center justify-between border-t border-gray-200">
+              <span className="text-xs text-gray-500">{statusLabel}</span>
+              <span className="text-xs text-gray-400 tabular-nums">
+                {mapCoords.lat.toFixed(6)}, {mapCoords.lng.toFixed(6)}
+              </span>
+            </div>
+          </div>
         </div>
 
         <Select
