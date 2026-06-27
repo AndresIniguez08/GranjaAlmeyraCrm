@@ -5,6 +5,7 @@ import {
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { PROSPECT_ACTIONS, PROSPECT_RESULTS } from '@/utils/constants'
+import useAuthStore from '@/store/authStore'
 
 const ACTION_ICONS = {
   ig:            AtSign,
@@ -18,6 +19,7 @@ const ACTION_ICONS = {
 const TODAY = () => new Date().toISOString().slice(0, 10)
 
 export function AttemptModal({ open, onClose, prospect, onSave, loading }) {
+  const { userName } = useAuthStore()
   const [date, setDate]     = useState(TODAY())
   const [action, setAction] = useState(null)
   const [result, setResult] = useState(null)
@@ -53,6 +55,7 @@ export function AttemptModal({ open, onClose, prospect, onSave, loading }) {
       action,
       result,
       action_note: note.trim() || null,
+      created_by: userName,
     })
   }
 

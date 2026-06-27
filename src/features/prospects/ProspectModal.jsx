@@ -1,11 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
+import { supabase } from '@/services/supabase'
 
 const schema = z.object({
   name:        z.string().min(1, 'El nombre es requerido'),
@@ -17,8 +19,19 @@ const schema = z.object({
   assigned_to: z.string().optional(),
 })
 
+async function fetchVendedores() {
+  const { data } = await supabase
+    .from('commercial_contacts')
+    .select('vendedor')
+    .not('vendedor', 'is', null)
+    .neq('vendedor', '')
+  if (!data) return []
+  return [...new Set(data.map((d) => d.vendedor))].sort()
+}
+
 export function ProspectModal({ open, onClose, prospect, onSave, loading }) {
   const isEdit = Boolean(prospect)
+  const [vendedores, setVendedores] = useState([])
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -30,6 +43,7 @@ export function ProspectModal({ open, onClose, prospect, onSave, loading }) {
 
   useEffect(() => {
     if (open) {
+      fetchVendedores().then(setVendedores)
       reset(
         isEdit
           ? {
@@ -106,9 +120,10 @@ export function ProspectModal({ open, onClose, prospect, onSave, loading }) {
           {...register('address')}
         />
 
-        <Input
+        <Select
           label="Asignado a"
-          placeholder="Nombre del vendedor"
+          placeholder="Sin asignar"
+          options={vendedores.map((v) => ({ value: v, label: v }))}
           error={errors.assigned_to?.message}
           {...register('assigned_to')}
         />

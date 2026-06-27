@@ -87,10 +87,7 @@ export default function Prospectos() {
   const handleSaveAttempt = useCallback(async (data) => {
     setSaving(true)
     try {
-      const attempt = await prospectService.addAttempt({
-        ...data,
-        created_by: userName,
-      })
+      const attempt = await prospectService.addAttempt(data)
       storeAddAttempt(data.prospect_id, attempt)
       toast.success('Intento registrado')
       setAttemptModal({ open: false, prospect: null })
@@ -99,7 +96,7 @@ export default function Prospectos() {
     } finally {
       setSaving(false)
     }
-  }, [userName, storeAddAttempt])
+  }, [storeAddAttempt])
 
   const handleUpdateAttempt = useCallback(async (attemptId, data) => {
     if (!editModal.prospect) return
