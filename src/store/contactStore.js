@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { PAGE_SIZE } from '@/utils/constants'
 
-const useContactStore = create((set, get) => ({
+const useContactStore = create((set) => ({
   contacts: [],
   totalCount: 0,
   page: 1,

@@ -1,14 +1,12 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Phone, MapPin, MessageCircle, Mail, Eye, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Phone, MapPin, MessageCircle, Mail, Eye, CheckCircle, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { format } from 'date-fns'
 import { PageHeader } from '@/components/layout/Layout'
 import { Button, Badge } from '@/components/ui'
 import { Table } from '@/components/ui/Table'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { followupService } from '@/services/followupService'
 import useFollowupStore from '@/store/followupStore'
 import useAuthStore from '@/store/authStore'
@@ -301,7 +299,7 @@ export default function Seguimientos() {
   const [tab, setTab] = useState('pendientes')
   const { pendingFollowups } = useFollowupStore()
 
-  function handleNavigateToContact(contactId) {
+  function handleNavigateToContact(_contactId) {
     navigate('/contacts')
     // TODO: podría abrirse el modal del contacto — por ahora navega a la lista
   }

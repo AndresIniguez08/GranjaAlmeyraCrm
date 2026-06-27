@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { authService } from "@/services/authService";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import logo from "@/img/logo.png";
 
 const schema = z.object({
   username: z.string().min(1, "El usuario es requerido"),
@@ -46,7 +47,7 @@ export default function Login() {
         {/* Logo */}
         <div className="flex flex-col items-center gap-3 mb-8">
           <img
-            src="../../img/logo.png"
+            src={logo}
             alt="Granja Almeyra"
             className="w-45 h-45 object-contain"
             onError={(e) => {

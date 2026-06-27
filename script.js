@@ -1,3 +1,4 @@
+/* global supabase, L */
 /*****************************************************
  *  BLOQUE 1 - SUPABASE, UTILIDADES, SESIÓN, INIT
  *****************************************************/
@@ -78,38 +79,9 @@ const CLIENT_SEGMENTS = {
   B2B: "B2B",
 };
 
-const SEGMENT_COLORS = {
-  [CLIENT_SEGMENTS.REPARTIDORES]: "#1e88e5", // azul
-  [CLIENT_SEGMENTS.ALMACEN]: "#43a047", // verde
-  [CLIENT_SEGMENTS.NEGOCIO]: "#fb8c00", // naranja
-  [CLIENT_SEGMENTS.B2B]: "#8e24aa", // violeta
-};
-
-function getSegmentColor(segment) {
-  return SEGMENT_COLORS[segment] || "#607d8b"; // gris fallback
-}
-
 function normalizeSegment(raw) {
   const s = (raw || "").toString().trim();
   return Object.values(CLIENT_SEGMENTS).includes(s) ? s : "";
-}
-
-/* ===================================================
-   COLOR FINAL PARA MAPA
-   - 1) segmento si existe
-   - 2) fallback por type
-=================================================== */
-function getTypeColor(type) {
-  const t = (type || "").toString().trim().toLowerCase();
-  if (t === "distribuidor") return "#1e88e5"; // azul
-  if (t === "retail") return "#43a047"; // verde
-  return "#607d8b"; // gris
-}
-
-function getClientColor(client) {
-  const seg = normalizeSegment(client?.segment);
-  if (seg) return getSegmentColor(seg);
-  return getTypeColor(client?.type);
 }
 
 // Rellena selects si existen (alta/edición/filtro)

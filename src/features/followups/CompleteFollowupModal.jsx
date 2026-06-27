@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -106,7 +105,7 @@ export function CompleteFollowupModal({ open, onClose, followup }) {
           <p className="text-sm font-semibold text-gray-800">{followup.cliente} · <span className="font-normal text-gray-500">{followup.empresa}</span></p>
           <span className="text-xs text-gray-400">{formatDate(followup.scheduled_date)}</span>
         </div>
-        {followup.note && <p className="text-xs text-gray-500 italic">"{followup.note}"</p>}
+        {followup.note && <p className="text-xs text-gray-500 italic">&ldquo;{followup.note}&rdquo;</p>}
       </div>
 
       <form id="complete-form" onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">

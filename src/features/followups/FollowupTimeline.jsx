@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Phone, MapPin, MessageCircle, Mail, Clock, CheckCircle, XCircle, Plus } from 'lucide-react'
+import { Phone, MapPin, MessageCircle, Mail, Clock, Plus } from 'lucide-react'
 import { followupService } from '@/services/followupService'
 import { formatDate, formatDateTime } from '@/utils/formatters'
 import { Badge } from '@/components/ui/Badge'
@@ -13,11 +13,6 @@ const ACTION_ICONS = {
   email:    <Mail size={14} className="text-violet-600" />,
 }
 
-const STATUS_ICONS = {
-  pendiente:  <Clock size={14} className="text-amber-500" />,
-  completado: <CheckCircle size={14} className="text-green-500" />,
-  cancelado:  <XCircle size={14} className="text-gray-400" />,
-}
 
 const STATUS_LINE_COLOR = {
   pendiente:  'border-amber-300',
@@ -77,7 +72,7 @@ export function FollowupTimeline({ contactId, onSchedule }) {
                     <Badge label={f.status} />
                   </div>
                   {f.note && (
-                    <p className="text-xs text-gray-500 mt-0.5 italic">"{f.note}"</p>
+                    <p className="text-xs text-gray-500 mt-0.5 italic">&ldquo;{f.note}&rdquo;</p>
                   )}
                   {f.result_note && (
                     <p className="text-xs text-gray-700 mt-1">

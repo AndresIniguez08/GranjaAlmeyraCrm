@@ -1,8 +1,7 @@
 import { create } from 'zustand'
 import { followupService } from '@/services/followupService'
-import useAuthStore from '@/store/authStore'
 
-const useFollowupStore = create((set, get) => ({
+const useFollowupStore = create((set) => ({
   pendingFollowups: [],
   loading: false,
   error: null,

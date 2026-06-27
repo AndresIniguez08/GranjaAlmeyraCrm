@@ -14,7 +14,7 @@ import { authService } from "@/services/authService";
 import useAuthStore from "@/store/authStore";
 import useFollowupStore from "@/store/followupStore";
 import { Badge } from "@/components/ui/Badge";
-
+import logo from "@/img/logo.png";
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
   { to: "/contacts", label: "Contactos", icon: <Users size={18} /> },
@@ -58,7 +58,7 @@ export function Sidebar() {
           <div className="flex items-center gap-3">
             <div className="w-35 h-35 rounded-xl  flex items-center justify-center shrink-0">
               <img
-                src="../../img/logo.png"
+                src={logo}
                 alt="Logo"
                 className="w-24 h-24 object-contain"
                 onError={(e) => {

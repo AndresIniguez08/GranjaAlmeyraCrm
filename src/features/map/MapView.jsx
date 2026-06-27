@@ -60,7 +60,7 @@ export function MapView({ filters }) {
     }).catch(() => setLoading(false))
 
     return () => { abortRef.current = true }
-  }, [filters]) // eslint-disable-line
+  }, [filters])
 
   if (loading) {
     return (

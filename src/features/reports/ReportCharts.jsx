@@ -17,8 +17,6 @@ const CLIENT_STATUS_COLORS = {
   Prospecto: '#a855f7',
 }
 
-const PALETTE = ['#ffd700', '#3b82f6', '#22c55e', '#ef4444', '#a855f7', '#fb923c', '#06b6d4', '#f43f5e', '#84cc16', '#ec4899']
-
 const tooltipStyle = {
   backgroundColor: '#fff',
   border: '1px solid #e5e7eb',

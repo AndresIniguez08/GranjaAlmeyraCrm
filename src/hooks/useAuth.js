@@ -3,7 +3,7 @@ import { authService } from '@/services/authService'
 import useAuthStore from '@/store/authStore'
 
 export function useAuth() {
-  const { user, role, userName, loading, setUser, clearUser, setLoading } = useAuthStore()
+  const { user, role, userName, loading, setUser, clearUser } = useAuthStore()
 
   useEffect(() => {
     // Cargar sesión inicial
