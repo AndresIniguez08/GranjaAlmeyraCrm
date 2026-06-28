@@ -11,7 +11,7 @@ function parseLocalDate(dateStr) {
   return new Date(y, m - 1, d)
 }
 
-export function ProspectList({ prospects, onEdit, onDelete, loading }) {
+export function ProspectList({ prospects, onEdit, onDelete, loading, totalCount }) {
   const [confirmId, setConfirmId] = useState(null)
 
   function getLastAttempt(attempts) {
@@ -36,7 +36,18 @@ export function ProspectList({ prospects, onEdit, onDelete, loading }) {
     )
   }
 
+  const isFiltered = totalCount !== undefined && prospects.length !== totalCount
+  const countLabel = isFiltered
+    ? `${prospects.length} de ${totalCount} prospectos`
+    : `${prospects.length} prospecto${prospects.length !== 1 ? 's' : ''}`
+
   return (
+    <div>
+      <div className="mb-2 px-1">
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+          🎯 Prospectos propios — {countLabel}
+        </span>
+      </div>
     <div className="overflow-x-auto border border-gray-200 rounded-xl">
       <table className="w-full text-sm border-collapse">
         <thead>
@@ -151,6 +162,7 @@ export function ProspectList({ prospects, onEdit, onDelete, loading }) {
           })}
         </tbody>
       </table>
+    </div>
     </div>
   )
 }

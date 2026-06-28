@@ -149,7 +149,11 @@ function EmptyCell() {
 
 // ─── Separador de sección ─────────────────────────────────────────────────────
 
-function SectionSeparator({ title, count, colSpan }) {
+function SectionSeparator({ title, filteredCount, totalCount, unit, colSpan }) {
+  const isFiltered = totalCount !== undefined && filteredCount !== totalCount
+  const countLabel = isFiltered
+    ? `${filteredCount} de ${totalCount} ${unit}`
+    : `${filteredCount} ${unit}`
   return (
     <tr>
       <td
@@ -158,7 +162,7 @@ function SectionSeparator({ title, count, colSpan }) {
         style={{ position: 'sticky', left: 0, zIndex: 15 }}
       >
         <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-          {title} — {count}
+          {title} — {countLabel}
         </span>
       </td>
     </tr>
@@ -253,7 +257,7 @@ function ItemRow({ item, allDates, onAddClick, onCellClick, onMouseEnter, onMous
 
 // ─── ProspectGrid ─────────────────────────────────────────────────────────────
 
-export function ProspectGrid({ contacts = [], prospects = [], onAddFollowup, onAddAttempt, onEditAttempt }) {
+export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount, totalProspectsCount, onAddFollowup, onAddAttempt, onEditAttempt }) {
   const [tooltip, setTooltip] = useState(null)
 
   const allDates = useMemo(() => {
@@ -342,7 +346,9 @@ export function ProspectGrid({ contacts = [], prospects = [], onAddFollowup, onA
             {/* Sección A: Sin vender */}
             <SectionSeparator
               title="📋 Sin vender"
-              count={`${contacts.length} contacto${contacts.length !== 1 ? 's' : ''}`}
+              filteredCount={contacts.length}
+              totalCount={totalContactsCount}
+              unit={`contacto${(totalContactsCount ?? contacts.length) !== 1 ? 's' : ''}`}
               colSpan={totalCols}
             />
             {contacts.length === 0 ? (
@@ -370,7 +376,9 @@ export function ProspectGrid({ contacts = [], prospects = [], onAddFollowup, onA
             {/* Sección B: Prospectos propios */}
             <SectionSeparator
               title="🎯 Prospectos propios"
-              count={`${prospects.length} prospecto${prospects.length !== 1 ? 's' : ''}`}
+              filteredCount={prospects.length}
+              totalCount={totalProspectsCount}
+              unit={`prospecto${(totalProspectsCount ?? prospects.length) !== 1 ? 's' : ''}`}
               colSpan={totalCols}
             />
             {prospects.length === 0 ? (

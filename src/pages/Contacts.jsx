@@ -9,6 +9,7 @@ import { ContactTable } from '@/features/contacts/ContactTable'
 import { ContactForm } from '@/features/contacts/ContactForm'
 import { ContactViewModal } from '@/features/contacts/ContactModal'
 import { FollowupModal } from '@/features/followups/FollowupModal'
+import { CompleteFollowupModal } from '@/features/followups/CompleteFollowupModal'
 import { ConvertToClientModal } from '@/features/clients/ConvertToClientModal'
 import { Modal, Button } from '@/components/ui'
 import { PageHeader } from '@/components/layout/Layout'
@@ -25,6 +26,8 @@ export default function Contacts() {
 
   const [followupMap, setFollowupMap] = useState({})
   const [followupContact, setFollowupContact] = useState(null)
+  const [completeFollowup, setCompleteFollowup] = useState(null)
+  const openCompleteModal = useCallback((followup) => setCompleteFollowup(followup), [])
 
   const loadFollowupsMap = useCallback(async (list) => {
     if (!list?.length) return
@@ -148,6 +151,7 @@ export default function Contacts() {
         onEdit={setEditContact}
         onDelete={handleDelete}
         onScheduleFollowup={openFollowupModal}
+        onCompleteFollowup={openCompleteModal}
       />
 
       {/* Modal: nuevo contacto */}
@@ -195,6 +199,18 @@ export default function Contacts() {
           open={true}
           contact={followupContact}
           onClose={closeFollowupModal}
+        />
+      )}
+
+      {/* Modal: completar seguimiento desde badge de tabla */}
+      {completeFollowup && (
+        <CompleteFollowupModal
+          open={true}
+          followup={completeFollowup}
+          onClose={() => {
+            setCompleteFollowup(null)
+            loadFollowupsMap(contacts)
+          }}
         />
       )}
 

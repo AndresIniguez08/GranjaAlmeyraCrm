@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Target, Plus, LayoutGrid, List } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useProspectStore from '@/store/prospectStore'
@@ -50,6 +50,49 @@ export default function Prospectos() {
       setNoVendidosLoading(false)
     }
   }, [])
+
+  // ── Filtros ─────────────────────────────────────────────────────────────────
+  const [search, setSearch] = useState('')
+  const [filterVendedor, setFilterVendedor] = useState('')
+  const [filterResult, setFilterResult] = useState('')
+
+  const vendedores = useMemo(() =>
+    [...new Set(prospects.map((p) => p.assigned_to).filter(Boolean))].sort(),
+    [prospects]
+  )
+
+  const filteredNoVendidos = useMemo(() => {
+    const s = search.toLowerCase()
+    return noVendidos.filter((c) => {
+      const matchSearch = !s ||
+        String(c.cliente || c.name || '').toLowerCase().includes(s) ||
+        String(c.empresa || c.business || '').toLowerCase().includes(s)
+      const matchResult = !filterResult || (
+        filterResult === 'sin_intentos'
+          ? !c.attempts?.length
+          : c.attempts?.length > 0 && c.attempts[c.attempts.length - 1].result === filterResult
+      )
+      return matchSearch && matchResult
+    })
+  }, [noVendidos, search, filterResult])
+
+  const filteredProspects = useMemo(() => {
+    const s = search.toLowerCase()
+    return prospects.filter((p) => {
+      const matchSearch = !s ||
+        String(p.name || '').toLowerCase().includes(s) ||
+        String(p.business || '').toLowerCase().includes(s)
+      const matchVendedor = !filterVendedor || p.assigned_to === filterVendedor
+      const matchResult = !filterResult || (
+        filterResult === 'sin_intentos'
+          ? !p.attempts?.length
+          : p.attempts?.length > 0 && p.attempts[p.attempts.length - 1].result === filterResult
+      )
+      return matchSearch && matchVendedor && matchResult
+    })
+  }, [prospects, search, filterVendedor, filterResult])
+
+  const hasFilter = search || filterVendedor || filterResult
 
   // ── Modales ─────────────────────────────────────────────────────────────────
   const [prospectModal, setProspectModal] = useState({ open: false, prospect: null })
@@ -207,23 +250,69 @@ export default function Prospectos() {
         </div>
       </div>
 
+      {/* ── Filtros ─────────────────────────────────────────────────────────── */}
+      <div className="px-6 pt-4">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-4">
+          <div className="flex flex-wrap gap-3">
+            <input
+              type="text"
+              placeholder="Buscar por nombre o empresa..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 focus:border-transparent min-w-[200px] flex-1"
+            />
+            <select
+              value={filterVendedor}
+              onChange={(e) => setFilterVendedor(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400"
+            >
+              <option value="">Todos los vendedores</option>
+              {vendedores.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <select
+              value={filterResult}
+              onChange={(e) => setFilterResult(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400"
+            >
+              <option value="">Todos los estados</option>
+              <option value="positivo">✅ Positivo</option>
+              <option value="en_proceso">🟡 En proceso</option>
+              <option value="negativo">❌ Negativo</option>
+              <option value="sin_respuesta">🔵 Sin respuesta</option>
+              <option value="sin_intentos">⬜ Sin intentos</option>
+            </select>
+            {hasFilter && (
+              <button
+                onClick={() => { setSearch(''); setFilterVendedor(''); setFilterResult('') }}
+                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* ── Contenido ───────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div className="flex-1 overflow-auto px-6 pb-5">
         {isLoading ? (
           <div className="flex justify-center py-20">
             <LoadingSpinner />
           </div>
         ) : tab === 'grid' ? (
           <ProspectGrid
-            contacts={noVendidos}
-            prospects={prospects}
+            contacts={filteredNoVendidos}
+            prospects={filteredProspects}
+            totalContactsCount={hasFilter ? noVendidos.length : undefined}
+            totalProspectsCount={hasFilter ? prospects.length : undefined}
             onAddFollowup={openAddFollowup}
             onAddAttempt={openAddAttempt}
             onEditAttempt={openEditAttempt}
           />
         ) : (
           <ProspectList
-            prospects={prospects}
+            prospects={filteredProspects}
+            totalCount={hasFilter ? prospects.length : undefined}
             onEdit={openEditProspect}
             onDelete={handleDeleteProspect}
             loading={saving}

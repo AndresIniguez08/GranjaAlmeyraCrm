@@ -3,7 +3,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { formatDate, cleanPhoneForWhatsApp, truncate } from '@/utils/formatters'
 import { getUrgency } from '@/utils/followupUtils'
 import { URGENCY_COLORS } from '@/utils/constants'
-import { Phone, MapPin, MessageCircle, Mail, MessageSquare } from 'lucide-react'
+import { Phone, MapPin, MessageCircle, Mail, MessageSquare, Clock } from 'lucide-react'
 
 const ACTION_ICONS = {
   llamada:  <Phone size={12} />,
@@ -16,7 +16,7 @@ export function ContactTable({
   contacts, totalCount, page, pageSize,
   onPage, onEdit, onDelete, onView,
   loading, canDelete, followupMap = {},
-  onScheduleFollowup,
+  onScheduleFollowup, onCompleteFollowup,
 }) {
   const columns = [
     {
@@ -66,11 +66,19 @@ export function ContactTable({
         }
         const u = getUrgency(f.scheduled_date)
         const shortDate = formatDate(f.scheduled_date).slice(0, 5)
+        const urgencyClass = u === 'vencido'
+          ? 'bg-red-50 border-red-300 text-red-600'
+          : u === 'hoy'
+          ? 'bg-amber-50 border-amber-300 text-amber-600'
+          : 'bg-green-50 border-green-300 text-green-600'
         return (
-          <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border leading-tight ${URGENCY_COLORS[u]}`}>
-            {ACTION_ICONS[f.action_type]}
-            <span className="font-semibold">{shortDate}</span>
-          </span>
+          <button
+            onClick={() => onCompleteFollowup?.(f)}
+            className={`text-xs px-2 py-1 rounded-full border font-medium flex items-center gap-1 hover:opacity-80 transition-opacity ${urgencyClass}`}
+          >
+            <Clock size={10} />
+            {shortDate}
+          </button>
         )
       },
     },
