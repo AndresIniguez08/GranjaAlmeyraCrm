@@ -32,7 +32,7 @@ serve(async (req) => {
     // Cliente admin con service role key
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SERVICE_ROLE_KEY') ?? ''
     )
 
     const { action, ...payload } = await req.json()

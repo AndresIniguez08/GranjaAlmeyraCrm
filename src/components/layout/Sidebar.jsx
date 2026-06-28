@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -10,6 +10,7 @@ import {
   BarChart2,
   LogOut,
   UserCog,
+  KeyRound,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authService } from "@/services/authService";
@@ -17,6 +18,7 @@ import useAuthStore from "@/store/authStore";
 import useFollowupStore from "@/store/followupStore";
 import { Badge } from "@/components/ui/Badge";
 import logo from "@/img/logo.png";
+import ChangeOwnPasswordModal from "@/features/users/ChangeOwnPasswordModal";
 const NAV_ITEMS = [
   { to: "/dashboard",  label: "Dashboard",    icon: <LayoutDashboard size={18} /> },
   { to: "/contacts",   label: "Contactos",    icon: <Users size={18} /> },
@@ -29,13 +31,10 @@ const NAV_ITEMS = [
 ];
 
 export function Sidebar() {
-  const { user, userName, role } = useAuthStore();
+  const { userName, role } = useAuthStore();
   const navigate = useNavigate();
   const { pendingFollowups, fetchPendingFollowups } = useFollowupStore();
-
-  // DEBUG — remover después de verificar
-  console.log('USER METADATA:', user?.user_metadata)
-  console.log('ROLE:', role)
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || role === 'admin');
 
@@ -105,28 +104,31 @@ export function Sidebar() {
         </nav>
 
         {/* User + Logout */}
-        <div className="px-3 pb-4">
-          <div className="flex items-center gap-2.5 px-3 py-2.5 border-t border-gray-100 pt-3 mb-1">
-            <div className="w-8 h-8 rounded-full bg-primary-100 border border-primary-200 flex items-center justify-center text-sm font-bold text-primary-700 shrink-0">
-              {userName?.[0]?.toUpperCase() ?? "?"}
+        <div className="p-3 border-t border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+              {userName?.charAt(0).toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-gray-800 truncate">
-                {userName}
-              </p>
-              <Badge label={role ?? ""} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-700 truncate">{userName}</p>
+              <p className="text-xs text-gray-400 uppercase tracking-wider">{role}</p>
             </div>
-          </div>
-
-          <div className="border-t border-gray-100 mt-2 pt-2">
             <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+              onClick={() => setShowPasswordModal(true)}
+              title="Cambiar contraseña"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors flex-shrink-0"
             >
-              <LogOut size={16} />
-              Cerrar sesión
+              <KeyRound size={15} />
             </button>
           </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors text-sm"
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
         </div>
       </aside>
 
@@ -156,6 +158,12 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      {showPasswordModal && (
+        <ChangeOwnPasswordModal
+          onClose={() => setShowPasswordModal(false)}
+        />
+      )}
     </>
   );
 }

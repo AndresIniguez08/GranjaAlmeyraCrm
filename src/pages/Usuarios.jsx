@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { UserModal } from '@/features/users/UserModal'
 import { ResetPasswordModal } from '@/features/users/ResetPasswordModal'
-import { ChangeOwnPasswordModal } from '@/features/users/ChangeOwnPasswordModal'
+import ChangeOwnPasswordModal from '@/features/users/ChangeOwnPasswordModal'
 
 function RoleBadge({ role }) {
   if (role === 'admin') {
@@ -115,19 +115,6 @@ export default function Usuarios() {
       await userService.resetPassword(resetModal.user.id, newPassword)
       toast.success('Contraseña reseteada')
       setResetModal({ open: false, user: null })
-    } catch (err) {
-      toast.error(err.message)
-    } finally {
-      setSavingModal(false)
-    }
-  }
-
-  async function handleChangeOwnPassword(newPassword) {
-    setSavingModal(true)
-    try {
-      await userService.changeOwnPassword(newPassword)
-      toast.success('Contraseña actualizada')
-      setOwnPassModal(false)
     } catch (err) {
       toast.error(err.message)
     } finally {
@@ -341,12 +328,11 @@ export default function Usuarios() {
         loading={savingModal}
       />
 
-      <ChangeOwnPasswordModal
-        open={ownPassModal}
-        onClose={() => setOwnPassModal(false)}
-        onSave={handleChangeOwnPassword}
-        loading={savingModal}
-      />
+      {ownPassModal && (
+        <ChangeOwnPasswordModal
+          onClose={() => setOwnPassModal(false)}
+        />
+      )}
     </div>
   )
 }

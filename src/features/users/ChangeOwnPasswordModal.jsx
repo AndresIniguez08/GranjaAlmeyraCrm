@@ -1,77 +1,71 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { userService } from '@/services/userService'
+import toast from 'react-hot-toast'
 
-const inputClass = 'w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-gray-400'
-const errorClass = 'text-xs text-red-600 font-medium mt-0.5'
-const labelClass = 'text-sm font-semibold text-gray-700'
+const schema = z.object({
+  newPassword: z.string().min(8, 'Mínimo 8 caracteres'),
+  confirmPassword: z.string(),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: 'Las contraseñas no coinciden',
+  path: ['confirmPassword'],
+})
 
-export function ChangeOwnPasswordModal({ open, onClose, onSave, loading }) {
-  const [newPassword,     setNewPassword]     = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [errors,          setErrors]          = useState({})
+export default function ChangeOwnPasswordModal({ onClose }) {
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (open) {
-      setNewPassword('')
-      setConfirmPassword('')
-      setErrors({})
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(schema),
+  })
+
+  const onSubmit = async (data) => {
+    setLoading(true)
+    try {
+      await userService.changeOwnPassword(data.newPassword)
+      toast.success('Contraseña actualizada correctamente')
+      onClose()
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setLoading(false)
     }
-  }, [open])
-
-  function validate() {
-    const errs = {}
-    if (!newPassword)           errs.newPassword = 'La contraseña es requerida'
-    if (newPassword.length < 8) errs.newPassword = 'Mínimo 8 caracteres'
-    if (newPassword !== confirmPassword) errs.confirmPassword = 'Las contraseñas no coinciden'
-    return errs
-  }
-
-  async function handleSave() {
-    const errs = validate()
-    setErrors(errs)
-    if (Object.keys(errs).length > 0) return
-    await onSave(newPassword)
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Cambiar mi contraseña"
-      size="sm"
-      footer={
-        <>
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>Cancelar</Button>
-          <Button size="sm" onClick={handleSave} loading={loading}>Cambiar contraseña</Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>Nueva contraseña <span className="text-red-500">*</span></label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Mínimo 8 caracteres"
-            className={inputClass}
-            autoFocus
-          />
-          {errors.newPassword && <p className={errorClass}>{errors.newPassword}</p>}
+    <Modal open={true} title="Cambiar mi contraseña" onClose={onClose} size="sm">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Input
+          {...register('newPassword')}
+          label="Nueva contraseña"
+          type="password"
+          placeholder="Mínimo 8 caracteres"
+          error={errors.newPassword?.message}
+        />
+        <Input
+          {...register('confirmPassword')}
+          label="Confirmar contraseña"
+          type="password"
+          placeholder="Repetí la contraseña"
+          error={errors.confirmPassword?.message}
+        />
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            Cancelar
+          </button>
+          <Button type="submit" loading={loading}>
+            Guardar contraseña
+          </Button>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>Confirmar contraseña <span className="text-red-500">*</span></label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Repetir contraseña"
-            className={inputClass}
-          />
-          {errors.confirmPassword && <p className={errorClass}>{errors.confirmPassword}</p>}
-        </div>
-      </div>
+      </form>
     </Modal>
   )
 }
