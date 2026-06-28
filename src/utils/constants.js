@@ -103,10 +103,13 @@ export const PROSPECT_RESULTS = {
 // ─── Seguimientos ─────────────────────────────────────────────────────────────
 
 export const ACTION_TYPES = [
-  { value: 'llamada',  label: 'Llamada',  color: 'blue' },
-  { value: 'visita',   label: 'Visita',   color: 'green' },
-  { value: 'whatsapp', label: 'WhatsApp', color: 'emerald' },
-  { value: 'email',    label: 'Email',    color: 'violet' },
+  { value: 'llamada',       label: 'Llamada',          icon: 'Phone',         color: '#8B5CF6' },
+  { value: 'visita',        label: 'Visita',            icon: 'MapPin',        color: '#F97316' },
+  { value: 'whatsapp',      label: 'WhatsApp',          icon: 'MessageCircle', color: '#25D366' },
+  { value: 'email',         label: 'Email',             icon: 'Mail',          color: '#3B82F6' },
+  { value: 'ig',            label: 'Mandé IG',          icon: 'AtSign',        color: '#E1306C' },
+  { value: 'lista_precios', label: 'Lista de precios',  icon: 'FileText',      color: '#3B82F6' },
+  { value: 'otro',          label: 'Otro',              icon: 'Edit3',         color: '#6B7280' },
 ]
 
 export const FOLLOWUP_STATUS = {

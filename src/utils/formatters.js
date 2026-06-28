@@ -1,5 +1,6 @@
 import { format, parseISO, isValid } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { ACTION_TYPES } from './constants'
 
 /**
  * Formatea una fecha ISO o date string a "dd/MM/yyyy"
@@ -72,4 +73,19 @@ export function cleanPhoneForWhatsApp(phone) {
 export function truncate(str, max = 40) {
   if (!str) return ''
   return str.length > max ? str.slice(0, max) + '…' : str
+}
+
+/**
+ * Devuelve la entrada de ACTION_TYPES para un action_type dado.
+ * Si no existe, retorna un fallback con el valor crudo.
+ */
+export function getActionType(value) {
+  return (
+    ACTION_TYPES.find(a => a.value === value) ?? {
+      value,
+      label: value ?? '—',
+      icon:  'Edit3',
+      color: '#6B7280',
+    }
+  )
 }

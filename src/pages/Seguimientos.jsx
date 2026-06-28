@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Phone, MapPin, MessageCircle, Mail, Eye, CheckCircle, XCircle } from 'lucide-react'
+import { Phone, MapPin, MessageCircle, Mail, AtSign, FileText, Edit3, Eye, CheckCircle, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { PageHeader } from '@/components/layout/Layout'
 import { Button, Badge } from '@/components/ui'
@@ -14,13 +14,10 @@ import { CompleteFollowupModal } from '@/features/followups/CompleteFollowupModa
 import { ConvertToClientModal } from '@/features/clients/ConvertToClientModal'
 import { ACTION_TYPES, URGENCY_COLORS } from '@/utils/constants'
 import { getUrgency, getUrgencyLabel } from '@/utils/followupUtils'
-import { formatDate } from '@/utils/formatters'
+import { formatDate, getActionType } from '@/utils/formatters'
 
-const ACTION_ICONS = {
-  llamada:  <Phone size={13} className="text-blue-500" />,
-  visita:   <MapPin size={13} className="text-green-600" />,
-  whatsapp: <MessageCircle size={13} className="text-emerald-600" />,
-  email:    <Mail size={13} className="text-violet-600" />,
+const ACTION_ICON_COMPONENTS = {
+  Phone, MapPin, MessageCircle, Mail, AtSign, FileText, Edit3,
 }
 
 function UrgencyBadge({ date }) {
@@ -33,11 +30,12 @@ function UrgencyBadge({ date }) {
 }
 
 function ActionBadge({ type }) {
-  const found = ACTION_TYPES.find(a => a.value === type)
+  const action = getActionType(type)
+  const Icon = ACTION_ICON_COMPONENTS[action.icon]
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
-      {ACTION_ICONS[type]}
-      {found?.label ?? type}
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100">
+      {Icon && <Icon size={13} style={{ color: action.color }} />}
+      <span style={{ color: action.color, fontWeight: 500 }}>{action.label}</span>
     </span>
   )
 }

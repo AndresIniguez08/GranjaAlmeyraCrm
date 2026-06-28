@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Phone, MapPin, MessageCircle, Mail, Clock, Plus } from 'lucide-react'
+import { Phone, MapPin, MessageCircle, Mail, AtSign, FileText, Edit3, Clock, Plus } from 'lucide-react'
 import { followupService } from '@/services/followupService'
-import { formatDate, formatDateTime } from '@/utils/formatters'
+import { formatDate, formatDateTime, getActionType } from '@/utils/formatters'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 
-const ACTION_ICONS = {
-  llamada:  <Phone size={14} className="text-blue-500" />,
-  visita:   <MapPin size={14} className="text-green-600" />,
-  whatsapp: <MessageCircle size={14} className="text-emerald-600" />,
-  email:    <Mail size={14} className="text-violet-600" />,
+const ACTION_ICON_COMPONENTS = {
+  Phone, MapPin, MessageCircle, Mail, AtSign, FileText, Edit3,
 }
-
 
 const STATUS_LINE_COLOR = {
   pendiente:  'border-amber-300',
@@ -63,12 +59,16 @@ export function FollowupTimeline({ contactId, onSchedule }) {
               {/* dot */}
               <span className={`absolute -left-[7px] w-3.5 h-3.5 rounded-full bg-white border-2 flex items-center justify-center ${STATUS_LINE_COLOR[f.status]}`} />
 
+              {(() => {
+                const action = getActionType(f.action_type)
+                const Icon = ACTION_ICON_COMPONENTS[action.icon] ?? Clock
+                return (
               <div className="flex items-start gap-2">
-                {ACTION_ICONS[f.action_type] ?? <Clock size={14} className="text-gray-400" />}
+                <Icon size={14} style={{ color: action.color }} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-semibold text-gray-700">{formatDate(f.scheduled_date)}</span>
-                    <span className="text-xs text-gray-400 capitalize">{f.action_type}</span>
+                    <span className="text-xs font-medium" style={{ color: action.color }}>{action.label}</span>
                     <Badge label={f.status} />
                   </div>
                   {f.note && (
@@ -86,6 +86,8 @@ export function FollowupTimeline({ contactId, onSchedule }) {
                   </p>
                 </div>
               </div>
+                )
+              })()}
             </li>
           ))}
         </ol>
