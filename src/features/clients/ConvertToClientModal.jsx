@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { UserCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Modal, Button, Select, Input, Textarea } from '@/components/ui'
+import LocationPicker from '@/components/ui/LocationPicker'
 import { clientService } from '@/services/clientService'
 import useClientStore from '@/store/clientStore'
 import useAuthStore from '@/store/authStore'
@@ -11,18 +12,20 @@ export function ConvertToClientModal({ open, onClose, contact }) {
   const { userName } = useAuthStore()
   const addClient = useClientStore(s => s.addClient)
 
-  const [type, setType] = useState('')
-  const [email, setEmail] = useState('')
-  const [address, setAddress] = useState('')
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [typeError, setTypeError] = useState('')
+  const [type,        setType]        = useState('')
+  const [email,       setEmail]       = useState('')
+  const [address,     setAddress]     = useState('')
+  const [notes,       setNotes]       = useState('')
+  const [coordinates, setCoordinates] = useState(null)
+  const [saving,      setSaving]      = useState(false)
+  const [typeError,   setTypeError]   = useState('')
 
   function handleClose() {
     setType('')
     setEmail('')
     setAddress('')
     setNotes('')
+    setCoordinates(null)
     setTypeError('')
     onClose()
   }
@@ -37,31 +40,20 @@ export function ConvertToClientModal({ open, onClose, contact }) {
 
     try {
       const payload = {
-        name: contact.cliente,
-        company: contact.empresa || null,
-        phone: contact.telefono || null,
+        name:          contact.cliente,
+        company:       contact.empresa  || null,
+        phone:         contact.telefono || null,
         type,
-        status: 'Activo',
-        email: email || null,
-        address: address || null,
-        notes: notes || null,
+        status:        'Activo',
+        email:         email       || null,
+        address:       address     || null,
+        notes:         notes       || null,
+        coordinates,
         registered_by: userName,
         registered_at: new Date().toISOString(),
       }
 
-      let newClient = await clientService.create(payload)
-
-      if (address) {
-        try {
-          const coords = await clientService.geocodeAddress(address)
-          if (coords) {
-            newClient = await clientService.update(newClient.id, { coordinates: coords })
-          }
-        } catch {
-          // Geocodificación falla silenciosamente — el cliente igual se crea
-        }
-      }
-
+      const newClient = await clientService.create(payload)
       addClient(newClient)
       toast.success('✓ Cliente creado — ya aparece en el mapa')
       handleClose()
@@ -138,12 +130,20 @@ export function ConvertToClientModal({ open, onClose, contact }) {
           value={email}
           onChange={e => setEmail(e.target.value)}
         />
-        <Input
-          label="Dirección"
-          placeholder="Para ubicar en el mapa (opcional)"
-          value={address}
-          onChange={e => setAddress(e.target.value)}
-        />
+
+        <div className="space-y-1">
+          <label className="text-sm font-semibold text-text-primary">
+            Ubicación en el mapa
+            <span className="text-gray-400 font-normal ml-1">(opcional)</span>
+          </label>
+          <LocationPicker
+            initialCoords={null}
+            onLocationChange={setCoordinates}
+            onAddressChange={setAddress}
+            height="240px"
+          />
+        </div>
+
         <Textarea
           label="Notas"
           placeholder="Observaciones adicionales (opcional)"
