@@ -43,15 +43,27 @@ export async function getActualsByMonth(month) {
   return actuals
 }
 
-export async function getVendedoresList() {
-  const { data, error } = await supabase
-    .from('commercial_contacts')
-    .select('vendedor')
-    .not('vendedor', 'is', null)
-    .neq('vendedor', '')
-  if (error) throw error
-  const set = new Set((data ?? []).map(d => d.vendedor))
-  return [...set].sort()
+export async function getVendedores() {
+  const { data: { session } } = await supabase.auth.getSession()
+
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-users`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ action: 'list_users' }),
+    }
+  )
+  const json = await res.json()
+  if (json.error) throw new Error(json.error)
+
+  return json.data
+    .filter(u => u.role === 'vendedor' && u.active)
+    .map(u => u.name)
+    .sort()
 }
 
 export async function getContactsByVendedorMonth(vendedor, month) {

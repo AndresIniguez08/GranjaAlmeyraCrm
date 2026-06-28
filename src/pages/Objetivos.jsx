@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/layout/Layout'
 import {
   getGoalsByMonth,
   getActualsByMonth,
-  getVendedoresList,
+  getVendedores,
   getContactsByVendedorMonth,
 } from '@/services/goalsService'
 import { getProgressColor, getProgressMessage, getMonthStart } from '@/utils/goalsUtils'
@@ -353,7 +353,7 @@ export default function Objetivos() {
         getGoalsByMonth(month),
         getActualsByMonth(month),
         isAdmin
-          ? getVendedoresList()
+          ? getVendedores()
           : getContactsByVendedorMonth(userName, month),
       ])
       setGoals(goalsData)
