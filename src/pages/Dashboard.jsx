@@ -25,6 +25,9 @@ import { monthKey, formatMonth } from "@/utils/formatters";
 import { CHART_COLORS } from "@/utils/constants";
 import useFollowupStore from "@/store/followupStore";
 import { countByUrgency } from "@/utils/followupUtils";
+import useAuthStore from "@/store/authStore";
+import { getGoalsByMonth, getActualsByMonth } from "@/services/goalsService";
+import { getProgressColor, getMonthStart } from "@/utils/goalsUtils";
 
 // ── Estilos compartidos ────────────────────────────────────────────────────────
 
@@ -151,6 +154,9 @@ export default function Dashboard() {
   const [contacts, setContacts] = useState([]);
   const [clients, setClients] = useState([]);
   const { pendingFollowups, fetchPendingFollowups } = useFollowupStore();
+  const { userName, role } = useAuthStore();
+  const isAdmin = role === "admin";
+  const [goalsWidget, setGoalsWidget] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -169,6 +175,12 @@ export default function Dashboard() {
       }
     }
     load();
+
+    // Goals widget (carga independiente, no bloquea el dashboard)
+    const currentMonth = getMonthStart();
+    Promise.all([getGoalsByMonth(currentMonth), getActualsByMonth(currentMonth)])
+      .then(([goals, actuals]) => setGoalsWidget({ goals, actuals, currentMonth }))
+      .catch(() => {});
   }, []); // eslint-disable-line
 
   if (loading) {
@@ -484,6 +496,95 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
       </div>
+
+      {/* ── Widget de objetivos ──────────────────────────────────────────── */}
+      {goalsWidget && (
+        <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+              {isAdmin ? "Objetivos del equipo — este mes" : "Mi progreso este mes"}
+            </h3>
+            <Link to="/objetivos" className="text-xs text-primary-600 hover:underline font-medium">
+              Ver detalle →
+            </Link>
+          </div>
+
+          {isAdmin ? (
+            // Vista admin: resumen del equipo
+            (() => {
+              const tot = { contacts: 0, sales: 0, goalContacts: 0, goalSales: 0 };
+              Object.values(goalsWidget.actuals).forEach(a => {
+                tot.contacts += a.contacts;
+                tot.sales    += a.sales;
+              });
+              goalsWidget.goals.forEach(g => {
+                tot.goalContacts += g.goal_contacts || 0;
+                tot.goalSales    += g.goal_sales    || 0;
+              });
+              return (
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "Contactos del equipo", actual: tot.contacts, goal: tot.goalContacts },
+                    { label: "Ventas del equipo",    actual: tot.sales,    goal: tot.goalSales    },
+                  ].map(({ label, actual, goal }) => {
+                    const pct   = goal > 0 ? Math.min(Math.round(actual / goal * 100), 100) : 0;
+                    const color = goal > 0 ? getProgressColor(actual / goal * 100) : "bg-gray-200";
+                    return (
+                      <div key={label}>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span className="font-medium">{label}</span>
+                          <span>{actual}{goal > 0 ? ` / ${goal}` : ""}</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
+          ) : (
+            // Vista vendedor: mi progreso
+            (() => {
+              const goalsMap = {};
+              goalsWidget.goals.forEach(g => { goalsMap[g.vendedor] = g; });
+              const myGoal   = goalsMap[userName];
+              const myActual = goalsWidget.actuals[userName] ?? { contacts: 0, sales: 0 };
+              if (!myGoal) {
+                return (
+                  <p className="text-sm text-gray-400">
+                    El administrador aún no cargó tus objetivos para este mes.
+                  </p>
+                );
+              }
+              return (
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "Contactos", actual: myActual.contacts, goal: myGoal.goal_contacts },
+                    { label: "Ventas",    actual: myActual.sales,    goal: myGoal.goal_sales    },
+                  ].map(({ label, actual, goal }) => {
+                    const rawPct = goal > 0 ? actual / goal * 100 : 0;
+                    const pct    = Math.min(Math.round(rawPct), 100);
+                    const color  = goal > 0 ? getProgressColor(rawPct) : "bg-gray-200";
+                    return (
+                      <div key={label}>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span className="font-medium">{label}</span>
+                          <span>{actual} / {goal}</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
+          )}
+        </div>
+      )}
 
       {/* Quick links */}
       <div className="mt-8 flex gap-5 flex-wrap pt-5 border-t border-gray-200">

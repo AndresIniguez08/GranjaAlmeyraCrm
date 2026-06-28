@@ -12,6 +12,7 @@ import Reports from '@/pages/Reports'
 import Seguimientos from '@/pages/Seguimientos'
 import Prospectos from '@/pages/Prospectos'
 import Usuarios from '@/pages/Usuarios'
+import Objetivos from '@/pages/Objetivos'
 import AdminRoute from '@/components/shared/AdminRoute'
 
 function ProtectedRoute({ children }) {
@@ -92,6 +93,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <Prospectos />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/objetivos"
+        element={
+          <ProtectedRoute>
+            <Objetivos />
           </ProtectedRoute>
         }
       />

@@ -11,6 +11,7 @@ import {
   LogOut,
   UserCog,
   KeyRound,
+  Trophy,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authService } from "@/services/authService";
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { to: "/clients",    label: "Clientes",     icon: <Building2 size={18} /> },
   { to: "/map",        label: "Mapa",         icon: <Map size={18} /> },
   { to: "/reports",    label: "Informes",     icon: <BarChart2 size={18} /> },
+  { to: "/objetivos",  label: "Objetivos",    icon: <Trophy size={18} /> },
   { to: "/usuarios",   label: "Usuarios",     icon: <UserCog size={18} />, adminOnly: true },
 ];
 
