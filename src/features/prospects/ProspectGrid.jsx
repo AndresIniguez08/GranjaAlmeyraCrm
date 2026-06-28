@@ -6,6 +6,8 @@ import {
   AtSign, MessageCircle, FileText, MapPin, Edit3, Mail,
 } from 'lucide-react'
 import { PROSPECT_ACTIONS, PROSPECT_RESULTS } from '@/utils/constants'
+import { CompleteFollowupModal } from '@/features/followups/CompleteFollowupModal'
+import { CompleteAttemptModal } from './CompleteAttemptModal'
 
 // ─── Icono dinámico por acción ────────────────────────────────────────────────
 
@@ -109,7 +111,7 @@ function AttemptCell({ attempt, onClick, onMouseEnter, onMouseLeave }) {
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className={`border-r border-gray-100 select-none ${onClick ? 'cursor-pointer' : ''}`}
+      className="border-r border-gray-100 select-none cursor-pointer hover:brightness-95 transition-[filter]"
       style={{
         backgroundColor: resultInfo.bg || '#F9FAFB',
         borderLeft: `3px solid ${resultInfo.color || '#E5E7EB'}`,
@@ -222,7 +224,7 @@ function ItemRow({ item, allDates, onAddClick, onCellClick, onMouseEnter, onMous
           <AttemptCell
             key={date}
             attempt={attempt}
-            onClick={isContact ? undefined : () => onCellClick(item, attempt)}
+            onClick={() => onCellClick(item, attempt)}
             onMouseEnter={(e) => onMouseEnter(e, attempt)}
             onMouseLeave={onMouseLeave}
           />
@@ -257,8 +259,10 @@ function ItemRow({ item, allDates, onAddClick, onCellClick, onMouseEnter, onMous
 
 // ─── ProspectGrid ─────────────────────────────────────────────────────────────
 
-export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount, totalProspectsCount, onAddFollowup, onAddAttempt, onEditAttempt }) {
+export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount, totalProspectsCount, onAddFollowup, onAddAttempt, onEditAttempt, onRefresh }) {
   const [tooltip, setTooltip] = useState(null)
+  const [completeFollowup, setCompleteFollowup] = useState(null)
+  const [completeAttempt, setCompleteAttempt] = useState(null)
 
   const allDates = useMemo(() => {
     const set = new Set()
@@ -364,7 +368,15 @@ export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount
                   item={contact}
                   allDates={allDates}
                   onAddClick={onAddFollowup}
-                  onCellClick={() => {}}
+                  onCellClick={(item, attempt) => setCompleteFollowup({
+                    id: attempt.id,
+                    contact_id: attempt.contact_id,
+                    scheduled_date: attempt.scheduled_date,
+                    note: attempt.note,
+                    cliente: item.name,
+                    empresa: item.business,
+                    telefono: item.phone,
+                  })}
                   onMouseEnter={handleMouseEnter}
                   onMouseLeave={handleMouseLeave}
                   idx={idx}
@@ -394,7 +406,11 @@ export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount
                   item={prospect}
                   allDates={allDates}
                   onAddClick={onAddAttempt}
-                  onCellClick={onEditAttempt}
+                  onCellClick={(item, attempt) => setCompleteAttempt({
+                    ...attempt,
+                    prospectName: item.name,
+                    prospectBusiness: item.business,
+                  })}
                   onMouseEnter={handleMouseEnter}
                   onMouseLeave={handleMouseLeave}
                   idx={idx}
@@ -407,6 +423,28 @@ export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount
       </div>
 
       <GridTooltip tooltip={tooltip} />
+
+      {completeFollowup && (
+        <CompleteFollowupModal
+          open={true}
+          followup={completeFollowup}
+          onClose={() => {
+            setCompleteFollowup(null)
+            onRefresh?.()
+          }}
+        />
+      )}
+
+      {completeAttempt && (
+        <CompleteAttemptModal
+          attempt={completeAttempt}
+          onClose={() => setCompleteAttempt(null)}
+          onSuccess={() => {
+            setCompleteAttempt(null)
+            onRefresh?.()
+          }}
+        />
+      )}
     </div>
   )
 }

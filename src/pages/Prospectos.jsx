@@ -308,6 +308,7 @@ export default function Prospectos() {
             onAddFollowup={openAddFollowup}
             onAddAttempt={openAddAttempt}
             onEditAttempt={openEditAttempt}
+            onRefresh={() => { fetchProspects().catch(() => {}); fetchNoVendidos(); }}
           />
         ) : (
           <ProspectList
