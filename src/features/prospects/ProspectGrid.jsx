@@ -3,7 +3,7 @@ import { parse, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
   Phone, Plus, Target,
-  AtSign, MessageCircle, FileText, MapPin, Edit3, Mail,
+  AtSign, MessageCircle, FileText, MapPin, Edit3, Mail, UserCheck,
 } from 'lucide-react'
 import { PROSPECT_ACTIONS, PROSPECT_RESULTS } from '@/utils/constants'
 import { CompleteFollowupModal } from '@/features/followups/CompleteFollowupModal'
@@ -173,8 +173,9 @@ function SectionSeparator({ title, filteredCount, totalCount, unit, colSpan }) {
 
 // ─── Fila de item (contact o prospect) ────────────────────────────────────────
 
-function ItemRow({ item, allDates, onAddClick, onCellClick, onMouseEnter, onMouseLeave, idx, isContact }) {
+function ItemRow({ item, allDates, onAddClick, onCellClick, onMouseEnter, onMouseLeave, idx, isContact, onConvert }) {
   const rowBg = idx % 2 === 0 ? '#ffffff' : '#fafafa'
+  const lastAttempt = item.attempts?.[item.attempts.length - 1]
 
   const getAttempt = useCallback((date) => {
     if (!item.attempts?.length) return null
@@ -207,12 +208,36 @@ function ItemRow({ item, allDates, onAddClick, onCellClick, onMouseEnter, onMous
           <div className="flex items-center gap-1 mt-1">
             <Phone size={9} className="text-gray-400 shrink-0" />
             <span className="text-[11px] text-gray-500 truncate">{item.phone}</span>
+            <a
+              href={`https://api.whatsapp.com/send?phone=54${item.phone.replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-600 hover:text-green-700 flex-shrink-0"
+              title="WhatsApp"
+            >
+              <MessageCircle size={9} />
+            </a>
           </div>
         )}
         {!isContact && item.instagram && (
-          <p className="text-[11px] text-pink-500 mt-0.5 truncate">
-            @{item.instagram.replace(/^@/, '')}
-          </p>
+          <a
+            href={`https://instagram.com/${item.instagram.replace(/^@/, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[11px] text-pink-500 hover:text-pink-600 mt-0.5"
+            title="Instagram"
+          >
+            <AtSign size={9} />
+            {item.instagram.replace(/^@/, '')}
+          </a>
+        )}
+        {!isContact && lastAttempt?.result === 'positivo' && onConvert && (
+          <button
+            onClick={() => onConvert(item)}
+            className="text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-200 rounded px-1.5 py-0.5 hover:bg-emerald-100 mt-1 w-full text-left leading-tight"
+          >
+            → Convertir
+          </button>
         )}
       </td>
 
@@ -259,7 +284,7 @@ function ItemRow({ item, allDates, onAddClick, onCellClick, onMouseEnter, onMous
 
 // ─── ProspectGrid ─────────────────────────────────────────────────────────────
 
-export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount, totalProspectsCount, onAddFollowup, onAddAttempt, onEditAttempt, onRefresh }) {
+export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount, totalProspectsCount, onAddFollowup, onAddAttempt, onEditAttempt, onRefresh, onConvert }) {
   const [tooltip, setTooltip] = useState(null)
   const [completeFollowup, setCompleteFollowup] = useState(null)
   const [completeAttempt, setCompleteAttempt] = useState(null)
@@ -415,6 +440,7 @@ export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount
                   onMouseLeave={handleMouseLeave}
                   idx={idx}
                   isContact={false}
+                  onConvert={onConvert}
                 />
               ))
             )}

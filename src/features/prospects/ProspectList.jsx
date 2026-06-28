@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, MessageCircle, UserCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { PROSPECT_RESULTS } from '@/utils/constants'
 
@@ -11,7 +11,7 @@ function parseLocalDate(dateStr) {
   return new Date(y, m - 1, d)
 }
 
-export function ProspectList({ prospects, onEdit, onDelete, loading, totalCount }) {
+export function ProspectList({ prospects, onEdit, onDelete, onConvert, loading, totalCount }) {
   const [confirmId, setConfirmId] = useState(null)
 
   function getLastAttempt(attempts) {
@@ -88,8 +88,21 @@ export function ProspectList({ prospects, onEdit, onDelete, loading, totalCount 
                 </td>
 
                 {/* Teléfono */}
-                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                  {p.phone || <span className="text-gray-300">—</span>}
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">{p.phone || '—'}</span>
+                    {p.phone && (
+                      <a
+                        href={`https://api.whatsapp.com/send?phone=54${p.phone.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 rounded text-green-500 hover:bg-green-50 transition-colors"
+                        title="WhatsApp"
+                      >
+                        <MessageCircle size={14} />
+                      </a>
+                    )}
+                  </div>
                 </td>
 
                 {/* Instagram */}
@@ -136,6 +149,15 @@ export function ProspectList({ prospects, onEdit, onDelete, loading, totalCount 
                 {/* Acciones */}
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
+                    {lastAttempt?.result === 'positivo' && onConvert && (
+                      <button
+                        onClick={() => onConvert(p)}
+                        className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 transition-colors"
+                        title="Convertir a cliente"
+                      >
+                        <UserCheck size={14} />
+                      </button>
+                    )}
                     <button
                       onClick={() => onEdit(p)}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"

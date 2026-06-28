@@ -9,8 +9,9 @@ import { ProspectList }      from '@/features/prospects/ProspectList'
 import { ProspectModal }     from '@/features/prospects/ProspectModal'
 import { AttemptModal }      from '@/features/prospects/AttemptModal'
 import { AttemptEditModal }  from '@/features/prospects/AttemptEditModal'
-import { FollowupModal }     from '@/features/followups/FollowupModal'
-import { LoadingSpinner }    from '@/components/shared/LoadingSpinner'
+import { FollowupModal }          from '@/features/followups/FollowupModal'
+import { ConvertToClientModal }   from '@/features/clients/ConvertToClientModal'
+import { LoadingSpinner }         from '@/components/shared/LoadingSpinner'
 
 const TABS = [
   { id: 'grid', label: 'Grilla de seguimiento', icon: LayoutGrid },
@@ -99,6 +100,7 @@ export default function Prospectos() {
   const [attemptModal,  setAttemptModal]  = useState({ open: false, prospect: null })
   const [editModal,     setEditModal]     = useState({ open: false, prospect: null, attempt: null })
   const [followupContact, setFollowupContact] = useState(null)
+  const [convertProspect, setConvertProspect] = useState(null)
   const [saving, setSaving] = useState(false)
 
   // ── Fetch inicial ───────────────────────────────────────────────────────────
@@ -309,6 +311,7 @@ export default function Prospectos() {
             onAddAttempt={openAddAttempt}
             onEditAttempt={openEditAttempt}
             onRefresh={() => { fetchProspects().catch(() => {}); fetchNoVendidos(); }}
+            onConvert={setConvertProspect}
           />
         ) : (
           <ProspectList
@@ -316,6 +319,7 @@ export default function Prospectos() {
             totalCount={hasFilter ? prospects.length : undefined}
             onEdit={openEditProspect}
             onDelete={handleDeleteProspect}
+            onConvert={setConvertProspect}
             loading={saving}
           />
         )}
@@ -354,6 +358,19 @@ export default function Prospectos() {
           open={true}
           contact={followupContact}
           onClose={closeFollowup}
+        />
+      )}
+
+      {/* Modal: convertir prospecto propio a cliente */}
+      {convertProspect && (
+        <ConvertToClientModal
+          open={true}
+          source={{ ...convertProspect, _sourceType: 'prospect' }}
+          onClose={() => setConvertProspect(null)}
+          onSuccess={() => {
+            setConvertProspect(null)
+            fetchProspects().catch(() => {})
+          }}
         />
       )}
     </div>

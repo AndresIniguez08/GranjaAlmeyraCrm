@@ -218,7 +218,7 @@ export default function Contacts() {
       <ConvertToClientModal
         open={!!convertContact}
         onClose={() => setConvertContact(null)}
-        contact={convertContact}
+        source={convertContact ? { ...convertContact, _sourceType: 'contact' } : null}
       />
     </div>
   )

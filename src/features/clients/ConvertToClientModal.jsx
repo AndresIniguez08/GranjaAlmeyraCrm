@@ -8,7 +8,7 @@ import useClientStore from '@/store/clientStore'
 import useAuthStore from '@/store/authStore'
 import { TIPOS_CLIENTE } from '@/utils/constants'
 
-export function ConvertToClientModal({ open, onClose, contact }) {
+export function ConvertToClientModal({ open, onClose, source, onSuccess }) {
   const { userName } = useAuthStore()
   const addClient = useClientStore(s => s.addClient)
 
@@ -20,42 +20,39 @@ export function ConvertToClientModal({ open, onClose, contact }) {
   const [saving,      setSaving]      = useState(false)
   const [typeError,   setTypeError]   = useState('')
 
+  const isProspect    = source?._sourceType === 'prospect'
+  const displayName   = isProspect ? source?.name     : source?.cliente
+  const displayBiz    = isProspect ? source?.business  : source?.empresa
+  const displayPhone  = isProspect ? source?.phone     : source?.telefono
+
   function handleClose() {
-    setType('')
-    setEmail('')
-    setAddress('')
-    setNotes('')
-    setCoordinates(null)
-    setTypeError('')
+    setType(''); setEmail(''); setAddress(''); setNotes('')
+    setCoordinates(null); setTypeError('')
     onClose()
   }
 
   async function handleCreate() {
-    if (!type) {
-      setTypeError('Seleccioná un tipo de cliente')
-      return
-    }
+    if (!type) { setTypeError('Seleccioná un tipo de cliente'); return }
     setTypeError('')
     setSaving(true)
-
     try {
       const payload = {
-        name:          contact.cliente,
-        company:       contact.empresa  || null,
-        phone:         contact.telefono || null,
+        name:          displayName,
+        company:       displayBiz    || null,
+        phone:         displayPhone  || null,
         type,
         status:        'Activo',
-        email:         email       || null,
-        address:       address     || null,
-        notes:         notes       || null,
+        email:         email         || null,
+        address:       address       || null,
+        notes:         notes         || null,
         coordinates,
         registered_by: userName,
         registered_at: new Date().toISOString(),
       }
-
       const newClient = await clientService.create(payload)
       addClient(newClient)
       toast.success('✓ Cliente creado — ya aparece en el mapa')
+      onSuccess?.()
       handleClose()
     } catch (err) {
       toast.error('Error al crear cliente: ' + err.message)
@@ -64,7 +61,7 @@ export function ConvertToClientModal({ open, onClose, contact }) {
     }
   }
 
-  if (!contact) return null
+  if (!source) return null
 
   return (
     <Modal
@@ -83,36 +80,36 @@ export function ConvertToClientModal({ open, onClose, contact }) {
         </>
       }
     >
-      {/* Ícono + subtítulo */}
       <div className="flex items-start gap-3 mb-5 p-3 bg-green-50 border border-green-200 rounded-lg">
         <UserCheck size={20} className="text-green-600 shrink-0 mt-0.5" />
         <p className="text-sm text-green-800">
-          <span className="font-semibold">{contact.cliente}</span> acaba de ser marcado como{' '}
-          <span className="font-semibold">Vendido</span>. ¿Querés agregarlo a la base de clientes?
+          <span className="font-semibold">{displayName}</span>{' '}
+          {isProspect
+            ? 'tiene un resultado positivo. ¿Querés agregarlo a la base de clientes?'
+            : <> acaba de ser marcado como <span className="font-semibold">Vendido</span>. ¿Querés agregarlo a la base de clientes?</>
+          }
         </p>
       </div>
 
-      {/* Datos precargados (solo informativos) */}
       <div className="mb-4 space-y-1 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700">
         <div className="flex gap-2">
           <span className="text-gray-400 w-20 shrink-0">Nombre</span>
-          <span className="font-medium">{contact.cliente}</span>
+          <span className="font-medium">{displayName}</span>
         </div>
-        {contact.empresa && (
+        {displayBiz && (
           <div className="flex gap-2">
             <span className="text-gray-400 w-20 shrink-0">Empresa</span>
-            <span>{contact.empresa}</span>
+            <span>{displayBiz}</span>
           </div>
         )}
-        {contact.telefono && (
+        {displayPhone && (
           <div className="flex gap-2">
             <span className="text-gray-400 w-20 shrink-0">Teléfono</span>
-            <span>{contact.telefono}</span>
+            <span>{displayPhone}</span>
           </div>
         )}
       </div>
 
-      {/* Campos a completar */}
       <div className="space-y-3">
         <Select
           label="Tipo de cliente"
@@ -130,7 +127,6 @@ export function ConvertToClientModal({ open, onClose, contact }) {
           value={email}
           onChange={e => setEmail(e.target.value)}
         />
-
         <div className="space-y-1">
           <label className="text-sm font-semibold text-text-primary">
             Ubicación en el mapa
@@ -143,7 +139,6 @@ export function ConvertToClientModal({ open, onClose, contact }) {
             height="240px"
           />
         </div>
-
         <Textarea
           label="Notas"
           placeholder="Observaciones adicionales (opcional)"
