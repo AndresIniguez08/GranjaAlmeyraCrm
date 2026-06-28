@@ -49,18 +49,27 @@ function PendingTab({ onNavigateToContact }) {
   const initialUrgency = searchParams.get('urgency') ?? 'todos'
 
   const { pendingFollowups, loading, fetchPendingFollowups, resolveFollowup } = useFollowupStore()
-  const { userName } = useAuthStore()
+  const { userName, role } = useAuthStore()
+  const isAdmin = role === 'admin'
 
-  const [search, setSearch] = useState('')
-  const [filterType, setFilterType] = useState('todos')
-  const [filterUrgency, setFilterUrgency] = useState(initialUrgency)
-  const [completing, setCompleting] = useState(null)
+  const [search,         setSearch]         = useState('')
+  const [filterType,     setFilterType]     = useState('todos')
+  const [filterUrgency,  setFilterUrgency]  = useState(initialUrgency)
+  const [filterVendedor, setFilterVendedor] = useState('')
+  const [completing,     setCompleting]     = useState(null)
   const [convertContact, setConvertContact] = useState(null)
 
   useEffect(() => { fetchPendingFollowups() }, []) // eslint-disable-line
 
+  // Opciones únicas de vendedor para el selector del admin
+  const vendedorOptions = useMemo(() => {
+    const s = new Set(pendingFollowups.map(f => f.created_by).filter(Boolean))
+    return [...s].sort()
+  }, [pendingFollowups])
+
   const filtered = useMemo(() => {
     return pendingFollowups.filter(f => {
+      if (isAdmin && filterVendedor && f.created_by !== filterVendedor) return false
       if (filterType !== 'todos' && f.action_type !== filterType) return false
       if (filterUrgency !== 'todos') {
         const u = getUrgency(f.scheduled_date)
@@ -76,7 +85,7 @@ function PendingTab({ onNavigateToContact }) {
       }
       return true
     })
-  }, [pendingFollowups, filterType, filterUrgency, search])
+  }, [pendingFollowups, filterType, filterUrgency, search, filterVendedor, isAdmin])
 
   async function handleCancel(f) {
     if (!confirm(`¿Cancelar el seguimiento con ${f.cliente}?`)) return
@@ -195,6 +204,18 @@ function PendingTab({ onNavigateToContact }) {
             { value: 'proximos', label: '🟢 Próximos 7 días' },
           ]}
         />
+        {isAdmin && vendedorOptions.length > 0 && (
+          <Select
+            label="Vendedor"
+            className="w-48"
+            value={filterVendedor}
+            onChange={e => setFilterVendedor(e.target.value)}
+            options={[
+              { value: '', label: 'Todos los vendedores' },
+              ...vendedorOptions.map(v => ({ value: v, label: v })),
+            ]}
+          />
+        )}
       </div>
 
       <Table

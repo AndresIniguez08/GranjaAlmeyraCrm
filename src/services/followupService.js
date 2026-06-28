@@ -38,12 +38,16 @@ export const followupService = {
     return data ?? []
   },
 
-  async getPendingFollowups() {
-    const { data, error } = await supabase
+  async getPendingFollowups(vendedor = null) {
+    let query = supabase
       .from(TABLE)
       .select(CONTACT_JOIN)
       .eq('status', 'pendiente')
       .order('scheduled_date', { ascending: true })
+
+    if (vendedor) query = query.eq('created_by', vendedor)
+
+    const { data, error } = await query
     if (error) throw error
     return (data ?? []).map(flattenContact)
   },
