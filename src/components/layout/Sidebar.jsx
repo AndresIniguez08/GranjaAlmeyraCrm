@@ -9,6 +9,7 @@ import {
   Map,
   BarChart2,
   LogOut,
+  UserCog,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { authService } from "@/services/authService";
@@ -17,24 +18,22 @@ import useFollowupStore from "@/store/followupStore";
 import { Badge } from "@/components/ui/Badge";
 import logo from "@/img/logo.png";
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
-  { to: "/contacts", label: "Contactos", icon: <Users size={18} /> },
-  {
-    to: "/seguimientos",
-    label: "Seguimientos",
-    icon: <Bell size={18} />,
-    badge: true,
-  },
-  { to: "/prospectos", label: "Prospectos", icon: <Target size={18} /> },
-  { to: "/clients", label: "Clientes", icon: <Building2 size={18} /> },
-  { to: "/map", label: "Mapa", icon: <Map size={18} /> },
-  { to: "/reports", label: "Informes", icon: <BarChart2 size={18} /> },
+  { to: "/dashboard",  label: "Dashboard",    icon: <LayoutDashboard size={18} /> },
+  { to: "/contacts",   label: "Contactos",    icon: <Users size={18} /> },
+  { to: "/seguimientos", label: "Seguimientos", icon: <Bell size={18} />, badge: true },
+  { to: "/prospectos", label: "Prospectos",   icon: <Target size={18} /> },
+  { to: "/clients",    label: "Clientes",     icon: <Building2 size={18} /> },
+  { to: "/map",        label: "Mapa",         icon: <Map size={18} /> },
+  { to: "/reports",    label: "Informes",     icon: <BarChart2 size={18} /> },
+  { to: "/usuarios",   label: "Usuarios",     icon: <UserCog size={18} />, adminOnly: true },
 ];
 
 export function Sidebar() {
   const { userName, role } = useAuthStore();
   const navigate = useNavigate();
   const { pendingFollowups, fetchPendingFollowups } = useFollowupStore();
+
+  const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || role === 'admin');
 
   useEffect(() => {
     fetchPendingFollowups();
@@ -78,7 +77,7 @@ export function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
-          {NAV_ITEMS.map((item) => (
+          {visibleItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -129,7 +128,7 @@ export function Sidebar() {
 
       {/* ── Mobile bottom nav ─────────────────────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-primary-200 shadow-md flex">
-        {NAV_ITEMS.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

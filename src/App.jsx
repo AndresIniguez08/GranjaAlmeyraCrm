@@ -11,6 +11,8 @@ import MapPage from '@/pages/Map'
 import Reports from '@/pages/Reports'
 import Seguimientos from '@/pages/Seguimientos'
 import Prospectos from '@/pages/Prospectos'
+import Usuarios from '@/pages/Usuarios'
+import AdminRoute from '@/components/shared/AdminRoute'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -90,6 +92,16 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <Prospectos />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/usuarios"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <Usuarios />
+            </AdminRoute>
           </ProtectedRoute>
         }
       />
