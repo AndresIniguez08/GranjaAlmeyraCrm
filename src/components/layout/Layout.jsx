@@ -1,4 +1,5 @@
 import { Sidebar } from './Sidebar'
+import { GlobalSearch } from '@/components/ui/GlobalSearch'
 
 export function Layout({ children }) {
   return (
@@ -14,12 +15,22 @@ export function Layout({ children }) {
 
 export function PageHeader({ title, subtitle, action }) {
   return (
-    <div className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-gray-200">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
+    <div className="flex items-center gap-4 pb-5 mb-6 border-b border-gray-200">
+      {/* Título */}
+      <div className="min-w-0 flex-shrink-0">
+        <h1 className="text-2xl font-bold text-gray-800 whitespace-nowrap">{title}</h1>
         {subtitle && <p className="text-sm text-gray-500 font-normal mt-0.5">{subtitle}</p>}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+
+      {/* Buscador global — centro */}
+      <div className="flex-1 flex justify-center">
+        <div className="w-80">
+          <GlobalSearch />
+        </div>
+      </div>
+
+      {/* Acciones — derecha */}
+      {action && <div className="flex-shrink-0">{action}</div>}
     </div>
   )
 }
