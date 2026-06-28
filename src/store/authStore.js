@@ -6,12 +6,19 @@ const useAuthStore = create((set) => ({
   userName: null,
   loading: true,
 
-  setUser: (user) => set({
-    user,
-    role: user?.user_metadata?.role ?? null,
-    userName: user?.user_metadata?.name ?? user?.email?.split('@')[0] ?? null,
-    loading: false,
-  }),
+  setUser: (session) => {
+    if (session?.user) {
+      const u = session.user
+      set({
+        user: u,
+        role: u.user_metadata?.role ?? null,
+        userName: u.user_metadata?.name ?? u.email?.split('@')[0] ?? null,
+        loading: false,
+      })
+    } else {
+      set({ user: null, role: null, userName: null, loading: false })
+    }
+  },
 
   clearUser: () => set({ user: null, role: null, userName: null, loading: false }),
 

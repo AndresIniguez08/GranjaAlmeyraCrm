@@ -8,20 +8,12 @@ export function useAuth() {
   useEffect(() => {
     // Cargar sesión inicial
     authService.getSession().then(session => {
-      if (session?.user) {
-        setUser(session.user)
-      } else {
-        clearUser()
-      }
+      setUser(session)
     }).catch(() => clearUser())
 
     // Escuchar cambios de auth
     const { data: { subscription } } = authService.onAuthChange((session) => {
-      if (session?.user) {
-        setUser(session.user)
-      } else {
-        clearUser()
-      }
+      setUser(session)
     })
 
     return () => subscription.unsubscribe()

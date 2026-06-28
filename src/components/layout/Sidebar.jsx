@@ -29,9 +29,13 @@ const NAV_ITEMS = [
 ];
 
 export function Sidebar() {
-  const { userName, role } = useAuthStore();
+  const { user, userName, role } = useAuthStore();
   const navigate = useNavigate();
   const { pendingFollowups, fetchPendingFollowups } = useFollowupStore();
+
+  // DEBUG — remover después de verificar
+  console.log('USER METADATA:', user?.user_metadata)
+  console.log('ROLE:', role)
 
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || role === 'admin');
 
