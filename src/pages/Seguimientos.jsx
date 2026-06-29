@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Phone, MapPin, MessageCircle, Mail, AtSign, FileText, Edit3, Eye, CheckCircle, XCircle } from 'lucide-react'
+import { Phone, MapPin, MessageCircle, Mail, AtSign, FileText, Edit3, Eye, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { PageHeader } from '@/components/layout/Layout'
 import { Button, Badge } from '@/components/ui'
 import { Table } from '@/components/ui/Table'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal'
 import { followupService } from '@/services/followupService'
 import useFollowupStore from '@/store/followupStore'
 import useAuthStore from '@/store/authStore'
@@ -56,6 +57,8 @@ function PendingTab({ onNavigateToContact }) {
   const [filterVendedor, setFilterVendedor] = useState('')
   const [completing,     setCompleting]     = useState(null)
   const [convertContact, setConvertContact] = useState(null)
+  const [deleteTarget,   setDeleteTarget]   = useState(null)
+  const [deleteLoading,  setDeleteLoading]  = useState(false)
 
   useEffect(() => { fetchPendingFollowups() }, []) // eslint-disable-line
 
@@ -93,6 +96,20 @@ function PendingTab({ onNavigateToContact }) {
       toast.success('Seguimiento cancelado')
     } catch (err) {
       toast.error(err.message)
+    }
+  }
+
+  async function handleDelete() {
+    setDeleteLoading(true)
+    try {
+      await followupService.deleteFollowup(deleteTarget.id, userName)
+      resolveFollowup(deleteTarget.id)
+      toast.success('Seguimiento eliminado')
+      setDeleteTarget(null)
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -163,6 +180,15 @@ function PendingTab({ onNavigateToContact }) {
             title="Ver contacto"
           >
             <Eye size={14} />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="w-7 h-7 p-0 hover:bg-red-50 hover:text-red-500"
+            onClick={() => setDeleteTarget(f)}
+            title="Eliminar seguimiento"
+          >
+            <Trash2 size={14} />
           </Button>
         </div>
       ),
@@ -239,6 +265,16 @@ function PendingTab({ onNavigateToContact }) {
         onClose={() => setConvertContact(null)}
         contact={convertContact}
       />
+
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          title="¿Eliminar seguimiento?"
+          message={`Vas a eliminar el seguimiento de "${deleteTarget.cliente}". Esta acción quedará registrada.`}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+          loading={deleteLoading}
+        />
+      )}
     </div>
   )
 }

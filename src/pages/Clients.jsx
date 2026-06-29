@@ -1,25 +1,24 @@
 import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { useClients } from '@/hooks/useClients'
-import useAuthStore from '@/store/authStore'
 import { clientService } from '@/services/clientService'
 import { ClientFilters } from '@/features/clients/ClientFilters'
 import { ClientTable } from '@/features/clients/ClientTable'
 import { ClientForm } from '@/features/clients/ClientForm'
 import { ClientViewModal } from '@/features/clients/ClientModal'
 import { Modal, Button } from '@/components/ui'
+import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal'
 import { PageHeader } from '@/components/layout/Layout'
 import { exportClients } from '@/utils/exporters'
-import { ROLES } from '@/utils/constants'
 
 export default function Clients() {
-  const { role } = useAuthStore()
-  const isAdmin = role === ROLES.ADMIN
   const {
     clients, totalCount, page, pageSize, filters, loading,
     load, create, update, remove, setFilters, setPage,
   } = useClients()
 
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [viewClient, setViewClient] = useState(null)
   const [editClient, setEditClient] = useState(null)
@@ -57,13 +56,16 @@ export default function Clients() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('¿Confirmás eliminar este cliente? Esta acción no se puede deshacer.')) return
+  async function handleDelete() {
+    setDeleteLoading(true)
     try {
-      await remove(id)
-      toast.success('Cliente eliminado')
+      await remove(deleteTarget.id)
+      toast.success(`Cliente "${deleteTarget.name}" eliminado`)
+      setDeleteTarget(null)
     } catch (err) {
       toast.error('Error al eliminar: ' + err.message)
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -98,12 +100,21 @@ export default function Clients() {
         page={page}
         pageSize={pageSize}
         loading={loading}
-        canDelete={isAdmin}
         onPage={setPage}
         onView={setViewClient}
         onEdit={setEditClient}
-        onDelete={handleDelete}
+        onDelete={setDeleteTarget}
       />
+
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          title="¿Eliminar cliente?"
+          message={`Vas a eliminar a "${deleteTarget.name}" de "${deleteTarget.company}". También desaparecerá del mapa. Esta acción quedará registrada.`}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+          loading={deleteLoading}
+        />
+      )}
 
       <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Registrar Nuevo Cliente" size="lg">
         <ClientForm loading={formLoading} onSubmit={handleCreate} />

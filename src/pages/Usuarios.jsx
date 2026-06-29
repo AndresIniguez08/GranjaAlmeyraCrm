@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Pencil, Key, Power, Trash2 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { userService } from '@/services/userService'
+import { getAuditLog } from '@/services/auditService'
 import useAuthStore from '@/store/authStore'
 import { PageHeader } from '@/components/layout/Layout'
 import { Button } from '@/components/ui/Button'
@@ -61,10 +62,46 @@ function formatLastLogin(dateStr) {
   }
 }
 
+const ENTITY_LABELS = {
+  contact:  { label: 'Contacto',    cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  client:   { label: 'Cliente',     cls: 'bg-green-100 text-green-700 border-green-200' },
+  prospect: { label: 'Prospecto',   cls: 'bg-violet-100 text-violet-700 border-violet-200' },
+  followup: { label: 'Seguimiento', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+}
+
+function entityLabel(entity_type) {
+  const d = ENTITY_LABELS[entity_type]
+  if (!d) return <span className="text-xs text-gray-400">{entity_type}</span>
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${d.cls}`}>
+      {d.label}
+    </span>
+  )
+}
+
+function entityDescription(row) {
+  const d = row.entity_data
+  if (!d) return '—'
+  switch (row.entity_type) {
+    case 'contact':  return `${d.cliente ?? '—'} / ${d.empresa ?? '—'}`
+    case 'client':   return `${d.name ?? '—'} / ${d.company ?? '—'}`
+    case 'prospect': return `${d.name ?? '—'} / ${d.business ?? '—'}`
+    case 'followup': {
+      if (!d.scheduled_date) return 'Seguimiento eliminado'
+      try {
+        const [y, m, day] = d.scheduled_date.split('T')[0].split('-').map(Number)
+        return `Seguimiento del ${format(new Date(y, m - 1, day), 'dd/MM/yyyy')}`
+      } catch { return 'Seguimiento eliminado' }
+    }
+    default: return JSON.stringify(d).slice(0, 60)
+  }
+}
+
 export default function Usuarios() {
   const { user: currentUser, role: currentRole, userName: currentUserName } = useAuthStore()
   const currentUsername = currentUser?.email?.replace('@crm.internal', '') ?? ''
 
+  const [tab,             setTab]             = useState('usuarios')
   const [users,           setUsers]           = useState([])
   const [loading,         setLoading]         = useState(true)
   const [userModal,       setUserModal]       = useState({ open: false, user: null })
@@ -74,6 +111,11 @@ export default function Usuarios() {
   const [togglingId,      setTogglingId]      = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [deletingId,      setDeletingId]      = useState(null)
+
+  const [auditLog,         setAuditLog]        = useState([])
+  const [auditLoading,     setAuditLoading]    = useState(false)
+  const [auditTypeFilter,  setAuditTypeFilter] = useState('')
+  const [auditUserFilter,  setAuditUserFilter] = useState('')
 
   const loadUsers = useCallback(async () => {
     try {
@@ -86,7 +128,26 @@ export default function Usuarios() {
     }
   }, [])
 
+  const loadAuditLog = useCallback(async () => {
+    setAuditLoading(true)
+    try {
+      const data = await getAuditLog({
+        entity_type: auditTypeFilter || null,
+        performed_by: auditUserFilter || null,
+      })
+      setAuditLog(data)
+    } catch (err) {
+      toast.error('Error al cargar auditoría: ' + err.message)
+    } finally {
+      setAuditLoading(false)
+    }
+  }, [auditTypeFilter, auditUserFilter])
+
   useEffect(() => { loadUsers() }, [loadUsers])
+
+  useEffect(() => {
+    if (tab === 'auditoria') loadAuditLog()
+  }, [tab, loadAuditLog])
 
   // ── CRUD ────────────────────────────────────────────────────────────────────
 
@@ -167,6 +228,105 @@ export default function Usuarios() {
         }
       />
 
+      {/* ── Tabs ──────────────────────────────────────────────────────────── */}
+      <div className="flex border-b border-gray-200 mb-6">
+        {[
+          { id: 'usuarios',   label: 'Usuarios' },
+          { id: 'auditoria',  label: 'Auditoría' },
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tab === id
+                ? 'border-primary-500 text-primary-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'auditoria' ? (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+          {/* Filtros */}
+          <div className="p-4 border-b border-gray-100 flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Tipo</label>
+              <select
+                value={auditTypeFilter}
+                onChange={e => setAuditTypeFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 focus:border-transparent"
+              >
+                <option value="">Todos</option>
+                <option value="contact">Contacto</option>
+                <option value="client">Cliente</option>
+                <option value="prospect">Prospecto</option>
+                <option value="followup">Seguimiento</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Eliminado por</label>
+              <select
+                value={auditUserFilter}
+                onChange={e => setAuditUserFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-400 focus:border-transparent"
+              >
+                <option value="">Todos los usuarios</option>
+                {[...new Set(auditLog.map(r => r.performed_by).filter(Boolean))].sort().map(u => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {auditLoading ? (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : auditLog.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 text-sm">
+              Sin eliminaciones registradas
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    {['Fecha', 'Tipo', 'Registro eliminado', 'Eliminado por'].map(col => (
+                      <th key={col} className="px-4 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLog.map((row, idx) => (
+                    <tr key={row.id} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-600 text-sm">
+                        {row.performed_at
+                          ? format(new Date(row.performed_at), 'dd/MM/yyyy HH:mm')
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {entityLabel(row.entity_type)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 text-sm">
+                        {entityDescription(row)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-gray-600 text-sm">
+                        {row.performed_by ?? '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+      <>
       {/* ── Tabla de usuarios ─────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
         {loading ? (
@@ -332,6 +492,8 @@ export default function Usuarios() {
         <ChangeOwnPasswordModal
           onClose={() => setOwnPassModal(false)}
         />
+      )}
+      </>
       )}
     </div>
   )

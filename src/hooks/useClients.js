@@ -57,9 +57,9 @@ export function useClients() {
   }, [store])
 
   const remove = useCallback(async (id) => {
-    await clientService.delete(id)
+    await clientService.delete(id, userName)
     store.removeClient(id)
-  }, [store])
+  }, [store, userName])
 
   const setFilters = useCallback((filters) => {
     store.setFilters(filters)

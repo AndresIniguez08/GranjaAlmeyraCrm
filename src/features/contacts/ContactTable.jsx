@@ -112,9 +112,7 @@ export function ContactTable({
           )}
           <Button variant="ghost" size="sm" onClick={() => onView(c)} className="w-7 h-7 p-0" title="Ver">👁</Button>
           <Button variant="ghost" size="sm" onClick={() => onEdit(c)} className="w-7 h-7 p-0" title="Editar">✏️</Button>
-          {canDelete && (
-            <Button variant="ghost" size="sm" onClick={() => onDelete(c.id)} className="w-7 h-7 p-0 hover:bg-red-50 hover:text-red-600" title="Eliminar">🗑</Button>
-          )}
+          <Button variant="ghost" size="sm" onClick={() => onDelete(c)} className="w-7 h-7 p-0 hover:bg-red-50 hover:text-red-600" title="Eliminar">🗑</Button>
         </div>
       ),
     },

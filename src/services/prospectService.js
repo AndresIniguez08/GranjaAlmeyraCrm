@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { logDeletion } from './auditService'
 
 export async function getNoVendidosWithFollowups() {
   const { data: contacts, error: cErr } = await supabase
@@ -90,9 +91,22 @@ export async function updateProspect(id, data) {
   return result
 }
 
-export async function deleteProspect(id) {
+export async function deleteProspect(id, performedBy) {
+  const { data: prospect } = await supabase
+    .from('prospects')
+    .select('*')
+    .eq('id', id)
+    .single()
+
   const { error } = await supabase.from('prospects').delete().eq('id', id)
   if (error) throw error
+
+  await logDeletion({
+    entity_type: 'prospect',
+    entity_id: id,
+    entity_data: prospect,
+    performed_by: performedBy,
+  })
 }
 
 export async function addAttempt({ prospect_id, attempt_date, action, action_note, result, created_by }) {

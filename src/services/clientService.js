@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { logDeletion } from './auditService'
 import { NOMINATIM_URL, NOMINATIM_DELAY_MS } from '@/utils/constants'
 
 const TABLE = 'commercial_clients'
@@ -73,9 +74,22 @@ export const clientService = {
     return data
   },
 
-  async delete(id) {
+  async delete(id, performedBy) {
+    const { data: client } = await supabase
+      .from(TABLE)
+      .select('*')
+      .eq('id', id)
+      .single()
+
     const { error } = await supabase.from(TABLE).delete().eq('id', id)
     if (error) throw error
+
+    await logDeletion({
+      entity_type: 'client',
+      entity_id: id,
+      entity_data: client,
+      performed_by: performedBy,
+    })
   },
 
   async geocodeAddress(address) {

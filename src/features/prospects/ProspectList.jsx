@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Pencil, Trash2, MessageCircle, UserCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal'
 import { PROSPECT_RESULTS } from '@/utils/constants'
 
 function parseLocalDate(dateStr) {
@@ -12,20 +13,11 @@ function parseLocalDate(dateStr) {
 }
 
 export function ProspectList({ prospects, onEdit, onDelete, onConvert, loading, totalCount }) {
-  const [confirmId, setConfirmId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   function getLastAttempt(attempts) {
     if (!attempts?.length) return null
     return attempts[attempts.length - 1]
-  }
-
-  async function handleDelete(id) {
-    if (confirmId !== id) {
-      setConfirmId(id)
-      return
-    }
-    setConfirmId(null)
-    await onDelete(id)
   }
 
   if (prospects.length === 0) {
@@ -166,14 +158,10 @@ export function ProspectList({ prospects, onEdit, onDelete, onConvert, loading, 
                       <Pencil size={14} />
                     </button>
                     <button
-                      onClick={() => handleDelete(p.id)}
+                      onClick={() => setDeleteTarget(p)}
                       disabled={loading}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        confirmId === p.id
-                          ? 'bg-red-100 text-red-600'
-                          : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                      }`}
-                      title={confirmId === p.id ? '¿Confirmar?' : 'Eliminar prospecto'}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title="Eliminar prospecto"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -185,6 +173,16 @@ export function ProspectList({ prospects, onEdit, onDelete, onConvert, loading, 
         </tbody>
       </table>
     </div>
+
+    {deleteTarget && (
+      <ConfirmDeleteModal
+        title="¿Eliminar prospecto?"
+        message={`Vas a eliminar a "${deleteTarget.name}". También se eliminarán sus intentos de contacto. Esta acción quedará registrada.`}
+        onConfirm={() => { onDelete(deleteTarget); setDeleteTarget(null) }}
+        onClose={() => setDeleteTarget(null)}
+        loading={loading}
+      />
+    )}
     </div>
   )
 }

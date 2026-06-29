@@ -51,9 +51,9 @@ export function useContacts() {
   }, [store, userName])
 
   const remove = useCallback(async (id) => {
-    await contactService.delete(id)
+    await contactService.delete(id, userName)
     store.removeContact(id)
-  }, [store])
+  }, [store, userName])
 
   const setFilters = useCallback((filters) => {
     store.setFilters(filters)

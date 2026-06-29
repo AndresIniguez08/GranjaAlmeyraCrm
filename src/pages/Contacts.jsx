@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { useContacts } from '@/hooks/useContacts'
-import useAuthStore from '@/store/authStore'
 import { clientService } from '@/services/clientService'
 import { contactService } from '@/services/contactService'
 import { ContactFilters } from '@/features/contacts/ContactFilters'
@@ -12,18 +11,18 @@ import { FollowupModal } from '@/features/followups/FollowupModal'
 import { CompleteFollowupModal } from '@/features/followups/CompleteFollowupModal'
 import { ConvertToClientModal } from '@/features/clients/ConvertToClientModal'
 import { Modal, Button } from '@/components/ui'
+import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal'
 import { PageHeader } from '@/components/layout/Layout'
 import { exportContacts } from '@/utils/exporters'
-import { ROLES } from '@/utils/constants'
 
 export default function Contacts() {
-  const { role } = useAuthStore()
-  const isAdmin = role === ROLES.ADMIN
   const {
     contacts, totalCount, page, pageSize, filters, loading,
     load, create, update, remove, setFilters, setPage,
   } = useContacts()
 
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [followupMap, setFollowupMap] = useState({})
   const [followupContact, setFollowupContact] = useState(null)
   const [completeFollowup, setCompleteFollowup] = useState(null)
@@ -103,13 +102,16 @@ export default function Contacts() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm('¿Confirmás eliminar este contacto? Esta acción no se puede deshacer.')) return
+  async function handleDelete() {
+    setDeleteLoading(true)
     try {
-      await remove(id)
-      toast.success('Contacto eliminado')
+      await remove(deleteTarget.id)
+      toast.success(`Contacto "${deleteTarget.cliente}" eliminado`)
+      setDeleteTarget(null)
     } catch (err) {
       toast.error('Error al eliminar: ' + err.message)
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -144,12 +146,11 @@ export default function Contacts() {
         page={page}
         pageSize={pageSize}
         loading={loading}
-        canDelete={isAdmin}
         followupMap={followupMap}
         onPage={setPage}
         onView={setViewContact}
         onEdit={setEditContact}
-        onDelete={handleDelete}
+        onDelete={setDeleteTarget}
         onScheduleFollowup={openFollowupModal}
         onCompleteFollowup={openCompleteModal}
       />
@@ -211,6 +212,16 @@ export default function Contacts() {
             setCompleteFollowup(null)
             loadFollowupsMap(contacts)
           }}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          title="¿Eliminar contacto?"
+          message={`Vas a eliminar a "${deleteTarget.cliente}" de "${deleteTarget.empresa}". Esta acción quedará registrada.`}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)}
+          loading={deleteLoading}
         />
       )}
 

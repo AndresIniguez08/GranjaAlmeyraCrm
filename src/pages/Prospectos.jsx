@@ -134,18 +134,18 @@ export default function Prospectos() {
     }
   }, [prospectModal.prospect, userName, storeUpdate, addProspect])
 
-  const handleDeleteProspect = useCallback(async (id) => {
+  const handleDeleteProspect = useCallback(async (prospect) => {
     setSaving(true)
     try {
-      await prospectService.deleteProspect(id)
-      removeProspect(id)
+      await prospectService.deleteProspect(prospect.id, userName)
+      removeProspect(prospect.id)
       toast.success('Prospecto eliminado')
     } catch (err) {
       toast.error(err.message || 'Error al eliminar')
     } finally {
       setSaving(false)
     }
-  }, [removeProspect])
+  }, [removeProspect, userName])
 
   // ── CRUD Intentos (prospectos propios) ──────────────────────────────────────
   const handleSaveAttempt = useCallback(async (data) => {

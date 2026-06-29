@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { logDeletion } from './auditService'
 
 const TABLE = 'contact_followups'
 const CONTACTS_TABLE = 'commercial_contacts'
@@ -122,6 +123,24 @@ export const followupService = {
     }
 
     return data
+  },
+
+  async deleteFollowup(id, performedBy) {
+    const { data: followup } = await supabase
+      .from(TABLE)
+      .select('*, commercial_contacts(cliente, empresa)')
+      .eq('id', id)
+      .single()
+
+    const { error } = await supabase.from(TABLE).delete().eq('id', id)
+    if (error) throw error
+
+    await logDeletion({
+      entity_type: 'followup',
+      entity_id: id,
+      entity_data: followup,
+      performed_by: performedBy,
+    })
   },
 
   async cancelFollowup(id, completed_by) {
