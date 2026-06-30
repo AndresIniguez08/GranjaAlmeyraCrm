@@ -16,7 +16,16 @@ export const PRODUCTOS = [
   'Pack 6 Maples B3',
 ]
 
-export const ESTADOS_CONTACTO = ['Vendido', 'No Vendido', 'Derivado']
+export const ESTADOS_CONTACTO = ['Vendido', 'No Vendido', 'Derivado', 'No Viable']
+
+export const NO_VIABLE_REASONS = [
+  { value: 'no_responde',   label: 'No responde' },
+  { value: 'mejor_precio',  label: 'Consigue mejor precio' },
+  { value: 'no_vende_mas',  label: 'Ya no vende / cerró' },
+  { value: 'excusas',       label: 'Excusas reiteradas' },
+  { value: 'logistica',     label: 'No puede venir a buscar' },
+  { value: 'otro',          label: 'Otro motivo' },
+]
 
 export const VENDEDORES = [
   'Andrés Iñiguez',

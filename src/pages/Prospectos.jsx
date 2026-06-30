@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Target, Plus, LayoutGrid, List } from 'lucide-react'
+import { Target, Plus, LayoutGrid, List, ChevronUp, ChevronDown, RotateCcw, Phone } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useProspectStore from '@/store/prospectStore'
 import useAuthStore from '@/store/authStore'
 import * as prospectService from '@/services/prospectService'
+import { NO_VIABLE_REASONS } from '@/utils/constants'
 import { ProspectGrid }      from '@/features/prospects/ProspectGrid'
 import { ProspectList }      from '@/features/prospects/ProspectList'
 import { ProspectModal }     from '@/features/prospects/ProspectModal'
@@ -51,6 +52,30 @@ export default function Prospectos() {
       setNoVendidosLoading(false)
     }
   }, [])
+
+  // ── Estado "No Viables" ─────────────────────────────────────────────────────
+  const [noViables, setNoViables] = useState([])
+  const [showNoViables, setShowNoViables] = useState(false)
+
+  const fetchNoViables = useCallback(async () => {
+    try {
+      const data = await prospectService.getNoViables()
+      setNoViables(data)
+    } catch (err) {
+      toast.error('Error al cargar No Viables: ' + err.message)
+    }
+  }, [])
+
+  const handleReactivate = useCallback(async (id) => {
+    try {
+      await prospectService.reactivateContact(id)
+      toast.success('Contacto reactivado')
+      fetchNoVendidos()
+      fetchNoViables()
+    } catch (err) {
+      toast.error('Error al reactivar: ' + err.message)
+    }
+  }, [fetchNoVendidos, fetchNoViables])
 
   // ── Filtros ─────────────────────────────────────────────────────────────────
   const [search, setSearch] = useState('')
@@ -107,6 +132,7 @@ export default function Prospectos() {
   useEffect(() => {
     fetchProspects().catch(() => toast.error('Error al cargar prospectos'))
     fetchNoVendidos()
+    fetchNoViables()
   }, []) // eslint-disable-line
 
   // ── CRUD Prospectos ─────────────────────────────────────────────────────────
@@ -302,17 +328,83 @@ export default function Prospectos() {
             <LoadingSpinner />
           </div>
         ) : tab === 'grid' ? (
-          <ProspectGrid
-            contacts={filteredNoVendidos}
-            prospects={filteredProspects}
-            totalContactsCount={hasFilter ? noVendidos.length : undefined}
-            totalProspectsCount={hasFilter ? prospects.length : undefined}
-            onAddFollowup={openAddFollowup}
-            onAddAttempt={openAddAttempt}
-            onEditAttempt={openEditAttempt}
-            onRefresh={() => { fetchProspects().catch(() => {}); fetchNoVendidos(); }}
-            onConvert={setConvertProspect}
-          />
+          <>
+            <ProspectGrid
+              contacts={filteredNoVendidos}
+              prospects={filteredProspects}
+              totalContactsCount={hasFilter ? noVendidos.length : undefined}
+              totalProspectsCount={hasFilter ? prospects.length : undefined}
+              onAddFollowup={openAddFollowup}
+              onAddAttempt={openAddAttempt}
+              onEditAttempt={openEditAttempt}
+              onRefresh={() => { fetchProspects().catch(() => {}); fetchNoVendidos(); fetchNoViables(); }}
+              onConvert={setConvertProspect}
+            />
+
+            {/* ── Sección No Viables ───────────────────────────────────────── */}
+            <div className="mt-4 border border-gray-200 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setShowNoViables(!showNoViables)}
+                className="w-full bg-gray-100 px-4 py-2.5 flex items-center justify-between hover:bg-gray-200 transition-colors"
+              >
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  📌 No Viables — {noViables.length} contacto{noViables.length !== 1 ? 's' : ''}
+                </span>
+                {showNoViables ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+              </button>
+
+              {showNoViables && (
+                <div className="divide-y divide-gray-100 bg-white">
+                  {noViables.length === 0 ? (
+                    <p className="px-4 py-6 text-sm text-gray-400 text-center">
+                      No hay contactos No Viables
+                    </p>
+                  ) : (
+                    noViables.map((contact) => {
+                      const reasonLabel = NO_VIABLE_REASONS.find(r => r.value === contact.no_viable_reason)?.label
+                      const ultimaActividad = contact.fecha_registro
+                        ? new Date(contact.fecha_registro).toLocaleDateString('es-AR')
+                        : '—'
+                      return (
+                        <div key={contact.id} className="px-4 py-3 flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-gray-900 truncate">
+                              {contact.cliente}
+                              {contact.empresa && (
+                                <span className="font-normal text-gray-500"> — {contact.empresa}</span>
+                              )}
+                            </p>
+                            {contact.telefono && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Phone size={10} className="text-gray-400 shrink-0" />
+                                <span className="text-xs text-gray-500">{contact.telefono}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {reasonLabel && (
+                                <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full border border-red-100">
+                                  {reasonLabel}
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-400">Última actividad: {ultimaActividad}</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleReactivate(contact.id)}
+                            className="shrink-0 flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 hover:bg-amber-100 transition-colors"
+                            title="Reactivar contacto"
+                          >
+                            <RotateCcw size={12} />
+                            Reactivar
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <ProspectList
             prospects={filteredProspects}

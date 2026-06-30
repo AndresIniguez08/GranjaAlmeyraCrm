@@ -101,7 +101,7 @@ export const followupService = {
     return data
   },
 
-  async completeFollowup(id, { result_note, completed_by, new_contact_status, contact_id }) {
+  async completeFollowup(id, { result_note, completed_by, new_contact_status, no_viable_reason, contact_id }) {
     const { data, error } = await supabase
       .from(TABLE)
       .update({
@@ -116,9 +116,15 @@ export const followupService = {
     if (error) throw error
 
     if (new_contact_status && new_contact_status !== 'no_cambiar' && contact_id) {
+      const contactUpdate = { estado: new_contact_status }
+      if (new_contact_status === 'No Viable' && no_viable_reason) {
+        contactUpdate.no_viable_reason = no_viable_reason
+      } else {
+        contactUpdate.no_viable_reason = null
+      }
       await supabase
         .from(CONTACTS_TABLE)
-        .update({ estado: new_contact_status })
+        .update(contactUpdate)
         .eq('id', contact_id)
     }
 

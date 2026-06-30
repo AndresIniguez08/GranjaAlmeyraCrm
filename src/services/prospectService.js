@@ -43,6 +43,24 @@ export async function getNoVendidosWithFollowups() {
   }))
 }
 
+export async function getNoViables() {
+  const { data, error } = await supabase
+    .from('commercial_contacts')
+    .select('*')
+    .eq('estado', 'No Viable')
+    .order('fecha_registro', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function reactivateContact(id) {
+  const { error } = await supabase
+    .from('commercial_contacts')
+    .update({ estado: 'No Vendido', no_viable_reason: null })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function getProspectsWithAttempts() {
   const { data: prospects, error: pErr } = await supabase
     .from('prospects')

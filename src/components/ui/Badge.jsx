@@ -2,6 +2,7 @@ const ESTADO_STYLES = {
   'Vendido':    'bg-green-100 text-green-800 border-green-200',
   'No Vendido': 'bg-red-100 text-red-800 border-red-200',
   'Derivado':   'bg-yellow-100 text-yellow-800 border-yellow-200',
+  'No Viable':  'bg-gray-200 text-gray-700 border-gray-300',
   'Activo':     'bg-blue-100 text-blue-800 border-blue-200',
   'Inactivo':   'bg-gray-100 text-gray-700 border-gray-200',
   'Prospecto':  'bg-purple-100 text-purple-800 border-purple-200',
