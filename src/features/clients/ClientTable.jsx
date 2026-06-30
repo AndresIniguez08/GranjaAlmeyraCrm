@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom'
+import { MapPin } from 'lucide-react'
 import { Table, Badge, Button } from '@/components/ui'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatDate, cleanPhoneForWhatsApp, truncate } from '@/utils/formatters'
@@ -7,6 +9,7 @@ export function ClientTable({
   onPage, onEdit, onDelete, onView,
   loading, canDelete,
 }) {
+  const navigate = useNavigate()
   const columns = [
     {
       key: 'name',
@@ -60,6 +63,15 @@ export function ClientTable({
             >
               💬
             </a>
+          )}
+          {c.coordinates && (
+            <button
+              onClick={() => navigate('/map', { state: { focusClient: c } })}
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors"
+              title="Ver en mapa"
+            >
+              <MapPin size={15} />
+            </button>
           )}
           <Button variant="ghost" size="sm" onClick={() => onView(c)} className="w-7 h-7 p-0" title="Ver">👁</Button>
           <Button variant="ghost" size="sm" onClick={() => onEdit(c)} className="w-7 h-7 p-0" title="Editar">✏️</Button>

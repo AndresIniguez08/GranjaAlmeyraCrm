@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
 import { clientService } from '@/services/clientService'
 import { TIPO_COLORS } from '@/utils/constants'
 import { cleanPhoneForWhatsApp } from '@/utils/formatters'
@@ -7,6 +7,23 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 
 const ARGENTINA_CENTER = [-34.6037, -58.3816]
 const DEFAULT_ZOOM = 6
+
+// ── Controla zoom + vista cuando focusClient cambia ───────────────────────────
+
+function MapController({ focusClient }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (focusClient?.coordinates?.lat && focusClient?.coordinates?.lng) {
+      const { lat, lng } = focusClient.coordinates
+      map.setView([lat, lng], 15, { animate: true })
+    }
+  }, [focusClient, map])
+
+  return null
+}
+
+// ── Leyenda ───────────────────────────────────────────────────────────────────
 
 function Legend() {
   return (
@@ -22,11 +39,14 @@ function Legend() {
   )
 }
 
-export function MapView({ filters }) {
+// ── MapView ───────────────────────────────────────────────────────────────────
+
+export function MapView({ filters, focusClient }) {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [geocodingCount, setGeocodingCount] = useState(0)
   const abortRef = useRef(false)
+  const focusedMarkerRef = useRef(null)
 
   useEffect(() => {
     abortRef.current = false
@@ -39,6 +59,11 @@ export function MapView({ filters }) {
 
       const withCoords    = filtered.filter(c => c.coordinates?.lat && c.coordinates?.lng)
       const withoutCoords = filtered.filter(c => !(c.coordinates?.lat && c.coordinates?.lng) && c.address)
+
+      // Si hay un focusClient con coords que no esté en el set filtrado, agregarlo
+      if (focusClient?.coordinates?.lat && !withCoords.some(c => c.id === focusClient.id)) {
+        withCoords.push(focusClient)
+      }
 
       setClients(withCoords)
       setLoading(false)
@@ -60,7 +85,16 @@ export function MapView({ filters }) {
     }).catch(() => setLoading(false))
 
     return () => { abortRef.current = true }
-  }, [filters])
+  }, [filters]) // eslint-disable-line
+
+  // Abrir popup del cliente enfocado cuando carga termina
+  useEffect(() => {
+    if (!focusClient || loading) return
+    const timer = setTimeout(() => {
+      focusedMarkerRef.current?.openPopup()
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [focusClient, loading])
 
   if (loading) {
     return (
@@ -91,19 +125,23 @@ export function MapView({ filters }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
+        <MapController focusClient={focusClient} />
+
         {clients.map(client => {
+          const isFocused = focusClient && client.id === focusClient.id
           const color = TIPO_COLORS[client.type] ?? '#9CA3AF'
           const phone = cleanPhoneForWhatsApp(client.phone)
 
           return (
             <CircleMarker
               key={client.id}
+              ref={isFocused ? focusedMarkerRef : undefined}
               center={[client.coordinates.lat, client.coordinates.lng]}
-              radius={8}
+              radius={isFocused ? 12 : 8}
               fillColor={color}
-              color="#fff"
+              color={isFocused ? '#F59E0B' : '#fff'}
               fillOpacity={0.9}
-              weight={1.5}
+              weight={isFocused ? 3 : 1.5}
             >
               <Popup maxWidth={240}>
                 <div className="text-sm space-y-1">

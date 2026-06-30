@@ -1,14 +1,36 @@
+import { useNavigate } from 'react-router-dom'
+import { Map as MapIcon, MapPin } from 'lucide-react'
 import { Modal, Badge, Button } from '@/components/ui'
 import { formatDate, cleanPhoneForWhatsApp } from '@/utils/formatters'
 
 export function ClientViewModal({ client, open, onClose, onEdit }) {
   if (!client) return null
   const phone = cleanPhoneForWhatsApp(client.phone)
+  const navigate = useNavigate()
+
+  function handleViewOnMap() {
+    navigate('/map', { state: { focusClient: client } })
+    onClose()
+  }
 
   return (
     <Modal open={open} onClose={onClose} title="Detalle del Cliente" size="md"
       footer={
         <>
+          {client.coordinates ? (
+            <button
+              onClick={handleViewOnMap}
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors mr-auto"
+            >
+              <MapIcon size={16} />
+              Ver en mapa
+            </button>
+          ) : (
+            <span className="text-xs text-gray-400 flex items-center gap-1 mr-auto">
+              <MapPin size={12} />
+              Sin ubicación registrada
+            </span>
+          )}
           <Button variant="ghost" size="sm" onClick={onClose}>Cerrar</Button>
           <Button size="sm" onClick={() => { onClose(); onEdit(client) }}>Editar</Button>
         </>
