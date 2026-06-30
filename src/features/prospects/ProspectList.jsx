@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Pencil, Trash2, MessageCircle, UserCheck } from 'lucide-react'
+import { Pencil, Trash2, MessageCircle, UserCheck, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal'
 import { PROSPECT_RESULTS } from '@/utils/constants'
@@ -12,7 +12,7 @@ function parseLocalDate(dateStr) {
   return new Date(y, m - 1, d)
 }
 
-export function ProspectList({ prospects, onEdit, onDelete, onConvert, loading, totalCount }) {
+export function ProspectList({ prospects, onEdit, onDelete, onConvert, onViewDetail, loading, totalCount }) {
   const [deleteTarget, setDeleteTarget] = useState(null)
 
   function getLastAttempt(attempts) {
@@ -150,6 +150,13 @@ export function ProspectList({ prospects, onEdit, onDelete, onConvert, loading, 
                         <UserCheck size={14} />
                       </button>
                     )}
+                    <button
+                      onClick={() => onViewDetail?.(p)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                      title="Ver ficha completa"
+                    >
+                      <Eye size={14} />
+                    </button>
                     <button
                       onClick={() => onEdit(p)}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"

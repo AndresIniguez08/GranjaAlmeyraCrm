@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Phone, MapPin, MessageCircle, Mail, AtSign, FileText, Edit3, Eye, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { PageHeader } from '@/components/layout/Layout'
@@ -9,10 +9,12 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal'
 import { followupService } from '@/services/followupService'
+import { contactService } from '@/services/contactService'
 import useFollowupStore from '@/store/followupStore'
 import useAuthStore from '@/store/authStore'
 import { CompleteFollowupModal } from '@/features/followups/CompleteFollowupModal'
 import { ConvertToClientModal } from '@/features/clients/ConvertToClientModal'
+import { ContactViewModal } from '@/features/contacts/ContactModal'
 import { ACTION_TYPES, URGENCY_COLORS } from '@/utils/constants'
 import { getUrgency, getUrgencyLabel } from '@/utils/followupUtils'
 import { formatDate, getActionType } from '@/utils/formatters'
@@ -62,7 +64,6 @@ function PendingTab({ onNavigateToContact }) {
 
   useEffect(() => { fetchPendingFollowups() }, []) // eslint-disable-line
 
-  // Opciones únicas de vendedor para el selector del admin
   const vendedorOptions = useMemo(() => {
     const s = new Set(pendingFollowups.map(f => f.created_by).filter(Boolean))
     return [...s].sort()
@@ -177,7 +178,7 @@ function PendingTab({ onNavigateToContact }) {
             variant="ghost"
             className="w-7 h-7 p-0"
             onClick={() => onNavigateToContact(f.contact_id)}
-            title="Ver contacto"
+            title="Ver ficha completa"
           >
             <Eye size={14} />
           </Button>
@@ -197,7 +198,6 @@ function PendingTab({ onNavigateToContact }) {
 
   return (
     <div>
-      {/* Filtros */}
       <div className="flex flex-wrap items-end gap-3 mb-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
         <Input
           label="Buscar"
@@ -281,11 +281,12 @@ function PendingTab({ onNavigateToContact }) {
 
 // ── Tab 2: Historial ───────────────────────────────────────────────────────────
 
-function HistorialTab() {
-  const [history, setHistory] = useState([])
-  const [loading, setLoading] = useState(false)
+function HistorialTab({ onViewDetail }) {
+  const [history, setHistory]     = useState([])
+  const [loading, setLoading]     = useState(false)
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
+  const [search, setSearch]       = useState('')
 
   async function load() {
     setLoading(true)
@@ -300,6 +301,15 @@ function HistorialTab() {
   }
 
   useEffect(() => { load() }, []) // eslint-disable-line
+
+  const filteredHistory = useMemo(() => {
+    if (!search.trim()) return history
+    const q = search.toLowerCase()
+    return history.filter(f =>
+      f.cliente?.toLowerCase().includes(q) ||
+      f.empresa?.toLowerCase().includes(q)
+    )
+  }, [history, search])
 
   const columns = [
     {
@@ -337,20 +347,39 @@ function HistorialTab() {
       header: 'Completado por',
       render: (f) => <span className="text-xs text-gray-500">{f.completed_by ?? '—'}</span>,
     },
+    {
+      key: 'ficha',
+      header: '',
+      render: (f) => (
+        <button
+          onClick={() => onViewDetail?.(f.contact_id)}
+          className="text-xs text-amber-600 hover:text-amber-700 underline whitespace-nowrap"
+        >
+          Ver ficha
+        </button>
+      ),
+    },
   ]
 
   return (
     <div>
       <div className="flex flex-wrap items-end gap-3 mb-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+        <Input
+          label="Buscar"
+          placeholder="Contacto o empresa..."
+          className="w-48"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
         <Input label="Desde" type="date" className="w-40" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
         <Input label="Hasta" type="date" className="w-40" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
         <Button size="sm" onClick={load}>Aplicar</Button>
-        <Button size="sm" variant="ghost" onClick={() => { setFechaDesde(''); setFechaHasta(''); }}>Limpiar</Button>
+        <Button size="sm" variant="ghost" onClick={() => { setFechaDesde(''); setFechaHasta(''); setSearch(''); }}>Limpiar</Button>
       </div>
 
       <Table
         columns={columns}
-        data={history}
+        data={filteredHistory}
         loading={loading}
         keyExtractor={f => f.id}
         emptyMessage="No hay historial con estos filtros"
@@ -362,13 +391,17 @@ function HistorialTab() {
 // ── Página principal ───────────────────────────────────────────────────────────
 
 export default function Seguimientos() {
-  const navigate = useNavigate()
   const [tab, setTab] = useState('pendientes')
   const { pendingFollowups } = useFollowupStore()
+  const [viewContact, setViewContact] = useState(null)
 
-  function handleNavigateToContact(_contactId) {
-    navigate('/contacts')
-    // TODO: podría abrirse el modal del contacto — por ahora navega a la lista
+  async function handleOpenContactDetail(contactId) {
+    try {
+      const contact = await contactService.getById(contactId)
+      setViewContact(contact)
+    } catch {
+      toast.error('Error al cargar el contacto')
+    }
   }
 
   const tabClass = (t) =>
@@ -385,7 +418,6 @@ export default function Seguimientos() {
         subtitle={`${pendingFollowups.length} pendientes`}
       />
 
-      {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
         <button className={tabClass('pendientes')} onClick={() => setTab('pendientes')}>
           Pendientes
@@ -399,9 +431,16 @@ export default function Seguimientos() {
       </div>
 
       {tab === 'pendientes'
-        ? <PendingTab onNavigateToContact={handleNavigateToContact} />
-        : <HistorialTab />
+        ? <PendingTab onNavigateToContact={handleOpenContactDetail} />
+        : <HistorialTab onViewDetail={handleOpenContactDetail} />
       }
+
+      <ContactViewModal
+        open={!!viewContact}
+        contact={viewContact}
+        onClose={() => setViewContact(null)}
+        onEdit={() => setViewContact(null)}
+      />
     </div>
   )
 }

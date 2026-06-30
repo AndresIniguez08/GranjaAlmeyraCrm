@@ -7,6 +7,7 @@ import * as prospectService from '@/services/prospectService'
 import { NO_VIABLE_REASONS } from '@/utils/constants'
 import { ProspectGrid }      from '@/features/prospects/ProspectGrid'
 import { ProspectList }      from '@/features/prospects/ProspectList'
+import { ProspectDetailModal } from '@/features/prospects/ProspectDetailModal'
 import { ProspectModal }     from '@/features/prospects/ProspectModal'
 import { AttemptModal }      from '@/features/prospects/AttemptModal'
 import { AttemptEditModal }  from '@/features/prospects/AttemptEditModal'
@@ -127,6 +128,7 @@ export default function Prospectos() {
   const [followupContact, setFollowupContact] = useState(null)
   const [convertProspect, setConvertProspect] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [detailProspect, setDetailProspect] = useState(null)
 
   // ── Fetch inicial ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -412,6 +414,7 @@ export default function Prospectos() {
             onEdit={openEditProspect}
             onDelete={handleDeleteProspect}
             onConvert={setConvertProspect}
+            onViewDetail={setDetailProspect}
             loading={saving}
           />
         )}
@@ -452,6 +455,13 @@ export default function Prospectos() {
           onClose={closeFollowup}
         />
       )}
+
+      {/* Modal: ficha completa de prospecto */}
+      <ProspectDetailModal
+        open={!!detailProspect}
+        onClose={() => setDetailProspect(null)}
+        prospect={detailProspect}
+      />
 
       {/* Modal: convertir prospecto propio a cliente */}
       {convertProspect && (

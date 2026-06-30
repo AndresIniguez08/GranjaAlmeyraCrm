@@ -65,6 +65,16 @@ export const contactService = {
     return data ?? []
   },
 
+  async getById(id) {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('*')
+      .eq('id', id)
+      .single()
+    if (error) throw error
+    return data
+  },
+
   async create(contact) {
     const { data, error } = await supabase
       .from(TABLE)
