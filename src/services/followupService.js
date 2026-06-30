@@ -117,15 +117,20 @@ export const followupService = {
 
     if (new_contact_status && new_contact_status !== 'no_cambiar' && contact_id) {
       const contactUpdate = { estado: new_contact_status }
-      if (new_contact_status === 'No Viable' && no_viable_reason) {
-        contactUpdate.no_viable_reason = no_viable_reason
+      if (new_contact_status === 'No Viable') {
+        contactUpdate.no_viable_reason = no_viable_reason || null
       } else {
         contactUpdate.no_viable_reason = null
       }
-      await supabase
+      console.log('Actualizando estado a:', new_contact_status)
+      console.log('Motivo no viable:', no_viable_reason)
+      console.log('Contact ID:', contact_id)
+      console.log('Payload:', contactUpdate)
+      const { error: updateError } = await supabase
         .from(CONTACTS_TABLE)
         .update(contactUpdate)
         .eq('id', contact_id)
+      if (updateError) throw updateError
     }
 
     return data
