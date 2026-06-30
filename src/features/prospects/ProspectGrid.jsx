@@ -4,6 +4,7 @@ import { es } from 'date-fns/locale'
 import {
   Phone, Plus, Target,
   AtSign, MessageCircle, FileText, MapPin, Edit3, Mail, UserCheck,
+  ChevronUp, ChevronDown,
 } from 'lucide-react'
 import { PROSPECT_ACTIONS, PROSPECT_RESULTS } from '@/utils/constants'
 import { CompleteFollowupModal } from '@/features/followups/CompleteFollowupModal'
@@ -151,7 +152,7 @@ function EmptyCell() {
 
 // ─── Separador de sección ─────────────────────────────────────────────────────
 
-function SectionSeparator({ title, filteredCount, totalCount, unit, colSpan }) {
+function SectionSeparator({ title, filteredCount, totalCount, unit, colSpan, isExpanded, onToggle }) {
   const isFiltered = totalCount !== undefined && filteredCount !== totalCount
   const countLabel = isFiltered
     ? `${filteredCount} de ${totalCount} ${unit}`
@@ -160,12 +161,21 @@ function SectionSeparator({ title, filteredCount, totalCount, unit, colSpan }) {
     <tr>
       <td
         colSpan={colSpan}
-        className="bg-gray-100 px-4 py-2 border-y border-gray-200"
+        className="bg-gray-100 border-y border-gray-200 p-0"
         style={{ position: 'sticky', left: 0, zIndex: 15 }}
       >
-        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-          {title} — {countLabel}
-        </span>
+        <button
+          onClick={onToggle}
+          className="w-full px-4 py-2 flex items-center justify-between hover:bg-gray-200 transition-colors text-left"
+        >
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+            {title} — {countLabel}
+          </span>
+          {isExpanded
+            ? <ChevronUp size={14} className="text-gray-400 shrink-0" />
+            : <ChevronDown size={14} className="text-gray-400 shrink-0" />
+          }
+        </button>
       </td>
     </tr>
   )
@@ -288,6 +298,8 @@ export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount
   const [tooltip, setTooltip] = useState(null)
   const [completeFollowup, setCompleteFollowup] = useState(null)
   const [completeAttempt, setCompleteAttempt] = useState(null)
+  const [showSinVender, setShowSinVender] = useState(true)
+  const [showPropios, setShowPropios] = useState(true)
 
   const allDates = useMemo(() => {
     const set = new Set()
@@ -379,35 +391,39 @@ export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount
               totalCount={totalContactsCount}
               unit={`contacto${(totalContactsCount ?? contacts.length) !== 1 ? 's' : ''}`}
               colSpan={totalCols}
+              isExpanded={showSinVender}
+              onToggle={() => setShowSinVender(v => !v)}
             />
-            {contacts.length === 0 ? (
-              <tr>
-                <td colSpan={totalCols} className="px-6 py-4 text-sm text-gray-400 text-center bg-white">
-                  No hay contactos No Vendidos
-                </td>
-              </tr>
-            ) : (
-              contacts.map((contact, idx) => (
-                <ItemRow
-                  key={contact.id}
-                  item={contact}
-                  allDates={allDates}
-                  onAddClick={onAddFollowup}
-                  onCellClick={(item, attempt) => setCompleteFollowup({
-                    id: attempt.id,
-                    contact_id: attempt.contact_id,
-                    scheduled_date: attempt.scheduled_date,
-                    note: attempt.note,
-                    cliente: item.name,
-                    empresa: item.business,
-                    telefono: item.phone,
-                  })}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  idx={idx}
-                  isContact={true}
-                />
-              ))
+            {showSinVender && (
+              contacts.length === 0 ? (
+                <tr>
+                  <td colSpan={totalCols} className="px-6 py-4 text-sm text-gray-400 text-center bg-white">
+                    No hay contactos No Vendidos
+                  </td>
+                </tr>
+              ) : (
+                contacts.map((contact, idx) => (
+                  <ItemRow
+                    key={contact.id}
+                    item={contact}
+                    allDates={allDates}
+                    onAddClick={onAddFollowup}
+                    onCellClick={(item, attempt) => setCompleteFollowup({
+                      id: attempt.id,
+                      contact_id: attempt.contact_id,
+                      scheduled_date: attempt.scheduled_date,
+                      note: attempt.note,
+                      cliente: item.name,
+                      empresa: item.business,
+                      telefono: item.phone,
+                    })}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    idx={idx}
+                    isContact={true}
+                  />
+                ))
+              )
             )}
 
             {/* Sección B: Prospectos propios */}
@@ -417,32 +433,36 @@ export function ProspectGrid({ contacts = [], prospects = [], totalContactsCount
               totalCount={totalProspectsCount}
               unit={`prospecto${(totalProspectsCount ?? prospects.length) !== 1 ? 's' : ''}`}
               colSpan={totalCols}
+              isExpanded={showPropios}
+              onToggle={() => setShowPropios(v => !v)}
             />
-            {prospects.length === 0 ? (
-              <tr>
-                <td colSpan={totalCols} className="px-6 py-4 text-sm text-gray-400 text-center bg-white">
-                  No hay prospectos propios. Usá el botón "Nuevo prospecto" para agregar el primero.
-                </td>
-              </tr>
-            ) : (
-              prospects.map((prospect, idx) => (
-                <ItemRow
-                  key={prospect.id}
-                  item={prospect}
-                  allDates={allDates}
-                  onAddClick={onAddAttempt}
-                  onCellClick={(item, attempt) => setCompleteAttempt({
-                    ...attempt,
-                    prospectName: item.name,
-                    prospectBusiness: item.business,
-                  })}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  idx={idx}
-                  isContact={false}
-                  onConvert={onConvert}
-                />
-              ))
+            {showPropios && (
+              prospects.length === 0 ? (
+                <tr>
+                  <td colSpan={totalCols} className="px-6 py-4 text-sm text-gray-400 text-center bg-white">
+                    No hay prospectos propios. Usá el botón "Nuevo prospecto" para agregar el primero.
+                  </td>
+                </tr>
+              ) : (
+                prospects.map((prospect, idx) => (
+                  <ItemRow
+                    key={prospect.id}
+                    item={prospect}
+                    allDates={allDates}
+                    onAddClick={onAddAttempt}
+                    onCellClick={(item, attempt) => setCompleteAttempt({
+                      ...attempt,
+                      prospectName: item.name,
+                      prospectBusiness: item.business,
+                    })}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                    idx={idx}
+                    isContact={false}
+                    onConvert={onConvert}
+                  />
+                ))
+              )
             )}
           </tbody>
         </table>
