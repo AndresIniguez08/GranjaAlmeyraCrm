@@ -117,24 +117,6 @@ function makeZoneIcon(color) {
 
 // ── Helpers de zonas ─────────────────────────────────────────────────────────
 
-function applyOffsets(zones) {
-  const result = [...zones]
-  const threshold = 0.05
-  for (let i = 0; i < result.length; i++) {
-    for (let j = i + 1; j < result.length; j++) {
-      const a = result[i].coordinates
-      const b = result[j].coordinates
-      if (Math.abs(a.lat - b.lat) < threshold && Math.abs(a.lng - b.lng) < threshold) {
-        result[j] = {
-          ...result[j],
-          coordinates: { lat: b.lat + 0.04, lng: b.lng + 0.04 },
-        }
-      }
-    }
-  }
-  return result
-}
-
 function CityPopup({ zone, deliveryZones, colorMap }) {
   const zonesInSameCity = deliveryZones.filter(
     z => z.city.toLowerCase() === zone.city.toLowerCase()
@@ -257,8 +239,6 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
     return map
   })()
 
-  const zonesWithOffsets = applyOffsets(deliveryZones)
-
   if (loading && mapView === 'clients') {
     return (
       <div className="h-full w-full flex items-center justify-center bg-primary-50">
@@ -345,7 +325,7 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
         )}
 
         {/* ── Vista zonas de reparto ── */}
-        {mapView === 'zones' && zonesWithOffsets.map(zone => {
+        {mapView === 'zones' && deliveryZones.map(zone => {
           const color = colorMap[zone.client_id] ?? '#9CA3AF'
           return (
             <Circle
@@ -367,7 +347,7 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
           )
         })}
 
-        {mapView === 'zones' && zonesWithOffsets.map(zone => {
+        {mapView === 'zones' && deliveryZones.map(zone => {
           const color = colorMap[zone.client_id] ?? '#9CA3AF'
           return (
             <Marker
