@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { Map as MapIcon, MapPin } from 'lucide-react'
 import { Modal, Badge, Button } from '@/components/ui'
 import { formatDate, cleanPhoneForWhatsApp } from '@/utils/formatters'
+import { DeliveryZoneManager } from './DeliveryZoneManager'
 
 export function ClientViewModal({ client, open, onClose, onEdit }) {
   if (!client) return null
@@ -71,6 +72,8 @@ export function ClientViewModal({ client, open, onClose, onEdit }) {
           <Field label="Fecha registro" value={formatDate(client.registered_at)} />
         </div>
       </dl>
+
+      <DeliveryZoneManager client={client} />
     </Modal>
   )
 }
