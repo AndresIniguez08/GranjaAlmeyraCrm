@@ -11,6 +11,21 @@ const ARGENTINA_CENTER = [-34.6037, -58.3816]
 const DEFAULT_ZOOM = 6
 const ZONE_RADIUS_M = 15000
 
+const DELIVERY_COLORS = [
+  '#EF4444',
+  '#3B82F6',
+  '#10B981',
+  '#F59E0B',
+  '#8B5CF6',
+  '#F97316',
+  '#06B6D4',
+  '#EC4899',
+  '#84CC16',
+  '#6366F1',
+  '#14B8A6',
+  '#DC2626',
+]
+
 // ── Controla zoom + vista cuando focusClient cambia ───────────────────────────
 
 function MapController({ focusClient }) {
@@ -44,19 +59,19 @@ function Legend() {
 
 // ── Leyenda zonas ─────────────────────────────────────────────────────────────
 
-function ZonesLegend({ clientsWithDelivery }) {
+function ZonesLegend({ clientsWithDelivery, colorMap }) {
   return (
     <div className="absolute bottom-6 right-4 z-[1000] bg-white rounded-xl shadow-lg p-3 min-w-[180px]">
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
         Zonas de reparto
       </p>
       {clientsWithDelivery.map(client => (
-        <div key={client.id} className="flex items-center gap-2 mb-1">
+        <div key={client.id} className="flex items-center gap-2 mb-1.5">
           <div
-            className="w-3 h-3 rounded-full opacity-60"
-            style={{ backgroundColor: TIPO_COLORS[client.type] ?? '#9CA3AF' }}
+            className="w-4 h-4 rounded-full flex-shrink-0 opacity-80"
+            style={{ backgroundColor: colorMap[client.id] }}
           />
-          <span className="text-xs text-gray-600 truncate">{client.name}</span>
+          <span className="text-xs text-gray-700 font-medium truncate">{client.name}</span>
         </div>
       ))}
       {clientsWithDelivery.length === 0 && (
@@ -68,20 +83,22 @@ function ZonesLegend({ clientsWithDelivery }) {
 
 // ── Íconos Leaflet ────────────────────────────────────────────────────────────
 
-const depotIcon = L.divIcon({
-  className: '',
-  html: `<div style="
-    width:28px;height:28px;
-    background:#1E40AF;
-    border:3px solid white;
-    border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    box-shadow:0 2px 8px rgba(0,0,0,0.3);
-    font-size:14px;
-  ">🏭</div>`,
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-})
+function makeDepotIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:28px;height:28px;
+      background:#1E40AF;
+      border:3px solid ${color};
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      font-size:14px;
+    ">🏭</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  })
+}
 
 function makeZoneIcon(color) {
   return L.divIcon({
@@ -185,6 +202,13 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
 
   const clientsWithDelivery = zoneGroups.map(g => g.client)
 
+  const colorMap = (() => {
+    const uniqueIds = [...new Set(deliveryZones.map(z => z.client_id))]
+    const map = {}
+    uniqueIds.forEach((id, i) => { map[id] = DELIVERY_COLORS[i % DELIVERY_COLORS.length] })
+    return map
+  })()
+
   if (loading && mapView === 'clients') {
     return (
       <div className="h-full w-full flex items-center justify-center bg-primary-50">
@@ -272,7 +296,7 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
 
         {/* ── Vista zonas de reparto ── */}
         {mapView === 'zones' && zoneGroups.map(({ client, zones }) => {
-          const color = TIPO_COLORS[client.type] ?? '#9CA3AF'
+          const color = colorMap[client.id] ?? '#9CA3AF'
 
           return zones.map(zone => (
             <Circle
@@ -282,9 +306,9 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
               pathOptions={{
                 color,
                 fillColor: color,
-                fillOpacity: 0.15,
+                fillOpacity: 0.2,
                 weight: 2,
-                opacity: 0.6,
+                opacity: 0.8,
               }}
             >
               <Popup>
@@ -299,7 +323,7 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
         })}
 
         {mapView === 'zones' && zoneGroups.map(({ client, zones }) => {
-          const color = TIPO_COLORS[client.type] ?? '#9CA3AF'
+          const color = colorMap[client.id] ?? '#9CA3AF'
 
           return zones.map(zone => (
             <Marker
@@ -324,7 +348,7 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
             <Marker
               key={`depot-${client.id}`}
               position={[client.coordinates.lat, client.coordinates.lng]}
-              icon={depotIcon}
+              icon={makeDepotIcon(colorMap[client.id] ?? '#9CA3AF')}
             >
               <Popup>
                 <div className="text-sm min-w-[160px]">
@@ -346,7 +370,7 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
       </MapContainer>
 
       {mapView === 'clients' && <Legend />}
-      {mapView === 'zones' && <ZonesLegend clientsWithDelivery={clientsWithDelivery} />}
+      {mapView === 'zones' && <ZonesLegend clientsWithDelivery={clientsWithDelivery} colorMap={colorMap} />}
     </div>
   )
 }
