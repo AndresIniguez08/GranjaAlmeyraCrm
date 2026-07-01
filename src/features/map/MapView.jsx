@@ -115,6 +115,54 @@ function makeZoneIcon(color) {
   })
 }
 
+// ── Helpers de zonas ─────────────────────────────────────────────────────────
+
+function applyOffsets(zones) {
+  const result = [...zones]
+  const threshold = 0.05
+  for (let i = 0; i < result.length; i++) {
+    for (let j = i + 1; j < result.length; j++) {
+      const a = result[i].coordinates
+      const b = result[j].coordinates
+      if (Math.abs(a.lat - b.lat) < threshold && Math.abs(a.lng - b.lng) < threshold) {
+        result[j] = {
+          ...result[j],
+          coordinates: { lat: b.lat + 0.04, lng: b.lng + 0.04 },
+        }
+      }
+    }
+  }
+  return result
+}
+
+function CityPopup({ zone, deliveryZones, colorMap }) {
+  const zonesInSameCity = deliveryZones.filter(
+    z => z.city.toLowerCase() === zone.city.toLowerCase()
+  )
+  return (
+    <div className="text-sm min-w-[160px]">
+      <p className="font-semibold text-gray-800 mb-2">
+        📍 {zone.city}
+        {zone.province && (
+          <span className="text-gray-400 font-normal"> · {zone.province}</span>
+        )}
+      </p>
+      <div className="space-y-1">
+        {zonesInSameCity.map(z => (
+          <div key={z.id} className="flex items-center gap-2">
+            <div
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: colorMap[z.client_id] }}
+            />
+            <span className="text-xs text-gray-700">{z.commercial_clients.name}</span>
+            <span className="text-xs text-gray-400">{z.commercial_clients.type}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── MapView ───────────────────────────────────────────────────────────────────
 
 export function MapView({ filters, focusClient, mapView = 'clients' }) {
@@ -209,6 +257,8 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
     return map
   })()
 
+  const zonesWithOffsets = applyOffsets(deliveryZones)
+
   if (loading && mapView === 'clients') {
     return (
       <div className="h-full w-full flex items-center justify-center bg-primary-50">
@@ -295,10 +345,9 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
         )}
 
         {/* ── Vista zonas de reparto ── */}
-        {mapView === 'zones' && zoneGroups.map(({ client, zones }) => {
-          const color = colorMap[client.id] ?? '#9CA3AF'
-
-          return zones.map(zone => (
+        {mapView === 'zones' && zonesWithOffsets.map(zone => {
+          const color = colorMap[zone.client_id] ?? '#9CA3AF'
+          return (
             <Circle
               key={zone.id}
               center={[zone.coordinates.lat, zone.coordinates.lng]}
@@ -306,40 +355,31 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
               pathOptions={{
                 color,
                 fillColor: color,
-                fillOpacity: 0.2,
+                fillOpacity: 0.12,
                 weight: 2,
-                opacity: 0.8,
+                opacity: 0.9,
               }}
             >
               <Popup>
-                <div className="text-sm">
-                  <p className="font-semibold">{zone.city}</p>
-                  <p className="text-gray-500">{client.name}</p>
-                  <p className="text-gray-500">{client.company}</p>
-                </div>
+                <CityPopup zone={zone} deliveryZones={deliveryZones} colorMap={colorMap} />
               </Popup>
             </Circle>
-          ))
+          )
         })}
 
-        {mapView === 'zones' && zoneGroups.map(({ client, zones }) => {
-          const color = colorMap[client.id] ?? '#9CA3AF'
-
-          return zones.map(zone => (
+        {mapView === 'zones' && zonesWithOffsets.map(zone => {
+          const color = colorMap[zone.client_id] ?? '#9CA3AF'
+          return (
             <Marker
               key={`zm-${zone.id}`}
               position={[zone.coordinates.lat, zone.coordinates.lng]}
               icon={makeZoneIcon(color)}
             >
               <Popup>
-                <div className="text-sm">
-                  <p className="font-semibold">{zone.city}</p>
-                  <p className="text-gray-500">{client.name}</p>
-                  <p className="text-gray-500">{client.company}</p>
-                </div>
+                <CityPopup zone={zone} deliveryZones={deliveryZones} colorMap={colorMap} />
               </Popup>
             </Marker>
-          ))
+          )
         })}
 
         {mapView === 'zones' && zoneGroups
