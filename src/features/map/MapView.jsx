@@ -335,9 +335,9 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
               pathOptions={{
                 color,
                 fillColor: color,
-                fillOpacity: 0.12,
-                weight: 2,
-                opacity: 0.9,
+                fillOpacity: 0.06,
+                weight: 4,
+                opacity: 1,
               }}
             >
               <Popup>
