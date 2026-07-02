@@ -9,14 +9,15 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 
 const ARGENTINA_CENTER = [-34.6037, -58.3816]
 const DEFAULT_ZOOM = 6
-const BASE_RADIUS = 15000
+const DEFAULT_RADIUS = 8000
 
 function getZoneRadius(zone, allZones) {
   const cityZones = allZones.filter(
     z => z.city.toLowerCase() === zone.city.toLowerCase()
   )
   const index = cityZones.findIndex(z => z.id === zone.id)
-  return BASE_RADIUS - index * 3000
+  const baseRadius = zone.radius || DEFAULT_RADIUS
+  return baseRadius - index * 2000
 }
 
 const DELIVERY_COLORS = [

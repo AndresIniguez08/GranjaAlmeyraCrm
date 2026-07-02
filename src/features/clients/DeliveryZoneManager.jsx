@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Plus, X } from 'lucide-react'
+import toast from 'react-hot-toast'
 import useAuthStore from '@/store/authStore'
 import {
   getDeliveryZones,
   addDeliveryZone,
   deleteDeliveryZone,
   toggleDelivery,
+  recalculateZoneRadius,
 } from '@/services/deliveryZoneService'
 
 export function DeliveryZoneManager({ client }) {
@@ -17,6 +19,7 @@ export function DeliveryZoneManager({ client }) {
   const [newProvince, setNewProvince] = useState('')
   const [addingZone, setAddingZone] = useState(false)
   const [geoError, setGeoError] = useState(null)
+  const [recalculating, setRecalculating] = useState(false)
 
   useEffect(() => {
     getDeliveryZones(client.id).then(setZones).catch(() => {})
@@ -61,6 +64,23 @@ export function DeliveryZoneManager({ client }) {
     }
   }
 
+  async function handleRecalculate() {
+    setRecalculating(true)
+    try {
+      for (const zone of zones) {
+        await recalculateZoneRadius(zone.id, zone.city, zone.province)
+        await new Promise(r => setTimeout(r, 1000)) // respetar rate limit de Nominatim
+      }
+      const updated = await getDeliveryZones(client.id)
+      setZones(updated)
+      toast.success('Zonas recalculadas')
+    } catch (err) {
+      toast.error(err.message || 'Error al recalcular zonas')
+    } finally {
+      setRecalculating(false)
+    }
+  }
+
   return (
     <div className="mt-6 border-t border-gray-100 pt-4">
 
@@ -85,6 +105,16 @@ export function DeliveryZoneManager({ client }) {
       {/* Sección de zonas */}
       {hasDelivery && (
         <div className="space-y-3">
+
+          {zones.some(z => !z.radius || z.radius === 8000) && (
+            <button
+              onClick={handleRecalculate}
+              disabled={recalculating}
+              className="text-xs text-amber-600 hover:text-amber-700 underline disabled:opacity-50"
+            >
+              {recalculating ? 'Recalculando…' : '↻ Recalcular tamaño de zonas'}
+            </button>
+          )}
 
           {zones.length > 0 && (
             <div className="space-y-2">
