@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, RefreshCw, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useAuthStore from '@/store/authStore'
 import {
@@ -106,13 +106,14 @@ export function DeliveryZoneManager({ client }) {
       {hasDelivery && (
         <div className="space-y-3">
 
-          {zones.some(z => !z.radius || z.radius === 8000) && (
+          {zones.length > 0 && (
             <button
               onClick={handleRecalculate}
               disabled={recalculating}
-              className="text-xs text-amber-600 hover:text-amber-700 underline disabled:opacity-50"
+              className="text-xs text-amber-600 hover:text-amber-700 underline flex items-center gap-1 disabled:opacity-50"
             >
-              {recalculating ? 'Recalculando…' : '↻ Recalcular tamaño de zonas'}
+              <RefreshCw size={12} className={recalculating ? 'animate-spin' : ''} />
+              {recalculating ? 'Recalculando…' : 'Recalcular tamaño de zonas'}
             </button>
           )}
 

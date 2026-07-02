@@ -24,19 +24,20 @@ export async function getAllDeliveryZones() {
 }
 
 const DEFAULT_RADIUS = 8000
-const MIN_RADIUS = 3000
-const MAX_RADIUS = 20000
+const MIN_RADIUS = 2000
+const MAX_RADIUS = 12000
 const METERS_PER_DEGREE = 111000
+const CITY_TYPES = ['city', 'town', 'village', 'municipality']
 
 async function geocodeCity(city, province) {
   const query = province ? `${city}, ${province}, Argentina` : `${city}, Argentina`
   const res = await fetch(
-    `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=ar`,
+    `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=json&limit=3&countrycodes=ar&featuretype=city`,
     { headers: { 'Accept-Language': 'es' } }
   )
   const results = await res.json()
   if (!results.length) return null
-  return results[0]
+  return results.find(r => CITY_TYPES.includes(r.type)) || results[0]
 }
 
 // Radio = mitad de la diagonal del bounding box que devuelve Nominatim,
