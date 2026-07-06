@@ -66,6 +66,9 @@ export function ContactForm({ defaultValues, onSubmit, loading, clientOptions = 
       try {
         const coords = await geocodeLocalidad(data.localidad, data.provincia)
         if (coords) payload.mapa_coords = coords
+      } catch (err) {
+        // Nominatim puede fallar (red, rate-limit) — no debe bloquear el guardado del contacto
+        console.warn('Geocoding falló, guardando sin coordenadas:', err)
       } finally {
         setGeocoding(false)
       }
