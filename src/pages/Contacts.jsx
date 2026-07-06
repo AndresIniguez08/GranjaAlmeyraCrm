@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useContacts } from '@/hooks/useContacts'
 import { clientService } from '@/services/clientService'
@@ -16,6 +17,7 @@ import { PageHeader } from '@/components/layout/Layout'
 import { exportContacts } from '@/utils/exporters'
 
 export default function Contacts() {
+  const location = useLocation()
   const {
     contacts, totalCount, page, pageSize, filters, loading,
     load, create, update, remove, setFilters, setPage,
@@ -62,6 +64,14 @@ export default function Contacts() {
   useEffect(() => {
     clientService.getAllForSelect().then(setClientOptions).catch(() => {})
   }, [])
+
+  // Resaltar contacto al llegar desde el Mapa de Contactos
+  useEffect(() => {
+    if (location.state?.focusContact) {
+      setViewContact(location.state.focusContact)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, []) // eslint-disable-line
 
   const handleApplyFilters = useCallback((f) => {
     setFilters(f)

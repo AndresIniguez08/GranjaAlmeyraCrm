@@ -66,6 +66,13 @@ export const TIPO_COLORS = {
   'Supermercados':'#F97316',
 }
 
+export const CONTACT_STATE_COLORS = {
+  'Vendido':    '#10B981',
+  'No Vendido': '#EF4444',
+  'Derivado':   '#F59E0B',
+  'No Viable':  '#6B7280',
+}
+
 export const CHART_COLORS = {
   Vendido:         '#10B981',
   'No Vendido':    '#EF4444',

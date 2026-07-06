@@ -8,6 +8,7 @@ import Dashboard from '@/pages/Dashboard'
 import Contacts from '@/pages/Contacts'
 import Clients from '@/pages/Clients'
 import MapPage from '@/pages/Map'
+import ContactMap from '@/pages/ContactMap'
 import Reports from '@/pages/Reports'
 import Seguimientos from '@/pages/Seguimientos'
 import Prospectos from '@/pages/Prospectos'
@@ -69,6 +70,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <MapPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mapa-contactos"
+        element={
+          <ProtectedRoute>
+            <ContactMap />
           </ProtectedRoute>
         }
       />
