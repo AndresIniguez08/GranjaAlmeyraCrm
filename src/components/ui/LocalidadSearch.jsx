@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { MapPin, X } from 'lucide-react'
 
-const NOMINATIM_TYPES = ['city', 'town', 'village', 'municipality', 'suburb', 'neighbourhood', 'hamlet']
-
 function extractProvincia(address) {
-  return address?.state || address?.province || address?.region || ''
+  const raw = address?.state || address?.province || address?.region || ''
+  return raw
+    .replace('Provincia de ', '')
+    .replace('Ciudad Autónoma de ', 'CABA - ')
+    .trim()
 }
 
 function extractLocalidad(result) {
   return result.address?.city ||
     result.address?.town ||
     result.address?.village ||
+    result.address?.municipality ||
     result.address?.suburb ||
-    result.address?.neighbourhood ||
+    result.address?.county ||
     result.name ||
     ''
 }
@@ -36,19 +39,40 @@ export default function LocalidadSearch({ value, onChange, placeholder }) {
   }, [value])
 
   useEffect(() => {
-    if (query.length < 3 || selected) return
+    if (query.length < 2 || selected) return
 
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Argentina')}&format=json&limit=6&countrycodes=ar&addressdetails=1`,
-          { headers: { 'Accept-Language': 'es', 'User-Agent': 'CRM-GranjaAlmeyra/1.0' } }
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=8&countrycodes=ar&addressdetails=1&accept-language=es`,
+          { headers: { 'User-Agent': 'CRM-GranjaAlmeyra/1.0' } }
         )
         const results = await res.json()
-        const filtered = results.filter(r => NOMINATIM_TYPES.includes(r.type))
-        setSuggestions(filtered)
-        setIsOpen(filtered.length > 0)
+
+        const filtered = results.filter(r =>
+          r.address && (
+            r.address.city ||
+            r.address.town ||
+            r.address.village ||
+            r.address.municipality ||
+            r.address.suburb ||
+            r.address.county ||
+            r.name
+          )
+        )
+
+        const seen = new Set()
+        const unique = filtered.filter(r => {
+          const localidad = extractLocalidad(r)
+          const key = `${localidad}-${extractProvincia(r.address)}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+
+        setSuggestions(unique)
+        setIsOpen(unique.length > 0)
       } catch (e) {
         console.error('Nominatim error:', e)
       } finally {
@@ -94,7 +118,7 @@ export default function LocalidadSearch({ value, onChange, placeholder }) {
   const handleInputChange = (e) => {
     setQuery(e.target.value)
     setSelected(null)
-    if (e.target.value.length < 3) {
+    if (e.target.value.length < 2) {
       setSuggestions([])
       setIsOpen(false)
     }
@@ -154,7 +178,7 @@ export default function LocalidadSearch({ value, onChange, placeholder }) {
         </div>
       )}
 
-      {isOpen && suggestions.length === 0 && !loading && query.length >= 3 && (
+      {isOpen && suggestions.length === 0 && !loading && query.length >= 2 && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl
                         border border-gray-200 shadow-lg z-50 p-3 text-center">
           <p className="text-sm text-gray-500">Sin resultados para &quot;{query}&quot;</p>
