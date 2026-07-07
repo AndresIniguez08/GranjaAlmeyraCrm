@@ -3,8 +3,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input, Select, Textarea, Button } from '@/components/ui'
+import LocalidadSearch from '@/components/ui/LocalidadSearch'
 import { PRODUCTOS, ESTADOS_CONTACTO, VENDEDORES } from '@/utils/constants'
-import { PROVINCIAS, PROVINCIAS_LOCALIDADES } from '@/utils/argentina'
 
 const schema = z.object({
   fecha: z.string().min(1, 'La fecha es requerida'),
@@ -18,31 +18,26 @@ const schema = z.object({
   cliente_derivado: z.string().nullish(),
   motivo: z.string().optional(),
   note: z.string().optional(),
-  provincia: z.string().optional(),
-  localidad: z.string().optional(),
 })
 
-async function geocodeLocalidad(localidad, provincia) {
-  const query = `${localidad}, ${provincia}, Argentina`
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=ar`,
-    { headers: { 'Accept-Language': 'es' } }
-  )
-  const results = await res.json()
-  if (!results.length) return null
-  return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) }
+function ubicacionFromDefaults(defaultValues) {
+  if (!defaultValues?.provincia) return null
+  return {
+    localidad: defaultValues.localidad,
+    provincia: defaultValues.provincia,
+    coords: defaultValues.mapa_coords,
+  }
 }
 
 export function ContactForm({ defaultValues, onSubmit, loading, clientOptions = [] }) {
   const today = new Date().toISOString().split('T')[0]
-  const [geocoding, setGeocoding] = useState(false)
+  const [ubicacion, setUbicacion] = useState(ubicacionFromDefaults(defaultValues))
 
   const {
     register,
     handleSubmit,
     watch,
     reset,
-    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
@@ -50,32 +45,22 @@ export function ContactForm({ defaultValues, onSubmit, loading, clientOptions = 
   })
 
   useEffect(() => {
-    if (defaultValues) reset(defaultValues)
+    if (defaultValues) {
+      reset(defaultValues)
+      setUbicacion(ubicacionFromDefaults(defaultValues))
+    }
   }, [defaultValues, reset])
 
   const estado = watch('estado')
   const isDerivado = estado === 'Derivado'
-  const provincia = watch('provincia')
 
-  const provinciaField = register('provincia')
-
-  async function handleFormSubmit(data) {
-    const payload = { ...data }
-    if (data.provincia && data.localidad) {
-      setGeocoding(true)
-      try {
-        const coords = await geocodeLocalidad(data.localidad, data.provincia)
-        if (coords) payload.mapa_coords = coords
-      } catch (err) {
-        // Nominatim puede fallar (red, rate-limit) — no debe bloquear el guardado del contacto
-        console.warn('Geocoding falló, guardando sin coordenadas:', err)
-      } finally {
-        setGeocoding(false)
-      }
-    } else {
-      payload.mapa_coords = null
-    }
-    onSubmit(payload)
+  function handleFormSubmit(data) {
+    onSubmit({
+      ...data,
+      provincia: ubicacion?.provincia || null,
+      localidad: ubicacion?.localidad || null,
+      mapa_coords: ubicacion?.coords || null,
+    })
   }
 
   return (
@@ -183,30 +168,16 @@ export function ContactForm({ defaultValues, onSubmit, loading, clientOptions = 
           <span className="text-gray-400 font-normal ml-1">(opcional)</span>
         </p>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Select
-            label="Provincia"
-            placeholder="Seleccionar provincia..."
-            options={PROVINCIAS}
-            {...provinciaField}
-            onChange={(e) => {
-              provinciaField.onChange(e)
-              setValue('localidad', '')
-            }}
-          />
-          <Select
-            label="Localidad"
-            placeholder={provincia ? 'Seleccionar localidad...' : 'Primero seleccioná provincia'}
-            options={provincia ? PROVINCIAS_LOCALIDADES[provincia] ?? [] : []}
-            disabled={!provincia}
-            {...register('localidad')}
-          />
-        </div>
+        <LocalidadSearch
+          value={ubicacion}
+          onChange={setUbicacion}
+          placeholder="Buscar ciudad o localidad..."
+        />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button type="submit" loading={loading || geocoding} size="md">
-          {geocoding ? 'Ubicando...' : defaultValues?.id ? 'Guardar Cambios' : 'Registrar Contacto'}
+        <Button type="submit" loading={loading} size="md">
+          {defaultValues?.id ? 'Guardar Cambios' : 'Registrar Contacto'}
         </Button>
       </div>
     </form>
