@@ -16,11 +16,45 @@ export async function getAllDeliveryZones() {
     .from('client_delivery_zones')
     .select(`
       *,
-      commercial_clients (id, name, company, type, status, coordinates)
+      commercial_clients (id, name, company, type, status, phone, coordinates)
     `)
     .order('created_at', { ascending: true })
   if (error) throw error
   return data
+}
+
+const DELIVERY_COLOR_PALETTE = [
+  '#EF4444', '#10B981', '#3B82F6', '#F97316',
+  '#8B5CF6', '#F59E0B', '#06B6D4', '#EC4899',
+  '#84CC16', '#6366F1', '#14B8A6', '#DC2626',
+]
+
+export async function getDeliveryColors() {
+  const { data, error } = await supabase
+    .from('client_delivery_colors')
+    .select('client_id, color')
+  if (error) throw error
+
+  const map = {}
+  data.forEach(row => { map[row.client_id] = row.color })
+  return map
+}
+
+export async function assignDeliveryColor(clientId) {
+  const { data: usedColors } = await supabase
+    .from('client_delivery_colors')
+    .select('color')
+
+  const used = new Set(usedColors?.map(r => r.color) || [])
+  const nextColor = DELIVERY_COLOR_PALETTE.find(c => !used.has(c))
+    ?? DELIVERY_COLOR_PALETTE[used.size % DELIVERY_COLOR_PALETTE.length]
+
+  const { error } = await supabase
+    .from('client_delivery_colors')
+    .insert({ client_id: clientId, color: nextColor })
+  if (error) throw error
+
+  return nextColor
 }
 
 const DEFAULT_RADIUS = 8000
@@ -103,4 +137,16 @@ export async function toggleDelivery(clientId, hasDelivery) {
     .update({ has_delivery: hasDelivery })
     .eq('id', clientId)
   if (error) throw error
+
+  if (hasDelivery) {
+    const { data } = await supabase
+      .from('client_delivery_colors')
+      .select('color')
+      .eq('client_id', clientId)
+      .single()
+
+    if (!data) {
+      await assignDeliveryColor(clientId)
+    }
+  }
 }

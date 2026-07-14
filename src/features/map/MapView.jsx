@@ -2,28 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { clientService } from '@/services/clientService'
-import { getAllDeliveryZones } from '@/services/deliveryZoneService'
+import { getAllDeliveryZones, getDeliveryColors } from '@/services/deliveryZoneService'
 import { TIPO_COLORS } from '@/utils/constants'
 import { cleanPhoneForWhatsApp } from '@/utils/formatters'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
+import { DeliveryZonePanel } from '@/features/clients/DeliveryZonePanel'
 
 const ARGENTINA_CENTER = [-34.6037, -58.3816]
 const DEFAULT_ZOOM = 6
-
-const DELIVERY_COLORS = [
-  '#EF4444',
-  '#3B82F6',
-  '#10B981',
-  '#F59E0B',
-  '#8B5CF6',
-  '#F97316',
-  '#06B6D4',
-  '#EC4899',
-  '#84CC16',
-  '#6366F1',
-  '#14B8A6',
-  '#DC2626',
-]
+const FALLBACK_COLOR = '#6B7280'
 
 // ── Controla zoom + vista cuando focusClient cambia ───────────────────────────
 
@@ -58,37 +45,41 @@ function Legend() {
 
 // ── Leyenda zonas ─────────────────────────────────────────────────────────────
 
-function ZonesLegend({ clientsWithDelivery, colorMap }) {
+function ZonesLegend({ clientsWithDelivery, colorMap, offset }) {
   return (
-    <div className="absolute bottom-6 right-4 z-[1000] bg-white rounded-xl shadow-lg p-3 min-w-[180px]">
-      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-        Zonas de reparto
+    <div className={`absolute bottom-6 z-[1000] bg-white rounded-xl shadow-lg p-3 min-w-[200px] transition-all duration-300 ${
+      offset ? 'right-[336px]' : 'right-4'
+    }`}>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+        Distribuidores
       </p>
-      <div className="space-y-2">
-        {clientsWithDelivery.map(client => (
-          <div key={client.id} className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <div
-                className="w-4 h-4 rounded-full border-2 border-white shadow"
-                style={{ backgroundColor: colorMap[client.id] }}
-              />
-              <div
-                className="w-2.5 h-2.5 rounded-full"
-                style={{ backgroundColor: colorMap[client.id] }}
-              />
-            </div>
-            <span className="text-xs text-gray-700 font-medium">{client.name}</span>
-          </div>
-        ))}
-      </div>
+
+      {clientsWithDelivery.map(client => (
+        <div key={client.id} className="flex items-center gap-2 mb-2">
+          <div
+            className="w-3.5 h-3.5 rounded-full border-2 border-white shadow"
+            style={{ backgroundColor: colorMap[client.id] ?? FALLBACK_COLOR }}
+          />
+          <span className="text-xs text-gray-700 font-medium">{client.name}</span>
+        </div>
+      ))}
+
       {clientsWithDelivery.length === 0 && (
         <p className="text-xs text-gray-400">Ningún cliente tiene zonas definidas aún</p>
       )}
-      {clientsWithDelivery.length > 0 && (
-        <p className="text-xs text-gray-400 mt-2 border-t border-gray-100 pt-2">
-          🏭 Sede &nbsp;•&nbsp; ● Zona de reparto
-        </p>
-      )}
+
+      <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
+        <div className="flex items-center gap-2">
+          <div className="w-3.5 h-3.5 rounded-full bg-gray-400 flex items-center justify-center">
+            <span className="text-white text-[8px] font-bold">3</span>
+          </div>
+          <span className="text-xs text-gray-400">3+ distribuidores</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs">🏭</span>
+          <span className="text-xs text-gray-400">Sede del distribuidor</span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -112,19 +103,58 @@ function depotIcon(color) {
   })
 }
 
-function zoneMarkerIcon(color) {
+function singleIcon(color) {
   return L.divIcon({
     className: '',
     html: `<div style="
-      width:14px;height:14px;
+      width:18px;height:18px;
       background:${color};
       border:3px solid white;
       border-radius:50%;
-      box-shadow:0 2px 6px rgba(0,0,0,0.4);
+      box-shadow:0 2px 6px rgba(0,0,0,0.35);
     "></div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
   })
+}
+
+function doubleIcon(color1, color2) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:20px;height:20px;
+      background:linear-gradient(90deg, ${color1} 50%, ${color2} 50%);
+      border:3px solid white;
+      border-radius:50%;
+      box-shadow:0 2px 6px rgba(0,0,0,0.35);
+    "></div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  })
+}
+
+function multiIcon(count) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:24px;height:24px;
+      background:#6B7280;
+      border:3px solid white;
+      border-radius:50%;
+      box-shadow:0 2px 6px rgba(0,0,0,0.35);
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:bold;color:white;
+      font-family:Arial, sans-serif;
+    ">${count}</div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  })
+}
+
+function getCityIcon(clients) {
+  if (clients.length === 1) return singleIcon(clients[0].color)
+  if (clients.length === 2) return doubleIcon(clients[0].color, clients[1].color)
+  return multiIcon(clients.length)
 }
 
 // ── MapView ───────────────────────────────────────────────────────────────────
@@ -139,7 +169,9 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
 
   // Vista zonas
   const [deliveryZones, setDeliveryZones] = useState([])
+  const [colorMap, setColorMap] = useState({})
   const [loadingZones, setLoadingZones] = useState(false)
+  const [selectedZone, setSelectedZone] = useState(null)
 
   // ── Cargar clientes ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -181,14 +213,22 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
     return () => { abortRef.current = true }
   }, [filters, mapView]) // eslint-disable-line
 
-  // ── Cargar zonas de reparto ────────────────────────────────────────────────
+  // ── Cargar zonas de reparto + colores fijos ────────────────────────────────
   useEffect(() => {
     if (mapView !== 'zones') return
     setLoadingZones(true)
-    getAllDeliveryZones()
-      .then(setDeliveryZones)
+    Promise.all([getAllDeliveryZones(), getDeliveryColors()])
+      .then(([zones, colors]) => {
+        setDeliveryZones(zones)
+        setColorMap(colors)
+      })
       .catch(() => {})
       .finally(() => setLoadingZones(false))
+  }, [mapView])
+
+  // ── Cerrar panel lateral al salir de la vista de zonas ─────────────────────
+  useEffect(() => {
+    if (mapView !== 'zones') setSelectedZone(null)
   }, [mapView])
 
   // ── Abrir popup cliente enfocado ───────────────────────────────────────────
@@ -200,7 +240,7 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
     return () => clearTimeout(timer)
   }, [focusClient, loading])
 
-  // ── Calcular grupos de zonas ───────────────────────────────────────────────
+  // ── Calcular grupos de zonas por cliente (sedes) ───────────────────────────
   const zoneGroups = (() => {
     const clientMap = new Map()
     for (const zone of deliveryZones) {
@@ -214,11 +254,25 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
 
   const clientsWithDelivery = zoneGroups.map(g => g.client)
 
-  const colorMap = (() => {
-    const uniqueIds = [...new Set(deliveryZones.map(z => z.client_id))]
-    const map = {}
-    uniqueIds.forEach((id, i) => { map[id] = DELIVERY_COLORS[i % DELIVERY_COLORS.length] })
-    return map
+  // ── Agrupar zonas por ciudad para saber cuántos distribuidores la cubren ───
+  const cityGroups = (() => {
+    const zonesByCity = {}
+    deliveryZones.forEach(zone => {
+      const key = zone.city.toLowerCase()
+      if (!zonesByCity[key]) {
+        zonesByCity[key] = {
+          city: zone.city,
+          province: zone.province,
+          coordinates: zone.coordinates,
+          clients: [],
+        }
+      }
+      zonesByCity[key].clients.push({
+        ...zone.commercial_clients,
+        color: colorMap[zone.client_id] ?? FALLBACK_COLOR,
+      })
+    })
+    return Object.values(zonesByCity)
   })()
 
   if (loading && mapView === 'clients') {
@@ -244,133 +298,126 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
         </div>
       )}
 
-      <MapContainer
-        center={ARGENTINA_CENTER}
-        zoom={DEFAULT_ZOOM}
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+      <div className="flex h-full relative">
+        <div className={`flex-1 transition-all duration-300 ${selectedZone ? 'mr-[320px]' : ''}`}>
+          <MapContainer
+            center={ARGENTINA_CENTER}
+            zoom={DEFAULT_ZOOM}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
 
-        {/* ── Vista clientes ── */}
-        {mapView === 'clients' && (
-          <>
-            <MapController focusClient={focusClient} />
+            {/* ── Vista clientes ── */}
+            {mapView === 'clients' && (
+              <>
+                <MapController focusClient={focusClient} />
 
-            {clients.map(client => {
-              const isFocused = focusClient && client.id === focusClient.id
-              const color = TIPO_COLORS[client.type] ?? '#9CA3AF'
-              const phone = cleanPhoneForWhatsApp(client.phone)
+                {clients.map(client => {
+                  const isFocused = focusClient && client.id === focusClient.id
+                  const color = TIPO_COLORS[client.type] ?? '#9CA3AF'
+                  const phone = cleanPhoneForWhatsApp(client.phone)
 
-              return (
-                <CircleMarker
-                  key={client.id}
-                  ref={isFocused ? focusedMarkerRef : undefined}
-                  center={[client.coordinates.lat, client.coordinates.lng]}
-                  radius={isFocused ? 12 : 8}
-                  fillColor={color}
-                  color={isFocused ? '#F59E0B' : '#fff'}
-                  fillOpacity={0.9}
-                  weight={isFocused ? 3 : 1.5}
+                  return (
+                    <CircleMarker
+                      key={client.id}
+                      ref={isFocused ? focusedMarkerRef : undefined}
+                      center={[client.coordinates.lat, client.coordinates.lng]}
+                      radius={isFocused ? 12 : 8}
+                      fillColor={color}
+                      color={isFocused ? '#F59E0B' : '#fff'}
+                      fillOpacity={0.9}
+                      weight={isFocused ? 3 : 1.5}
+                    >
+                      <Popup maxWidth={240}>
+                        <div className="text-sm space-y-1">
+                          <p className="font-bold text-gray-800">{client.name || client.company}</p>
+                          {client.company && client.name && (
+                            <p className="text-gray-500 text-xs">{client.company}</p>
+                          )}
+                          <p className="text-xs font-semibold" style={{ color }}>
+                            {client.type}
+                            {client.status && <span className="ml-1 text-gray-400 font-normal">· {client.status}</span>}
+                          </p>
+                          {client.address && (
+                            <p className="text-gray-400 text-xs">{client.address}</p>
+                          )}
+                          {phone && (
+                            <a
+                              href={`https://api.whatsapp.com/send?phone=${phone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block mt-1 text-xs font-semibold text-green-600 hover:underline"
+                            >
+                              💬 WhatsApp
+                            </a>
+                          )}
+                        </div>
+                      </Popup>
+                    </CircleMarker>
+                  )
+                })}
+              </>
+            )}
+
+            {/* ── Vista zonas de reparto ── */}
+            {mapView === 'zones' && cityGroups.map(group => (
+              <Marker
+                key={group.city}
+                position={[group.coordinates.lat, group.coordinates.lng]}
+                icon={getCityIcon(group.clients)}
+                eventHandlers={{ click: () => setSelectedZone(group) }}
+              />
+            ))}
+
+            {mapView === 'zones' && zoneGroups
+              .filter(({ client }) => client.coordinates?.lat && client.coordinates?.lng)
+              .map(({ client, zones }) => (
+                <Marker
+                  key={`depot-${client.id}`}
+                  position={[client.coordinates.lat, client.coordinates.lng]}
+                  icon={depotIcon(colorMap[client.id] ?? FALLBACK_COLOR)}
                 >
-                  <Popup maxWidth={240}>
-                    <div className="text-sm space-y-1">
-                      <p className="font-bold text-gray-800">{client.name || client.company}</p>
-                      {client.company && client.name && (
-                        <p className="text-gray-500 text-xs">{client.company}</p>
-                      )}
-                      <p className="text-xs font-semibold" style={{ color }}>
-                        {client.type}
-                        {client.status && <span className="ml-1 text-gray-400 font-normal">· {client.status}</span>}
+                  <Popup>
+                    <div className="text-sm min-w-[160px]">
+                      <p className="font-semibold text-gray-800">{client.name}</p>
+                      <p className="text-gray-500 text-xs">{client.company}</p>
+                      <p className="text-xs text-blue-600 mt-1 font-medium">
+                        🚚 {zones.length} zona{zones.length > 1 ? 's' : ''} de reparto
                       </p>
-                      {client.address && (
-                        <p className="text-gray-400 text-xs">{client.address}</p>
-                      )}
-                      {phone && (
-                        <a
-                          href={`https://api.whatsapp.com/send?phone=${phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block mt-1 text-xs font-semibold text-green-600 hover:underline"
-                        >
-                          💬 WhatsApp
-                        </a>
-                      )}
+                      <div className="mt-1 space-y-0.5">
+                        {zones.map(z => (
+                          <p key={z.id} className="text-xs text-gray-500">
+                            • {z.city}{z.province ? `, ${z.province}` : ''}
+                          </p>
+                        ))}
+                      </div>
                     </div>
                   </Popup>
-                </CircleMarker>
-              )
-            })}
-          </>
+                </Marker>
+              ))
+            }
+          </MapContainer>
+        </div>
+
+        {mapView === 'zones' && selectedZone && (
+          <DeliveryZonePanel
+            key={selectedZone.city}
+            zone={selectedZone}
+            onClose={() => setSelectedZone(null)}
+          />
         )}
-
-        {/* ── Vista zonas de reparto ── */}
-        {mapView === 'zones' && deliveryZones.map(zone => {
-          const color = colorMap[zone.client_id] ?? '#9CA3AF'
-          return (
-            <Marker
-              key={zone.id}
-              position={[zone.coordinates.lat, zone.coordinates.lng]}
-              icon={zoneMarkerIcon(color)}
-            >
-              <Popup>
-                <div className="text-sm min-w-[160px]">
-                  <p className="font-semibold text-gray-800">{zone.city}</p>
-                  {zone.province && (
-                    <p className="text-xs text-gray-400">{zone.province}</p>
-                  )}
-                  <div className="flex items-center gap-1.5 mt-2">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: color }}
-                    />
-                    <span className="text-xs font-medium text-gray-700">
-                      {zone.commercial_clients.name}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {zone.commercial_clients.type}
-                  </p>
-                </div>
-              </Popup>
-            </Marker>
-          )
-        })}
-
-        {mapView === 'zones' && zoneGroups
-          .filter(({ client }) => client.coordinates?.lat && client.coordinates?.lng)
-          .map(({ client, zones }) => (
-            <Marker
-              key={`depot-${client.id}`}
-              position={[client.coordinates.lat, client.coordinates.lng]}
-              icon={depotIcon(colorMap[client.id] ?? '#9CA3AF')}
-            >
-              <Popup>
-                <div className="text-sm min-w-[160px]">
-                  <p className="font-semibold text-gray-800">{client.name}</p>
-                  <p className="text-gray-500 text-xs">{client.company}</p>
-                  <p className="text-xs text-blue-600 mt-1 font-medium">
-                    🚚 {zones.length} zona{zones.length > 1 ? 's' : ''} de reparto
-                  </p>
-                  <div className="mt-1 space-y-0.5">
-                    {zones.map(z => (
-                      <p key={z.id} className="text-xs text-gray-500">
-                        • {z.city}{z.province ? `, ${z.province}` : ''}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))
-        }
-      </MapContainer>
+      </div>
 
       {mapView === 'clients' && <Legend />}
       {mapView === 'zones' && (
-        <ZonesLegend clientsWithDelivery={clientsWithDelivery} colorMap={colorMap} />
+        <ZonesLegend
+          clientsWithDelivery={clientsWithDelivery}
+          colorMap={colorMap}
+          offset={!!selectedZone}
+        />
       )}
     </div>
   )
