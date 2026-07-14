@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Circle, Marker, Popup, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { ZoomIn } from 'lucide-react'
 import { clientService } from '@/services/clientService'
 import { getAllDeliveryZones } from '@/services/deliveryZoneService'
 import { TIPO_COLORS } from '@/utils/constants'
@@ -10,25 +9,6 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 
 const ARGENTINA_CENTER = [-34.6037, -58.3816]
 const DEFAULT_ZOOM = 6
-const DEFAULT_RADIUS = 8000
-
-// Umbrales de zoom para mostrar detalle progresivo de zonas de reparto
-const ZOOM_SHOW_CIRCLES = 9
-const ZOOM_FULL_DETAIL = 11
-
-function getZoneStyle(zoom) {
-  if (zoom > ZOOM_FULL_DETAIL) return { fillOpacity: 0.08, weight: 4 }
-  return { fillOpacity: 0.04, weight: 2 }
-}
-
-function getZoneRadius(zone, allZones) {
-  const cityZones = allZones.filter(
-    z => z.city.toLowerCase() === zone.city.toLowerCase()
-  )
-  const index = cityZones.findIndex(z => z.id === zone.id)
-  const baseRadius = zone.radius || DEFAULT_RADIUS
-  return baseRadius - index * 2000
-}
 
 const DELIVERY_COLORS = [
   '#EF4444',
@@ -60,41 +40,6 @@ function MapController({ focusClient }) {
   return null
 }
 
-// ── Detecta el zoom actual del mapa ───────────────────────────────────────────
-
-function ZoomTracker({ onZoomChange }) {
-  const map = useMapEvents({
-    zoom: () => onZoomChange(map.getZoom()),
-  })
-
-  useEffect(() => {
-    onZoomChange(map.getZoom())
-  }, [map]) // eslint-disable-line
-
-  return null
-}
-
-// ── Filtra las zonas visibles dentro del viewport actual ──────────────────────
-
-function ViewportFilter({ zones, onZonesInView }) {
-  const map = useMapEvents({
-    moveend: () => updateVisibleZones(),
-    zoomend: () => updateVisibleZones(),
-  })
-
-  const updateVisibleZones = () => {
-    const bounds = map.getBounds()
-    const visible = zones.filter(zone => bounds.contains([zone.coordinates.lat, zone.coordinates.lng]))
-    onZonesInView(visible)
-  }
-
-  useEffect(() => {
-    updateVisibleZones()
-  }, [zones]) // eslint-disable-line
-
-  return null
-}
-
 // ── Leyenda clientes ──────────────────────────────────────────────────────────
 
 function Legend() {
@@ -113,31 +58,36 @@ function Legend() {
 
 // ── Leyenda zonas ─────────────────────────────────────────────────────────────
 
-function ZonesLegend({ clientsWithDelivery, colorMap, currentZoom, allZones }) {
-  const showDetail = currentZoom >= ZOOM_SHOW_CIRCLES
+function ZonesLegend({ clientsWithDelivery, colorMap }) {
   return (
-    <div className="absolute bottom-6 right-4 z-[1000] bg-white rounded-xl shadow-lg p-3 min-w-[200px]">
+    <div className="absolute bottom-6 right-4 z-[1000] bg-white rounded-xl shadow-lg p-3 min-w-[180px]">
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-        {showDetail ? 'Zonas de reparto' : 'Distribuidores'}
+        Zonas de reparto
       </p>
-      {clientsWithDelivery.map(client => (
-        <div key={client.id} className="flex items-center gap-2 mb-1.5">
-          <div
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: colorMap[client.id] }}
-          />
-          <div className="flex-1 min-w-0">
-            <span className="text-xs text-gray-700 font-medium truncate block">{client.name}</span>
-            {!showDetail && (
-              <span className="text-xs text-gray-400">
-                {allZones.filter(z => z.client_id === client.id).length} zonas
-              </span>
-            )}
+      <div className="space-y-2">
+        {clientsWithDelivery.map(client => (
+          <div key={client.id} className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <div
+                className="w-4 h-4 rounded-full border-2 border-white shadow"
+                style={{ backgroundColor: colorMap[client.id] }}
+              />
+              <div
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: colorMap[client.id] }}
+              />
+            </div>
+            <span className="text-xs text-gray-700 font-medium">{client.name}</span>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
       {clientsWithDelivery.length === 0 && (
         <p className="text-xs text-gray-400">Ningún cliente tiene zonas definidas aún</p>
+      )}
+      {clientsWithDelivery.length > 0 && (
+        <p className="text-xs text-gray-400 mt-2 border-t border-gray-100 pt-2">
+          🏭 Sede &nbsp;•&nbsp; ● Zona de reparto
+        </p>
       )}
     </div>
   )
@@ -145,66 +95,36 @@ function ZonesLegend({ clientsWithDelivery, colorMap, currentZoom, allZones }) {
 
 // ── Íconos Leaflet ────────────────────────────────────────────────────────────
 
-function makeDepotIcon(color) {
+function depotIcon(color) {
   return L.divIcon({
     className: '',
     html: `<div style="
-      width:28px;height:28px;
-      background:#1E40AF;
-      border:3px solid ${color};
-      border-radius:50%;
-      display:flex;align-items:center;justify-content:center;
-      box-shadow:0 2px 8px rgba(0,0,0,0.3);
-      font-size:14px;
-    ">🏭</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-  })
-}
-
-function makeZoneIcon(color) {
-  return L.divIcon({
-    className: '',
-    html: `<div style="
-      width:10px;height:10px;
+      width:22px;height:22px;
       background:${color};
-      border:2px solid white;
+      border:3px solid white;
       border-radius:50%;
-      box-shadow:0 1px 4px rgba(0,0,0,0.3);
-    "></div>`,
-    iconSize: [10, 10],
-    iconAnchor: [5, 5],
+      box-shadow:0 2px 8px rgba(0,0,0,0.4);
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;
+    ">🏭</div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
   })
 }
 
-// ── Helpers de zonas ─────────────────────────────────────────────────────────
-
-function CityPopup({ zone, deliveryZones, colorMap }) {
-  const zonesInSameCity = deliveryZones.filter(
-    z => z.city.toLowerCase() === zone.city.toLowerCase()
-  )
-  return (
-    <div className="text-sm min-w-[160px]">
-      <p className="font-semibold text-gray-800 mb-2">
-        📍 {zone.city}
-        {zone.province && (
-          <span className="text-gray-400 font-normal"> · {zone.province}</span>
-        )}
-      </p>
-      <div className="space-y-1">
-        {zonesInSameCity.map(z => (
-          <div key={z.id} className="flex items-center gap-2">
-            <div
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: colorMap[z.client_id] }}
-            />
-            <span className="text-xs text-gray-700">{z.commercial_clients.name}</span>
-            <span className="text-xs text-gray-400">{z.commercial_clients.type}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+function zoneMarkerIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:14px;height:14px;
+      background:${color};
+      border:3px solid white;
+      border-radius:50%;
+      box-shadow:0 2px 6px rgba(0,0,0,0.4);
+    "></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  })
 }
 
 // ── MapView ───────────────────────────────────────────────────────────────────
@@ -220,8 +140,6 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
   // Vista zonas
   const [deliveryZones, setDeliveryZones] = useState([])
   const [loadingZones, setLoadingZones] = useState(false)
-  const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM)
-  const [visibleZones, setVisibleZones] = useState([])
 
   // ── Cargar clientes ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -389,44 +307,33 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
         )}
 
         {/* ── Vista zonas de reparto ── */}
-        {mapView === 'zones' && (
-          <>
-            <ZoomTracker onZoomChange={setCurrentZoom} />
-            <ViewportFilter zones={deliveryZones} onZonesInView={setVisibleZones} />
-          </>
-        )}
-
-        {mapView === 'zones' && currentZoom >= ZOOM_SHOW_CIRCLES && visibleZones.map(zone => {
-          const color = colorMap[zone.client_id] ?? '#9CA3AF'
-          return (
-            <Circle
-              key={zone.id}
-              center={[zone.coordinates.lat, zone.coordinates.lng]}
-              radius={getZoneRadius(zone, deliveryZones)}
-              pathOptions={{
-                color,
-                fillColor: color,
-                opacity: 1,
-                ...getZoneStyle(currentZoom),
-              }}
-            >
-              <Popup>
-                <CityPopup zone={zone} deliveryZones={deliveryZones} colorMap={colorMap} />
-              </Popup>
-            </Circle>
-          )
-        })}
-
-        {mapView === 'zones' && currentZoom >= ZOOM_SHOW_CIRCLES && visibleZones.map(zone => {
+        {mapView === 'zones' && deliveryZones.map(zone => {
           const color = colorMap[zone.client_id] ?? '#9CA3AF'
           return (
             <Marker
-              key={`zm-${zone.id}`}
+              key={zone.id}
               position={[zone.coordinates.lat, zone.coordinates.lng]}
-              icon={makeZoneIcon(color)}
+              icon={zoneMarkerIcon(color)}
             >
               <Popup>
-                <CityPopup zone={zone} deliveryZones={deliveryZones} colorMap={colorMap} />
+                <div className="text-sm min-w-[160px]">
+                  <p className="font-semibold text-gray-800">{zone.city}</p>
+                  {zone.province && (
+                    <p className="text-xs text-gray-400">{zone.province}</p>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: color }}
+                    />
+                    <span className="text-xs font-medium text-gray-700">
+                      {zone.commercial_clients.name}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {zone.commercial_clients.type}
+                  </p>
+                </div>
               </Popup>
             </Marker>
           )
@@ -438,68 +345,32 @@ export function MapView({ filters, focusClient, mapView = 'clients' }) {
             <Marker
               key={`depot-${client.id}`}
               position={[client.coordinates.lat, client.coordinates.lng]}
-              icon={makeDepotIcon(colorMap[client.id] ?? '#9CA3AF')}
+              icon={depotIcon(colorMap[client.id] ?? '#9CA3AF')}
             >
               <Popup>
-                {currentZoom < ZOOM_SHOW_CIRCLES ? (
-                  <div className="text-sm min-w-[180px]">
-                    <p className="font-semibold text-gray-800">{client.name}</p>
-                    <p className="text-xs text-gray-500">{client.company}</p>
-                    <div className="mt-2 pt-2 border-t border-gray-100">
-                      <p className="text-xs font-medium text-gray-600 mb-1">
-                        🚚 Zonas de reparto ({zones.length}):
+                <div className="text-sm min-w-[160px]">
+                  <p className="font-semibold text-gray-800">{client.name}</p>
+                  <p className="text-gray-500 text-xs">{client.company}</p>
+                  <p className="text-xs text-blue-600 mt-1 font-medium">
+                    🚚 {zones.length} zona{zones.length > 1 ? 's' : ''} de reparto
+                  </p>
+                  <div className="mt-1 space-y-0.5">
+                    {zones.map(z => (
+                      <p key={z.id} className="text-xs text-gray-500">
+                        • {z.city}{z.province ? `, ${z.province}` : ''}
                       </p>
-                      <div className="space-y-0.5">
-                        {zones.map(z => (
-                          <p key={z.id} className="text-xs text-gray-500">
-                            • {z.city}{z.province ? `, ${z.province}` : ''}
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-xs text-amber-600 mt-2 italic">
-                      Hacé zoom para ver las zonas de cobertura
-                    </p>
+                    ))}
                   </div>
-                ) : (
-                  <div className="text-sm min-w-[160px]">
-                    <p className="font-semibold text-gray-800">{client.name}</p>
-                    <p className="text-gray-500 text-xs">{client.company}</p>
-                    <p className="text-xs text-blue-600 mt-1 font-medium">
-                      🚚 {zones.length} zona{zones.length > 1 ? 's' : ''} de reparto
-                    </p>
-                    <div className="mt-1 space-y-0.5">
-                      {zones.map(z => (
-                        <p key={z.id} className="text-xs text-gray-500">• {z.city}</p>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                </div>
               </Popup>
             </Marker>
           ))
         }
       </MapContainer>
 
-      {mapView === 'zones' && currentZoom < ZOOM_SHOW_CIRCLES && (
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[1000]
-                        bg-white/90 backdrop-blur-sm rounded-full px-4 py-1.5
-                        shadow-md border border-gray-100">
-          <p className="text-xs text-gray-500 flex items-center gap-1.5">
-            <ZoomIn size={12} />
-            Hacé zoom para ver las zonas de cobertura
-          </p>
-        </div>
-      )}
-
       {mapView === 'clients' && <Legend />}
       {mapView === 'zones' && (
-        <ZonesLegend
-          clientsWithDelivery={clientsWithDelivery}
-          colorMap={colorMap}
-          currentZoom={currentZoom}
-          allZones={deliveryZones}
-        />
+        <ZonesLegend clientsWithDelivery={clientsWithDelivery} colorMap={colorMap} />
       )}
     </div>
   )
