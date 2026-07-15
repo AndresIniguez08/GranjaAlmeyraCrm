@@ -34,8 +34,11 @@ export const userService = {
   resetPassword: (userId, newPassword) =>
     callFunction('reset_password', { userId, newPassword }),
 
-  changeOwnPassword: (newPassword) =>
-    callFunction('change_own_password', { newPassword }),
+  changeOwnPassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) throw error
+    return { success: true }
+  },
 
   deleteUser: (userId) =>
     callFunction('delete_user', { userId }),
